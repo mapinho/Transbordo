@@ -1,8 +1,9 @@
 import os
-from typing import Optional
+
 import streamlit as st
 from google import genai
 from google.genai import types
+
 import logistics_services
 
 # System Prompt para guiar o comportamento do assistente logístico
@@ -38,10 +39,10 @@ def list_scenarios() -> list[dict]:
 
 def get_daily_movements(
     scenario_id: int,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    origin_id: Optional[int] = None,
-    destination_id: Optional[int] = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    origin_id: int | None = None,
+    destination_id: int | None = None,
     limit: int = 150
 ) -> list[dict]:
     """
@@ -52,17 +53,17 @@ def get_daily_movements(
     st.toast(f"🚚 Buscando movimentações diárias do cenário ID {scenario_id}...", icon="🔍")
     return logistics_services.get_daily_movements(
         scenario_id=scenario_id,
-        start_date=start_date,
-        end_date=end_date,
-        origin_id=origin_id,
-        destination_id=destination_id,
+        start_date=start_date or "",
+        end_date=end_date or "",
+        origin_id=origin_id,  # type: ignore
+        destination_id=destination_id,  # type: ignore
         limit=limit
     )
 
 def get_monthly_summary(
     scenario_id: int,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    start_date: str | None = None,
+    end_date: str | None = None
 ) -> dict:
     """
     Retorna o resumo consolidado por mês (e detalhamento por rota) das movimentações do cenário.
@@ -72,8 +73,8 @@ def get_monthly_summary(
     st.toast(f"📅 Consolidando resumo mensal do cenário ID {scenario_id}...", icon="🔍")
     return logistics_services.get_monthly_summary(
         scenario_id=scenario_id,
-        start_date=start_date,
-        end_date=end_date
+        start_date=start_date or "",
+        end_date=end_date or ""
     )
 
 def get_factories_summary(scenario_id: int) -> list[dict]:
@@ -188,8 +189,8 @@ def init_chat_session() -> bool:
         )
         st.session_state.gemini_chat = chat
         return True
-    except Exception as e:
-        st.error(f"Erro ao inicializar o assistente de IA: {str(e)}")
+    except Exception as e:  # noqa: BLE001
+        st.error(f"Erro ao inicializar o assistente de IA: {e!s}")
         st.session_state.gemini_chat = None
         return False
 
@@ -198,16 +199,18 @@ def send_message_to_assistant(message: str) -> str:
     Envia uma mensagem para o chat do Gemini em execução automática de ferramentas.
     Retorna o texto da resposta final do assistente.
     """
-    if "gemini_chat" not in st.session_state or st.session_state.gemini_chat is None:
+    if "gemini_chat" not in st.session_state or st.session_state.gemini_chat is None:  # noqa: SIM102
         if not init_chat_session():
             return "Ocorreu um erro: o Assistente de IA não pôde ser inicializado. Verifique a configuração da GEMINI_API_KEY."
 
     try:
         chat = st.session_state.gemini_chat
+        if chat is None:
+            return "Ocorreu um erro: o Assistente de IA não pôde ser inicializado."
         response = chat.send_message(message)
         return response.text
-    except Exception as e:
-        return f"Ocorreu um erro durante a conversação com a inteligência artificial: {str(e)}"
+    except Exception as e:  # noqa: BLE001
+        return f"Ocorreu um erro durante a conversação com a inteligência artificial: {e!s}"
 
 def clear_chat_session():
     """Limpa o histórico de conversação local e reinicia o assistente."""

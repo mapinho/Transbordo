@@ -1,4 +1,4 @@
-# Sistema de Planejamento de Transbordo - Comigo
+# Sistema de Planejamento de Transbordo
 
 Este sistema otimiza a distribuição diária de soja entre armazéns e fábricas para minimizar o custo total de frete, respeitando limites de estoque e esmagamento.
 

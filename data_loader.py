@@ -1,10 +1,12 @@
-import pandas as pd
 import os
+
+import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from models import Base, Fabrica, Armazem, Rota, PrevisaoFabrica, PrevisaoArmazem
-from dotenv import load_dotenv
+
+from models import Armazem, Base, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota
 
 # Carrega .env apenas se o arquivo existir (ambiente local)
 if os.path.exists(".env"):
@@ -35,7 +37,7 @@ def get_engine():
                 if user and password and host and db:
                     config_from_secrets = True
                     source = "Streamlit Secrets (Campos)"
-    except Exception:
+    except (FileNotFoundError, KeyError):
         # Localmente sem secrets.toml, st.secrets falha. Ignoramos.
         import logging
         logging.getLogger(__name__).debug("st.secrets falhou; assumindo ambiente local.")

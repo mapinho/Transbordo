@@ -21,7 +21,7 @@ from app_logic import (
     sync_fabrica_from_row,
     sync_rota_from_row,
 )
-from calculations import obter_range_previsoes, simular_periodo
+from calculations import simular_periodo
 from data_loader import (
     clear_database,
     init_db,
@@ -51,6 +51,21 @@ from utils import (
     format_volume,
     get_model_column_config,
 )
+
+
+def obter_range_previsoes(session, cenario_id):
+    """Retorna o primeiro e o último mês com previsão no cenário."""
+    datas = []
+    for model in (PrevisaoFabrica, PrevisaoArmazem):
+        inicio, fim = session.query(
+            func.min(model.mes_referencia), func.max(model.mes_referencia)
+        ).filter(model.cenario_id == cenario_id).one()
+        if inicio is not None:
+            datas.append(inicio)
+        if fim is not None:
+            datas.append(fim)
+
+    return (min(datas), max(datas)) if datas else (None, None)
 
 st.set_page_config(page_title="Comigo - Transbordo de Soja", layout="wide")
 

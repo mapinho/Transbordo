@@ -1,7 +1,16 @@
 import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, DateTime, Boolean
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, declarative_base, relationship
 
 Base = declarative_base()

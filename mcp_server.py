@@ -19,10 +19,17 @@ def list_scenarios() -> list[dict]:
 @mcp.tool()
 def get_daily_movements(
     scenario_id: int,
+<<<<<<< HEAD
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     origin_id: Optional[int] = None,
     destination_id: Optional[int] = None,
+=======
+    start_date: str = None,
+    end_date: str = None,
+    origin_id: int = None,
+    destination_id: int = None,
+>>>>>>> cf8fb94d69b5369311e1c79627dc4325a1f55e1b
     limit: int = 150
 ) -> list[dict]:
     """
