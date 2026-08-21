@@ -1,12 +1,25 @@
+import datetime
 import json
 import logging
 import time
-from ortools.linear_solver import pywraplp
+
 import pandas as pd
-import datetime
-from models import Fabrica, Armazem, Rota, MovimentacaoDiaria, PrevisaoFabrica, PrevisaoArmazem, ResumoMensalFabrica, ResumoMensalArmazem, SafraUnidade, LogExecucao
-from sqlalchemy.orm import Session
+from ortools.linear_solver import pywraplp
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from models import (
+    Armazem,
+    Fabrica,
+    LogExecucao,
+    MovimentacaoDiaria,
+    PrevisaoArmazem,
+    PrevisaoFabrica,
+    ResumoMensalArmazem,
+    ResumoMensalFabrica,
+    Rota,
+    SafraUnidade,
+)
 
 # Atributos padrão presentes em todo `logging.LogRecord` (ver docs de
 # `logging`) -- usados por `JsonFormatter` para distinguir campos "extras"
@@ -194,7 +207,7 @@ def otimizar_dia(session: Session, data, estoques_atuais, estrategia='Econômico
         p_atendimento = 50000000
 
     objetivo = solver.Objective()
-    for f_id, var in v_atendimento.items():
+    for var in v_atendimento.values():
         objetivo.SetCoefficient(var, p_atendimento)
     
     for r in rotas:
@@ -202,9 +215,9 @@ def otimizar_dia(session: Session, data, estoques_atuais, estrategia='Econômico
         # Usa o cache pré-carregado quando disponível, evitando reconsultar
         # SafraUnidade a cada rota/dia.
         if safra_cache is not None:
-            na_safra, d_ini, d_fim = _janela_safra_de_registro(safra_cache.get(r.armazem_id), data)
+            na_safra, d_ini, d_fim = _janela_safra_de_registro(safra_cache.get(r.armazem_id), data)  # noqa: RUF059
         else:
-            na_safra, d_ini, d_fim = obter_janela_safra(session, 'Armazém', r.armazem_id, data, cenario_id)
+            na_safra, d_ini, _d_fim = obter_janela_safra(session, 'Armazém', r.armazem_id, data, cenario_id)
 
         # Bloqueio total ANTES da safra começar (armazéns vazios)
         if data < d_ini:
@@ -435,7 +448,7 @@ def simular_periodo(session: Session, data_inicio, data_fim_previsao, cenario_id
         # Garante atomicidade: se qualquer etapa falhar (deleção, recálculo
         # dia-a-dia ou inserção dos resumos), desfazemos toda a transação
         # para não deixar o cenário com dados apagados e não substituídos.
-        logger.error(
+        logger.error(  # noqa: G201
             "Falha na simulação",
             extra={'cenario_id': c_id},
             exc_info=True,
