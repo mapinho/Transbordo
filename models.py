@@ -107,6 +107,12 @@ class LogExecucao(Base):
     data_execucao: Mapped[Optional[datetime.datetime]] = Column(DateTime, default=datetime.datetime.now)
     status: Mapped[Optional[str]] = Column(String(50))
     mensagem: Mapped[Optional[str]] = Column(String(500))
+    # cenario_id fica nullable=True (diferente do padrão nas demais tabelas)
+    # porque o cenário oficial é representado por cenario_id IS NULL nesta
+    # base de código, e uma simulação rodada contra ele é um caso legítimo.
+    cenario_id: Mapped[Optional[int]] = Column(Integer, ForeignKey('cenarios.id', ondelete='CASCADE'), nullable=True)
+    duracao_segundos: Mapped[Optional[float]] = Column(Float, nullable=True)
+    dias_simulados: Mapped[Optional[int]] = Column(Integer, nullable=True)
 
 class ResumoMensalFabrica(Base):
     __tablename__ = 'resumo_mensal_fabrica'

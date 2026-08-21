@@ -81,6 +81,29 @@ def _get_cached_cenarios(_session):
     return [{"id": c.id, "nome": c.nome, "is_oficial": bool(getattr(c, "is_oficial", False))} for c in rows]
 
 
+@st.cache_data(ttl=30)
+def _get_cached_previsoes_range(_session, cenario_id):
+    """Fase 4 (Otimização - Cache) fix: the previsões date range only
+    changes when the user explicitly saves edits in the previsões editor
+    or uploads a new previsões Excel file for the cenário, yet it was being
+    recomputed from the DB (4 separate min/max scalar queries) on every
+    single Streamlit rerun. Cached for up to 30s as a pragmatic TTL
+    fallback; the cache is also explicitly `.clear()`-ed right after every
+    previsão-mutating action (previsões editor save, previsões upload) so
+    edits are reflected immediately instead of waiting for TTL expiry.
+
+    The `_session` parameter is intentionally prefixed with an underscore:
+    Streamlit's cache_data does not hash leading-underscore parameters, and
+    a live SQLAlchemy Session is neither hashable nor something we want to
+    key the cache on.
+
+    Returns the same `(data_inicio, data_fim)` tuple of plain
+    `datetime.date` values as `obter_range_previsoes` -- safe to cache
+    directly since neither is a live ORM object.
+    """
+    return obter_range_previsoes(_session, cenario_id=cenario_id)
+
+
 def main():
     try:
         st.sidebar.image("logo.svg", width='stretch')
@@ -425,6 +448,10 @@ def main():
                         # A7 fix: refresh both cached dfs immediately after commit.
                         st.session_state.df_pfabs_edit = build_editable_previsoes_fabrica_df(session, sel_cen_id)
                         st.session_state.df_parms_edit = build_editable_previsoes_armazem_df(session, sel_cen_id)
+                        # Fase 4 fix: invalidate the cached previsões date
+                        # range immediately so the Otimização tab reflects
+                        # the edit without waiting for the TTL to expire.
+                        _get_cached_previsoes_range.clear()
                         st.success("Salvo com sucesso!")
 
 
@@ -455,7 +482,7 @@ def main():
                     with col_o1:
                         st.write("### Otimização")
                         estrategia = st.selectbox("Estratégia", ["Econômico", "Expedição", "Segurança"], key="strat_cen")
-                        d_ini, d_fim = obter_range_previsoes(session, cenario_id=sel_cen_id)
+                        d_ini, d_fim = _get_cached_previsoes_range(session, sel_cen_id)
                         if d_ini and d_fim:
                             if st.button("Rodar Otimização", type="primary", disabled=st.session_state.get('running_sim', False)):
                                 st.session_state.running_sim = True
@@ -599,6 +626,10 @@ def main():
                     if f_prev and st.button("🚀 Processar Previsões", key="btn_prev"):
                         with st.spinner("Processando previsões..."):
                             res, skip = load_previsoes(f_prev, sel_cen_id, session=session)
+                            # Fase 4 fix: load_previsoes commits internally
+                            # (data_loader.py), so invalidate the cached
+                            # previsões date range right after it returns.
+                            _get_cached_previsoes_range.clear()
                             st.success(f"{res} previsões processadas. ({skip} ignoradas)")
 
 
@@ -608,6 +639,10 @@ def main():
                     # M1 fix: the wipe also deletes every Cenario row, so
                     # the cached scenario list must be invalidated too.
                     _get_cached_cenarios.clear()
+                    # Fase 4 fix: the wipe also deletes every previsão row,
+                    # so the cached previsões date range must be
+                    # invalidated too.
+                    _get_cached_previsoes_range.clear()
                     st.success(msg)
                 else: st.error(msg)
 

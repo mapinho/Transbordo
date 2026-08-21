@@ -1,13 +1,60 @@
+import json
 import logging
+import time
 from ortools.linear_solver import pywraplp
 import pandas as pd
 import datetime
-from models import Fabrica, Armazem, Rota, MovimentacaoDiaria, PrevisaoFabrica, PrevisaoArmazem, ResumoMensalFabrica, ResumoMensalArmazem, SafraUnidade
+from models import Fabrica, Armazem, Rota, MovimentacaoDiaria, PrevisaoFabrica, PrevisaoArmazem, ResumoMensalFabrica, ResumoMensalArmazem, SafraUnidade, LogExecucao
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-# Configuração de logging básico
-logging.basicConfig(level=logging.INFO)
+# Atributos padrão presentes em todo `logging.LogRecord` (ver docs de
+# `logging`) -- usados por `JsonFormatter` para distinguir campos "extras"
+# (passados via `extra={...}` em chamadas de log) dos campos internos do
+# próprio record, que já são tratados explicitamente no payload.
+_RESERVED_LOG_RECORD_ATTRS = frozenset({
+    'name', 'msg', 'args', 'levelname', 'levelno', 'pathname', 'filename',
+    'module', 'exc_info', 'exc_text', 'stack_info', 'lineno', 'funcName',
+    'created', 'msecs', 'relativeCreated', 'thread', 'threadName',
+    'processName', 'process', 'taskName', 'message',
+})
+
+
+class JsonFormatter(logging.Formatter):
+    """
+    Formatter de logging que emite um objeto JSON por linha (structured
+    logging), para tornar os logs de execução machine-parseable (ex.: um
+    futuro dashboard de operação lendo esses logs).
+
+    Além dos campos padrão (timestamp, level, logger, message), repassa
+    quaisquer campos extras passados via `extra={...}` na chamada de log
+    (ex.: cenario_id, duracao_segundos) como chaves adicionais no JSON.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            'timestamp': self.formatTime(record, self.datefmt),
+            'level': record.levelname,
+            'logger': record.name,
+            'message': record.getMessage(),
+        }
+
+        for key, value in record.__dict__.items():
+            if key not in _RESERVED_LOG_RECORD_ATTRS:
+                payload[key] = value
+
+        if record.exc_info:
+            payload['exc_info'] = self.formatException(record.exc_info)
+
+        return json.dumps(payload, default=str, ensure_ascii=False)
+
+
+# Configuração de logging estruturado (JSON, uma linha por evento) --
+# substitui o `logging.basicConfig(level=logging.INFO)` em texto simples
+# anterior, para permitir consumo automatizado dos logs de execução.
+_handler = logging.StreamHandler()
+_handler.setFormatter(JsonFormatter())
+logging.basicConfig(level=logging.INFO, handlers=[_handler])
 logger = logging.getLogger(__name__)
 
 def _janela_safra_de_registro(safra, data):
@@ -206,6 +253,9 @@ def otimizar_dia(session: Session, data, estoques_atuais, estrategia='Econômico
 
 def simular_periodo(session: Session, data_inicio, data_fim_previsao, cenario_id=None, estrategia='Econômico'):
     c_id = int(cenario_id) if cenario_id is not None else None
+    # time.monotonic(): medição de duração não deve usar relógio de parede
+    # (datetime.now()), que pode voltar/saltar (NTP, horário de verão etc.).
+    inicio_execucao = time.monotonic()
 
     try:
         # REQUISITO: Limpeza Absoluta via ORM para evitar rastro de dados (ghost data)
@@ -356,10 +406,40 @@ def simular_periodo(session: Session, data_inicio, data_fim_previsao, cenario_id
                 ))
 
         session.commit()
+
+        # Observabilidade (Fase 4): registra duração e escopo da execução
+        # bem-sucedida. Feito em um segundo commit, DEPOIS do commit
+        # principal acima, para não enfraquecer a garantia de atomicidade
+        # do C1 (deleção + recálculo + inserção dos resumos continuam
+        # atômicos entre si; este registro de log é estritamente posterior).
+        duracao_segundos = time.monotonic() - inicio_execucao
+        dias_simulados = dias_executados + 1  # dias_executados conta avanços após o 1º dia
+        session.add(LogExecucao(
+            cenario_id=c_id,
+            status='sucesso',
+            mensagem=f"Simulação concluída para cenario_id={c_id} em {dias_simulados} dia(s).",
+            duracao_segundos=duracao_segundos,
+            dias_simulados=dias_simulados,
+        ))
+        session.commit()
+
+        logger.info(
+            "Simulação concluída",
+            extra={
+                'cenario_id': c_id,
+                'duracao_segundos': duracao_segundos,
+                'dias_simulados': dias_simulados,
+            },
+        )
     except Exception:
         # Garante atomicidade: se qualquer etapa falhar (deleção, recálculo
         # dia-a-dia ou inserção dos resumos), desfazemos toda a transação
         # para não deixar o cenário com dados apagados e não substituídos.
+        logger.error(
+            "Falha na simulação",
+            extra={'cenario_id': c_id},
+            exc_info=True,
+        )
         session.rollback()
         raise
 

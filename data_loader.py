@@ -80,7 +80,7 @@ def get_engine():
         if not is_local:
             url += ("&" if "?" in url else "?") + "sslmode=require"
         
-    return create_engine(url, pool_pre_ping=True), source
+    return create_engine(url, pool_pre_ping=True, pool_size=10, max_overflow=20), source
 
 def init_db():
     try:
