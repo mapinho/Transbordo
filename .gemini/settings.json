@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "comigo-logistica": {
+      "command": "C:\\Users\\mario\\OneDrive\\Documents\\Projects\\Comigo\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Users\\mario\\OneDrive\\Documents\\Projects\\Comigo\\mcp_server.py"
+      ]
+    }
+  }
+}
