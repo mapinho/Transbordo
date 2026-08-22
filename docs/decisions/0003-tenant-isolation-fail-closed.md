@@ -29,3 +29,14 @@ requisição anônima, contexto de management command, bug de middleware).
 - Um bug que apague a cooperativa corrente do contexto (middleware não executado, contexto vazado entre
   requests) se manifesta como "página vazia" (visível, fácil de notar) em vez de "vazamento de dados de
   outra cooperativa" (silencioso, muito pior).
+- Uma `StreamingHttpResponse` cujo corpo é um queryset avaliado preguiçosamente pode ser consumida pelo
+  servidor WSGI depois que o middleware já resetou o contexto de tenant no seu bloco `finally` — qualquer
+  queryset escopada por tenant tocada dentro de um generator de streaming falha fechada (vazia), o que é
+  seguro, mas vai parecer um bug se uma feature de exportação em streaming for construída depois sem levar
+  isso em conta.
+- Como `objects` (o `TenantManager`) é declarado primeiro em `CooperativaScopedModel`, ele se torna o
+  `_default_manager` de cada subclasse — usado pelo changelist do Django admin, `dumpdata`,
+  querysets de `ModelForm`/`ModelChoiceField` e managers reversos de relacionamento. Um usuário Admin
+  Vector (`cooperativa=None`) vai ver uma lista vazia para todo model tenant-scoped em `/admin/`, e
+  `dumpdata` vai exportar silenciosamente zero linhas dessas tabelas, a menos que o código use
+  explicitamente `all_cooperativas` em vez de `objects`.

@@ -48,7 +48,10 @@ Migração para Django 6 + HTMX em andamento (ver
 Streamlit/SQLAlchemy existente, os dois stacks vivem no mesmo repositório:
 
 - `python manage.py check` — sanity check do projeto Django.
-- `pytest` — roda tanto os testes SQLAlchemy (`tests/`) quanto os testes Django (`apps/*/tests/`).
+- `pytest` — roda tanto os testes SQLAlchemy (`tests/`) quanto os testes Django (`apps/*/tests/`). Os
+  testes Django (`apps/*/tests/`) precisam de um PostgreSQL local alcançável via `DJANGO_DB_*` (crie o
+  banco/role antes de rodar `pytest` pela primeira vez — ver `docs/decisions/0002-...`); os testes
+  SQLAlchemy (`tests/`) continuam usando SQLite em memória, sem essa dependência.
 - O `.env` do stack Django usa variáveis `DJANGO_DB_*` (deliberadamente distintas de `DB_*`, que
   continuam servindo o stack Streamlit/SQLAlchemy) — ver `.env.example`.
 - ADRs desta fase em `docs/decisions/`, começando em `0001`.
@@ -82,6 +85,7 @@ On Streamlit Cloud, credentials are read from `st.secrets` instead of `.env`.
 - `utils.py` — `format_dataframe` (pt-BR display formatting), `get_model_column_config`, `build_df_from_model`, `append_totals_row`, `export_to_excel`.
 - `templates/` — pre-generated Excel templates for data upload.
 - `tests/` — pytest suite; `conftest.py` provides an in-memory SQLite `session` fixture plus minimal valid `cenario`/`fabrica`/`armazem`/`rota` fixtures.
+- `config/`, `apps/core|simulacao|integracoes/`, `manage.py` — novo projeto Django (Fase 5, em progresso); ver a seção Fase 5 acima.
 
 ## Key Business Rules
 
