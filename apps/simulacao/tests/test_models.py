@@ -1,9 +1,11 @@
+import datetime
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.core.models import Cooperativa
 from apps.core.tenancy import definir_cooperativa_atual, resetar_cooperativa_atual
-from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota
+from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota, MovimentacaoDiaria, PrevisaoArmazem, PrevisaoFabrica, SafraUnidade
 
 
 class CenarioTests(TestCase):
@@ -94,3 +96,111 @@ class TenantIsolationRealModelsTests(TestCase):
     def test_all_cooperativas_manager_sees_both(self):
         self.assertEqual(Fabrica.all_cooperativas.count(), 2)
         self.assertEqual(Cenario.all_cooperativas.count(), 2)
+
+
+class PrevisaoFabricaTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+        self.fabrica = Fabrica.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, nome='Fábrica Teste',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0,
+        )
+
+    def test_criacao_com_campos_validos(self):
+        previsao = PrevisaoFabrica(
+            cooperativa=self.cooperativa, fabrica=self.fabrica,
+            mes_referencia=datetime.date(2026, 1, 1),
+            recebimento_produtor=100, vendas=50,
+        )
+        previsao.full_clean()
+        previsao.save()
+
+        self.assertEqual(previsao.fabrica_id, self.fabrica.id)
+
+    def test_clean_rejeita_cooperativa_diferente_da_da_fabrica(self):
+        outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        previsao = PrevisaoFabrica(
+            cooperativa=outra_cooperativa, fabrica=self.fabrica,
+            mes_referencia=datetime.date(2026, 1, 1),
+        )
+
+        with self.assertRaises(ValidationError):
+            previsao.full_clean()
+
+
+class PrevisaoArmazemTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+        self.armazem = Armazem.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, nome='Armazém Teste',
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0,
+        )
+
+    def test_criacao_com_campos_validos(self):
+        previsao = PrevisaoArmazem(
+            cooperativa=self.cooperativa, armazem=self.armazem,
+            mes_referencia=datetime.date(2026, 1, 1),
+            recebimento_produtor=100, vendas=50,
+        )
+        previsao.full_clean()
+        previsao.save()
+
+        self.assertEqual(previsao.armazem_id, self.armazem.id)
+
+    def test_clean_rejeita_cooperativa_diferente_da_do_armazem(self):
+        outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        previsao = PrevisaoArmazem(
+            cooperativa=outra_cooperativa, armazem=self.armazem,
+            mes_referencia=datetime.date(2026, 1, 1),
+        )
+
+        with self.assertRaises(ValidationError):
+            previsao.full_clean()
+
+
+class SafraUnidadeTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+
+    def test_criacao_com_campos_validos(self):
+        safra = SafraUnidade(
+            cooperativa=self.cooperativa, cenario=self.cenario,
+            entidade_tipo='Armazém', entidade_id=1,
+            data_inicio=datetime.date(2026, 2, 1), data_fim=datetime.date(2026, 3, 1),
+        )
+        safra.full_clean()
+        safra.save()
+
+        self.assertEqual(safra.entidade_tipo, 'Armazém')
+
+
+class MovimentacaoDiariaTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+        self.armazem = Armazem.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, nome='Armazém Teste',
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0,
+        )
+        self.fabrica = Fabrica.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, nome='Fábrica Teste',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0,
+        )
+
+    def test_criacao_com_campos_validos(self):
+        mov = MovimentacaoDiaria(
+            cooperativa=self.cooperativa, cenario=self.cenario,
+            data=datetime.date(2026, 1, 1), armazem=self.armazem, fabrica=self.fabrica,
+            quantidade_ton=10.5, custo_total=210.0,
+        )
+        mov.full_clean()
+        mov.save()
+
+        self.assertEqual(mov.quantidade_ton, 10.5)
