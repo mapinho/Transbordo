@@ -51,10 +51,10 @@ def list_scenarios() -> list[dict]:
 
 def get_daily_movements(
     scenario_id: int,
-    start_date: str = None,
-    end_date: str = None,
-    origin_id: int = None,
-    destination_id: int = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    origin_id: int | None = None,
+    destination_id: int | None = None,
     limit: int = 150
 ) -> list[dict]:
     """
@@ -110,8 +110,8 @@ def get_daily_movements(
 
 def get_monthly_summary(
     scenario_id: int,
-    start_date: str = None,
-    end_date: str = None
+    start_date: str | None = None,
+    end_date: str | None = None
 ) -> dict:
     """
     Retorna o resumo consolidado por mes (e detalhamento por rota) das movimentacoes.

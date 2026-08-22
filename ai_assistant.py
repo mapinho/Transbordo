@@ -53,10 +53,10 @@ def get_daily_movements(
     st.toast(f"🚚 Buscando movimentações diárias do cenário ID {scenario_id}...", icon="🔍")
     return logistics_services.get_daily_movements(
         scenario_id=scenario_id,
-        start_date=start_date or "",
-        end_date=end_date or "",
-        origin_id=origin_id,  # type: ignore
-        destination_id=destination_id,  # type: ignore
+        start_date=start_date,
+        end_date=end_date,
+        origin_id=origin_id,
+        destination_id=destination_id,
         limit=limit
     )
 
@@ -73,8 +73,8 @@ def get_monthly_summary(
     st.toast(f"📅 Consolidando resumo mensal do cenário ID {scenario_id}...", icon="🔍")
     return logistics_services.get_monthly_summary(
         scenario_id=scenario_id,
-        start_date=start_date or "",
-        end_date=end_date or ""
+        start_date=start_date,
+        end_date=end_date
     )
 
 def get_factories_summary(scenario_id: int) -> list[dict]:

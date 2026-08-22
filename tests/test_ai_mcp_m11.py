@@ -1,7 +1,7 @@
 """
 M11: Optional-with-None-default parameters in ai_assistant.py / mcp_server.py
 tool-wrapper functions were annotated with bare types (e.g. `start_date: str
-= None`) instead of `Optional[str]`. This violates PEP 484 and can cause
+= None`) instead of a nullable annotation. This violates PEP 484 and can cause
 JSON-schema generation for Gemini function-calling / MCP tool discovery to
 misrepresent these parameters as required/non-nullable.
 
@@ -11,13 +11,18 @@ exception pattern used for the Mapped[] typing fix in models.py (A11/L4):
 
 1. A genuine red/green test via `inspect.signature()` -- this DOES
    distinguish before/after, since the annotation object itself changes from
-   the bare class (e.g. `str`) to `typing.Optional[str]`
-   (== `typing.Union[str, None]`).
+   the bare class (e.g. `str`) to a nullable union. Either spelling is
+   accepted -- `typing.Optional[str]` (`typing.Union[str, None]`, origin
+   `typing.Union`) or the PEP 604 `str | None` (origin `types.UnionType`,
+   Python 3.10+) -- they are semantically identical and this project's
+   linter (Ruff, UP007) defaults to preferring the `X | None` spelling, so
+   the check must not privilege one syntax over the other.
 2. A behavior-preservation test confirming the wrapper functions still work
    identically (both with the parameter omitted and with an explicit
    non-None value) after the annotation change.
 """
 import inspect
+import types
 import typing
 
 import pytest
@@ -30,11 +35,15 @@ import mcp_server
 # Helpers
 # ---------------------------------------------------------------------------
 
+_UNION_ORIGINS = (typing.Union, types.UnionType)
+
+
 def _is_optional(annotation) -> bool:
-    """True if `annotation` is `typing.Optional[X]` (i.e. `typing.Union[X,
-    None]`), as opposed to a bare type like `str` or `int`."""
+    """True if `annotation` is a nullable union (`typing.Optional[X]` /
+    `typing.Union[X, None]` / PEP 604 `X | None`), as opposed to a bare type
+    like `str` or `int`."""
     return (
-        typing.get_origin(annotation) is typing.Union
+        typing.get_origin(annotation) in _UNION_ORIGINS
         and type(None) in typing.get_args(annotation)
     )
 
