@@ -46,7 +46,9 @@ class CooperativaScopedModel(models.Model):
     Vector). Nunca usar `all_cooperativas` a partir de uma view comum.
     """
 
-    cooperativa = models.ForeignKey('core.Cooperativa', on_delete=models.PROTECT)
+    cooperativa = models.ForeignKey(
+        'core.Cooperativa', on_delete=models.PROTECT, related_name='%(app_label)s_%(class)ss'
+    )
 
     objects = TenantManager()
     all_cooperativas = models.Manager()

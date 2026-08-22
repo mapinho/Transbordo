@@ -6,7 +6,7 @@ from apps.core.models import Cooperativa, User
 
 @admin.register(Cooperativa)
 class CooperativaAdmin(admin.ModelAdmin):
-    list_display = ['nome', 'slug', 'ativo']
+    list_display = ('nome', 'slug', 'ativo')
     prepopulated_fields = {'slug': ['nome']}
 
 

@@ -31,7 +31,11 @@ class Cooperativa(models.Model):
 
 class User(AbstractUser):
     """Identidade de login. `cooperativa=None` só é válido para o papel Admin Vector
-    (cross-tenant); os demais papéis pertencem a exatamente uma cooperativa."""
+    (cross-tenant); os demais papéis pertencem a exatamente uma cooperativa.
+
+    Não herda `CooperativaScopedModel` de propósito: `cooperativa` aqui é nullable
+    (Admin Vector) e a autenticação precisa funcionar antes que qualquer escopo de
+    tenant esteja definido no contexto — teria uma dependência circular."""
 
     PAPEL_ADMIN_VECTOR = 'admin_vector'
     PAPEL_ADMIN_COOPERATIVA = 'admin_cooperativa'
@@ -52,6 +56,15 @@ class User(AbstractUser):
     class Meta:
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(papel='admin_vector', cooperativa__isnull=True)
+                    | (~models.Q(papel='admin_vector') & models.Q(cooperativa__isnull=False))
+                ),
+                name='user_papel_cooperativa_coerentes',
+            ),
+        ]
 
     def clean(self):
         super().clean()

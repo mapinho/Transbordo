@@ -8,9 +8,10 @@ class CooperativaScopeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        user = getattr(request, 'user', None)
         cooperativa_id = None
-        if request.user.is_authenticated:
-            cooperativa_id = request.user.cooperativa_id
+        if user is not None and user.is_authenticated:
+            cooperativa_id = user.cooperativa_id
         token = definir_cooperativa_atual(cooperativa_id)
         try:
             return self.get_response(request)

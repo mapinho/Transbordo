@@ -7,11 +7,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'change-me')
-ALLOWED_HOSTS = (
-    os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-    if os.getenv('DJANGO_ALLOWED_HOSTS')
-    else ['localhost', '127.0.0.1']
-)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if host.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -43,7 +43,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'templates_django'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

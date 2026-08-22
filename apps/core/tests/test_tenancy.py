@@ -10,11 +10,18 @@ from apps.core.tenancy import (
 )
 
 
-@isolate_apps('apps.core')
 class TenantManagerIsolationTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls._isolation = isolate_apps('apps.core')
+        isolated_apps = cls._isolation.enable()
+        cls.addClassCleanup(cls._isolation.disable)
+        # Item.cooperativa (herdado de CooperativaScopedModel) referencia
+        # 'core.Cooperativa' por string; o registry isolado criado por
+        # isolate_apps() não reimporta modelos já carregados no registry real,
+        # então é preciso registrar Cooperativa manualmente para a FK resolver.
+        isolated_apps.all_models['core']['cooperativa'] = Cooperativa
 
         class Item(CooperativaScopedModel):
             nome = models.CharField(max_length=100)
