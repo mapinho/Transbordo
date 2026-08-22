@@ -40,6 +40,19 @@ python -m py_compile app.py app_logic.py data_loader.py logistics_services.py \
   ai_assistant.py mcp_server.py models.py calculations.py scenarios.py utils.py
 ```
 
+## Fase 5 — Fundação Django (em progresso)
+
+Migração para Django 6 + HTMX em andamento (ver
+`docs/superpowers/specs/2026-08-22-fase5-arquitetura-saas-django.md` e
+`docs/superpowers/plans/2026-08-22-fase5-fundacao-django.md`). Durante a coexistência com o app
+Streamlit/SQLAlchemy existente, os dois stacks vivem no mesmo repositório:
+
+- `python manage.py check` — sanity check do projeto Django.
+- `pytest` — roda tanto os testes SQLAlchemy (`tests/`) quanto os testes Django (`apps/*/tests/`).
+- O `.env` do stack Django usa variáveis `DJANGO_DB_*` (deliberadamente distintas de `DB_*`, que
+  continuam servindo o stack Streamlit/SQLAlchemy) — ver `.env.example`.
+- ADRs desta fase em `docs/decisions/`, começando em `0001`.
+
 ## Environment
 
 A `.env` file at the project root is **required** — there is no hardcoded credential fallback (removed in the Fase 1 review; see `data_loader.py:get_engine()`):
