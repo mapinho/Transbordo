@@ -2,7 +2,9 @@ import datetime
 import json
 import logging
 
-from apps.simulacao.models import SafraUnidade
+from ortools.linear_solver import pywraplp
+
+from apps.simulacao.models import Armazem, Fabrica, Rota, SafraUnidade
 
 # Ver ADR 0006: engine.py e services.py consultam via `all_cooperativas`
 # (nunca `objects`, o TenantManager fail-closed) porque recebem o limite de
@@ -87,3 +89,111 @@ def _carregar_safras_por_armazem(cenario_id):
         entidade_tipo='Armazém',
     )
     return {r.entidade_id: r for r in rows}
+
+
+def otimizar_dia(data, estoques_atuais, estrategia='Econômico', cenario_id=None,
+                  fabricas=None, armazens=None, rotas=None, safra_cache=None):
+    """Otimiza a movimentação de soja para um dia específico. Porte 1:1 de
+    `calculations.otimizar_dia` -- lógica do solver inalterada, só a camada
+    de acesso a dados trocou de `session.query` para `Model.all_cooperativas`
+    (ver ADR 0006). Assinatura igual, menos o parâmetro `session`."""
+    solver = pywraplp.Solver.CreateSolver('SCIP')
+    if not solver:
+        solver = pywraplp.Solver.CreateSolver('GLOP')
+
+    if not solver:
+        logger.error("Nenhum solver (SCIP ou GLOP) disponível no OR-Tools.")
+        raise RuntimeError("Nenhum solver OR-Tools disponivel (SCIP ou GLOP).")
+
+    if fabricas is None:
+        fabricas = list(Fabrica.all_cooperativas.filter(cenario_id=cenario_id))
+    if armazens is None:
+        armazens = list(Armazem.all_cooperativas.filter(cenario_id=cenario_id))
+    if rotas is None:
+        rotas = list(Rota.all_cooperativas.filter(cenario_id=cenario_id))
+
+    if not rotas:
+        return []
+
+    v_mov = {}
+    for r in rotas:
+        v_mov[(r.armazem_id, r.fabrica_id)] = solver.NumVar(0, solver.infinity(), f'mov_{r.armazem_id}_{r.fabrica_id}')
+
+    for a in armazens:
+        movs_saindo = [v_mov[(a.id, f.id)] for f in fabricas if (a.id, f.id) in v_mov]
+        if movs_saindo:
+            solver.Add(solver.Sum(movs_saindo) <= a.capacidade_expedicao_diaria)
+            solver.Add(solver.Sum(movs_saindo) <= max(0, estoques_atuais.get(f'A_{a.id}', 0)))
+
+    for f in fabricas:
+        movs_entrando = [v_mov[(a.id, f.id)] for a in armazens if (a.id, f.id) in v_mov]
+        if not movs_entrando:
+            continue
+
+        recebimento_transbordo = solver.Sum(movs_entrando)
+        solver.Add(recebimento_transbordo <= f.capacidade_recebimento_diaria)
+        solver.Add(recebimento_transbordo <= f.limite_caminhoes * f.carga_media_caminhao)
+
+    v_atendimento = {}
+    for f in fabricas:
+        demanda = max(0, f.capacidade_esmagamento_diaria - max(0, estoques_atuais.get(f'F_{f.id}', 0)))
+        if demanda > 0:
+            v_atendimento[f.id] = solver.NumVar(0, demanda, f'atend_{f.id}')
+            movs_entrando = [v_mov[(a.id, f.id)] for a in armazens if (a.id, f.id) in v_mov]
+            if movs_entrando:
+                solver.Add(solver.Sum(movs_entrando) >= v_atendimento[f.id])
+
+    p_atendimento = 10000000
+    recompensa_base = 10000
+    if estrategia == 'Econômico':
+        recompensa_base = 100
+    elif estrategia == 'Expedição':
+        recompensa_base = 50000
+    elif estrategia == 'Segurança':
+        p_atendimento = 50000000
+
+    objetivo = solver.Objective()
+    for var in v_atendimento.values():
+        objetivo.SetCoefficient(var, p_atendimento)
+
+    for r in rotas:
+        if safra_cache is not None:
+            na_safra, d_ini, d_fim = _janela_safra_de_registro(safra_cache.get(r.armazem_id), data)
+        else:
+            na_safra, d_ini, _d_fim = obter_janela_safra('Armazém', r.armazem_id, data, cenario_id)
+
+        if data < d_ini:
+            solver.Add(v_mov[(r.armazem_id, r.fabrica_id)] == 0)
+            continue
+
+        custo_ton = r.custo_frete_ton if na_safra else r.custo_frete_entressafra
+        incentivo_movimentar = recompensa_base + (1000 if na_safra else 0)
+        objetivo.SetCoefficient(v_mov[(r.armazem_id, r.fabrica_id)], incentivo_movimentar - custo_ton)
+
+    objetivo.SetMaximization()
+    status = solver.Solve()
+
+    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
+        resultados = []
+        for r in rotas:
+            qtd = v_mov[(r.armazem_id, r.fabrica_id)].solution_value()
+            if qtd > 0.001:
+                if safra_cache is not None:
+                    na_safra_real, _, _ = _janela_safra_de_registro(safra_cache.get(r.armazem_id), data)
+                else:
+                    na_safra_real, _, _ = obter_janela_safra('Armazém', r.armazem_id, data, cenario_id)
+                custo_ton_real = r.custo_frete_ton if na_safra_real else r.custo_frete_entressafra
+
+                resultados.append({
+                    'armazem_id': r.armazem_id,
+                    'fabrica_id': r.fabrica_id,
+                    'quantidade_ton': qtd,
+                    'custo_total': qtd * custo_ton_real,
+                })
+        return resultados
+
+    logger.warning(
+        "Otimização do dia %s (cenario_id=%s) não encontrou solução ótima/viável (status=%s).",
+        data, cenario_id, status
+    )
+    return None
