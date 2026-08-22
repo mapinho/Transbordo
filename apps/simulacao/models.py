@@ -157,3 +157,65 @@ class MovimentacaoDiaria(CenarioScopedModel):
 
     def __str__(self):
         return f'{self.data} {self.armazem} → {self.fabrica}: {self.quantidade_ton}t'
+
+
+class LogExecucao(CooperativaScopedModel):
+    """`cenario` é nullable de propósito -- diferente de `CenarioScopedModel`
+    (não herda dele). NULL representa uma execução rodada contra o cenário
+    oficial. Ver ADR 0005."""
+
+    cenario = models.ForeignKey(Cenario, on_delete=models.CASCADE, null=True, blank=True)
+    data_execucao = models.DateTimeField(default=timezone.now)
+    status = models.CharField(max_length=50, blank=True, default='')
+    mensagem = models.CharField(max_length=500, blank=True, default='')
+    duracao_segundos = models.FloatField(null=True, blank=True)
+    dias_simulados = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Log de Execução'
+        verbose_name_plural = 'Logs de Execução'
+        ordering = ['-data_execucao']
+
+    def __str__(self):
+        return f'{self.data_execucao:%Y-%m-%d %H:%M} — {self.status}'
+
+    def clean(self):
+        super().clean()
+        if self.cenario_id is not None and self.cenario.cooperativa_id != self.cooperativa_id:
+            raise ValidationError('cooperativa não corresponde à cooperativa do cenario.')
+
+
+class ResumoMensalFabrica(CenarioScopedModel):
+    mes = models.CharField(max_length=7)  # 'YYYY-MM'
+    fabrica = models.ForeignKey(Fabrica, on_delete=models.CASCADE)
+    rec_produtor = models.FloatField(default=0)
+    rec_transbordo = models.FloatField(default=0)
+    esmagado = models.FloatField(default=0)
+    saldo_estoque = models.FloatField(default=0)
+    capacidade_estatica = models.FloatField(default=0)
+    excedente = models.FloatField(default=0)
+
+    class Meta:
+        verbose_name = 'Resumo Mensal de Fábrica'
+        verbose_name_plural = 'Resumos Mensais de Fábrica'
+
+    def __str__(self):
+        return f'{self.fabrica} — {self.mes}'
+
+
+class ResumoMensalArmazem(CenarioScopedModel):
+    mes = models.CharField(max_length=7)  # 'YYYY-MM'
+    armazem = models.ForeignKey(Armazem, on_delete=models.CASCADE)
+    rec_produtor = models.FloatField(default=0)
+    envio_transbordo = models.FloatField(default=0)
+    vendas = models.FloatField(default=0)
+    saldo_estoque = models.FloatField(default=0)
+    capacidade_estatica = models.FloatField(default=0)
+    excedente = models.FloatField(default=0)
+
+    class Meta:
+        verbose_name = 'Resumo Mensal de Armazém'
+        verbose_name_plural = 'Resumos Mensais de Armazém'
+
+    def __str__(self):
+        return f'{self.armazem} — {self.mes}'

@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from apps.core.models import Cooperativa
 from apps.core.tenancy import definir_cooperativa_atual, resetar_cooperativa_atual
-from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota, MovimentacaoDiaria, PrevisaoArmazem, PrevisaoFabrica, SafraUnidade
+from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota, MovimentacaoDiaria, PrevisaoArmazem, PrevisaoFabrica, SafraUnidade, LogExecucao, ResumoMensalArmazem, ResumoMensalFabrica
 
 
 class CenarioTests(TestCase):
@@ -204,3 +204,77 @@ class MovimentacaoDiariaTests(TestCase):
         mov.save()
 
         self.assertEqual(mov.quantidade_ton, 10.5)
+
+
+class LogExecucaoTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+
+    def test_criacao_com_cenario(self):
+        log = LogExecucao(
+            cooperativa=self.cooperativa, cenario=self.cenario,
+            status='sucesso', mensagem='ok', duracao_segundos=1.5, dias_simulados=7,
+        )
+        log.full_clean()
+        log.save()
+
+        self.assertEqual(log.cenario_id, self.cenario.id)
+
+    def test_criacao_sem_cenario_e_valida(self):
+        """cenario=None representa execução contra o cenário oficial (ver ADR 0005)."""
+        log = LogExecucao(
+            cooperativa=self.cooperativa, cenario=None,
+            status='sucesso', mensagem='ok', duracao_segundos=1.5, dias_simulados=7,
+        )
+        log.full_clean()
+        log.save()
+
+        self.assertIsNone(log.cenario_id)
+
+    def test_clean_rejeita_cooperativa_diferente_da_do_cenario_quando_presente(self):
+        outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        log = LogExecucao(cooperativa=outra_cooperativa, cenario=self.cenario, status='sucesso')
+
+        with self.assertRaises(ValidationError):
+            log.full_clean()
+
+
+class ResumoMensalFabricaTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+        self.fabrica = Fabrica.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, nome='Fábrica Teste',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0,
+        )
+
+    def test_criacao_com_campos_validos(self):
+        resumo = ResumoMensalFabrica(
+            cooperativa=self.cooperativa, cenario=self.cenario, mes='2026-01', fabrica=self.fabrica,
+        )
+        resumo.full_clean()
+        resumo.save()
+
+        self.assertEqual(resumo.rec_produtor, 0)
+
+
+class ResumoMensalArmazemTests(TestCase):
+    def setUp(self):
+        self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
+        self.armazem = Armazem.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, nome='Armazém Teste',
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0,
+        )
+
+    def test_criacao_com_campos_validos(self):
+        resumo = ResumoMensalArmazem(
+            cooperativa=self.cooperativa, cenario=self.cenario, mes='2026-01', armazem=self.armazem,
+        )
+        resumo.full_clean()
+        resumo.save()
+
+        self.assertEqual(resumo.rec_produtor, 0)

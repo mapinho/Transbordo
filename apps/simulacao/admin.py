@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota, MovimentacaoDiaria, PrevisaoArmazem, PrevisaoFabrica, SafraUnidade
+from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota, MovimentacaoDiaria, PrevisaoArmazem, PrevisaoFabrica, SafraUnidade, LogExecucao, ResumoMensalArmazem, ResumoMensalFabrica
 
 
 @admin.register(Cenario)
@@ -48,4 +48,22 @@ class SafraUnidadeAdmin(admin.ModelAdmin):
 @admin.register(MovimentacaoDiaria)
 class MovimentacaoDiariaAdmin(admin.ModelAdmin):
     list_display = ('data', 'armazem', 'fabrica', 'quantidade_ton', 'cooperativa')
+    list_filter = ('cooperativa', 'cenario')
+
+
+@admin.register(LogExecucao)
+class LogExecucaoAdmin(admin.ModelAdmin):
+    list_display = ('data_execucao', 'status', 'cenario', 'dias_simulados', 'cooperativa')
+    list_filter = ('cooperativa', 'status')
+
+
+@admin.register(ResumoMensalFabrica)
+class ResumoMensalFabricaAdmin(admin.ModelAdmin):
+    list_display = ('mes', 'fabrica', 'saldo_estoque', 'cooperativa')
+    list_filter = ('cooperativa', 'cenario')
+
+
+@admin.register(ResumoMensalArmazem)
+class ResumoMensalArmazemAdmin(admin.ModelAdmin):
+    list_display = ('mes', 'armazem', 'saldo_estoque', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
