@@ -7,3 +7,5 @@ transbordo_db/
 .pytest_cache/
 exportacao/
 .remember/
+.worktrees/
+.superpowers/
