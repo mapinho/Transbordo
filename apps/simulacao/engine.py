@@ -223,10 +223,11 @@ def simular_periodo(data_inicio, data_fim_previsao, cenario_id=None, estrategia=
     posterior ao principal")."""
     c_id = int(cenario_id) if cenario_id is not None else None
     inicio_execucao = time.monotonic()
-    cenario = Cenario.all_cooperativas.get(id=c_id)
-    cooperativa_id = cenario.cooperativa_id
 
     try:
+        cenario = Cenario.all_cooperativas.get(id=c_id)
+        cooperativa_id = cenario.cooperativa_id
+
         with transaction.atomic():
             MovimentacaoDiaria.all_cooperativas.filter(cenario_id=c_id).delete()
             ResumoMensalFabrica.all_cooperativas.filter(cenario_id=c_id).delete()
@@ -261,6 +262,7 @@ def simular_periodo(data_inicio, data_fim_previsao, cenario_id=None, estrategia=
 
             resumos_fab = {}
             resumos_arm = {}
+            movimentacoes_a_criar = []
             dias_executados = 0
             max_dias = 730
 
@@ -299,7 +301,7 @@ def simular_periodo(data_inicio, data_fim_previsao, cenario_id=None, estrategia=
 
                 if movimentacoes:
                     for mov in movimentacoes:
-                        MovimentacaoDiaria.all_cooperativas.create(
+                        movimentacoes_a_criar.append(MovimentacaoDiaria(
                             cooperativa_id=cooperativa_id,
                             cenario_id=c_id,
                             data=data_atual,
@@ -307,7 +309,7 @@ def simular_periodo(data_inicio, data_fim_previsao, cenario_id=None, estrategia=
                             fabrica_id=mov['fabrica_id'],
                             quantidade_ton=mov['quantidade_ton'],
                             custo_total=mov['custo_total'],
-                        )
+                        ))
                         estoques_atuais[f'A_{mov["armazem_id"]}'] -= mov['quantidade_ton']
                         estoques_atuais[f'F_{mov["fabrica_id"]}'] += mov['quantidade_ton']
                         resumos_arm[mes_str][mov['armazem_id']]['envio_transbordo'] += mov['quantidade_ton']
@@ -339,23 +341,34 @@ def simular_periodo(data_inicio, data_fim_previsao, cenario_id=None, estrategia=
                 data_atual += datetime.timedelta(days=1)
                 dias_executados += 1
 
-            for mes, fab_dict in resumos_fab.items():
-                for f_id, dados in fab_dict.items():
-                    ResumoMensalFabrica.all_cooperativas.create(
-                        cooperativa_id=cooperativa_id, cenario_id=c_id, mes=mes, fabrica_id=f_id,
-                        rec_produtor=dados['rec_produtor'], rec_transbordo=dados['rec_transbordo'],
-                        esmagado=dados['esmagado'], saldo_estoque=dados.get('saldo_estoque', 0),
-                        capacidade_estatica=dados['cap_estatica'], excedente=dados.get('excedente', 0),
-                    )
+            if movimentacoes_a_criar:
+                MovimentacaoDiaria.all_cooperativas.bulk_create(movimentacoes_a_criar)
 
-            for mes, arm_dict in resumos_arm.items():
-                for a_id, dados in arm_dict.items():
-                    ResumoMensalArmazem.all_cooperativas.create(
-                        cooperativa_id=cooperativa_id, cenario_id=c_id, mes=mes, armazem_id=a_id,
-                        rec_produtor=dados['rec_produtor'], envio_transbordo=dados['envio_transbordo'],
-                        vendas=dados['vendas'], saldo_estoque=dados.get('saldo_estoque', 0),
-                        capacidade_estatica=dados['cap_estatica'], excedente=dados.get('excedente', 0),
-                    )
+            resumos_fab_a_criar = [
+                ResumoMensalFabrica(
+                    cooperativa_id=cooperativa_id, cenario_id=c_id, mes=mes, fabrica_id=f_id,
+                    rec_produtor=dados['rec_produtor'], rec_transbordo=dados['rec_transbordo'],
+                    esmagado=dados['esmagado'], saldo_estoque=dados.get('saldo_estoque', 0),
+                    capacidade_estatica=dados['cap_estatica'], excedente=dados.get('excedente', 0),
+                )
+                for mes, fab_dict in resumos_fab.items()
+                for f_id, dados in fab_dict.items()
+            ]
+            if resumos_fab_a_criar:
+                ResumoMensalFabrica.all_cooperativas.bulk_create(resumos_fab_a_criar)
+
+            resumos_arm_a_criar = [
+                ResumoMensalArmazem(
+                    cooperativa_id=cooperativa_id, cenario_id=c_id, mes=mes, armazem_id=a_id,
+                    rec_produtor=dados['rec_produtor'], envio_transbordo=dados['envio_transbordo'],
+                    vendas=dados['vendas'], saldo_estoque=dados.get('saldo_estoque', 0),
+                    capacidade_estatica=dados['cap_estatica'], excedente=dados.get('excedente', 0),
+                )
+                for mes, arm_dict in resumos_arm.items()
+                for a_id, dados in arm_dict.items()
+            ]
+            if resumos_arm_a_criar:
+                ResumoMensalArmazem.all_cooperativas.bulk_create(resumos_arm_a_criar)
 
         duracao_segundos = time.monotonic() - inicio_execucao
         dias_simulados = dias_executados + 1

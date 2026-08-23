@@ -16,10 +16,11 @@ from apps.simulacao.models import (
     PrevisaoFabrica,
     ResumoMensalFabrica,
     Rota,
+    SafraUnidade,
 )
 
 
-def _montar_cenario_zerado(cooperativa, cenario):
+def _montar_cenario_zerado(cooperativa, cenario, estoque_armazem=0):
     fabrica = Fabrica.all_cooperativas.create(
         cooperativa=cooperativa, cenario=cenario, nome='Fábrica 1',
         capacidade_estatica=100000, capacidade_esmagamento_diaria=1000,
@@ -28,7 +29,8 @@ def _montar_cenario_zerado(cooperativa, cenario):
     )
     armazem = Armazem.all_cooperativas.create(
         cooperativa=cooperativa, cenario=cenario, nome='Armazém 1',
-        capacidade_estatica=50000, capacidade_expedicao_diaria=1000, estoque_inicial=0,
+        capacidade_estatica=50000, capacidade_expedicao_diaria=1000,
+        estoque_inicial=estoque_armazem,
     )
     rota = Rota.all_cooperativas.create(
         cooperativa=cooperativa, cenario=cenario, armazem=armazem, fabrica=fabrica,
@@ -104,13 +106,35 @@ class SimularPeriodoPerformanceTests(TestCase):
     def _run(self, dias, sufixo):
         cooperativa = Cooperativa.objects.create(nome=f'Coop {sufixo}', slug=f'coop-{sufixo}')
         cenario = Cenario.all_cooperativas.create(cooperativa=cooperativa, nome=f'C{sufixo}')
-        _montar_cenario_zerado(cooperativa, cenario)
+        # estoque_armazem folgado o bastante para nunca esvaziar dentro do
+        # período simulado (capacidade_expedicao_diaria/capacidade_esmagamento_diaria
+        # = 1000 ton/dia): garante que otimizar_dia produza uma MovimentacaoDiaria
+        # real em todos os `dias` dias, exercitando de fato o caminho de escrita
+        # em lote que este teste precisa proteger (bug/finding: bulk_create).
+        fabrica, armazem, rota = _montar_cenario_zerado(
+            cooperativa, cenario, estoque_armazem=dias * 2000
+        )
+        # Janela de safra cobrindo todo o período simulado -- sem isso, o
+        # padrão (15/jan a 15/abr) bloquearia movimentação nos primeiros dias
+        # de janeiro e o teste não provaria nada sobre o caminho de escrita.
+        SafraUnidade.all_cooperativas.create(
+            cooperativa=cooperativa, cenario=cenario, entidade_tipo='Armazém',
+            entidade_id=armazem.id,
+            data_inicio=datetime.date(2026, 1, 1), data_fim=datetime.date(2027, 1, 1),
+        )
 
         data_inicio = datetime.date(2026, 1, 1)
         data_fim = data_inicio + datetime.timedelta(days=dias - 1)
 
         with CaptureQueriesContext(connection) as ctx:
             engine.simular_periodo(data_inicio, data_fim, cenario_id=cenario.id)
+
+        movimentacoes_criadas = MovimentacaoDiaria.all_cooperativas.filter(cenario_id=cenario.id).count()
+        self.assertGreaterEqual(
+            movimentacoes_criadas, dias,
+            'nenhuma (ou poucas) MovimentacaoDiaria criada -- o teste de performance '
+            'não estaria exercitando o caminho de escrita.',
+        )
         return len(ctx.captured_queries)
 
     def test_contagem_de_queries_nao_escala_com_dias(self):
