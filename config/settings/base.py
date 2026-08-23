@@ -31,6 +31,10 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'core.User'
 
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/simulacao/cenarios/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
