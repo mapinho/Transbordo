@@ -6,8 +6,14 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.simulacao import services
-from apps.simulacao.columns import ARMAZEM_COLUMNS, FABRICA_COLUMNS, ROTA_COLUMNS
-from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota
+from apps.simulacao.columns import (
+    ARMAZEM_COLUMNS,
+    FABRICA_COLUMNS,
+    PREVISAO_ARMAZEM_COLUMNS,
+    PREVISAO_FABRICA_COLUMNS,
+    ROTA_COLUMNS,
+)
+from apps.simulacao.models import Armazem, Cenario, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota
 
 
 @login_required
@@ -155,3 +161,66 @@ def _salvar_rotas(cenario, linhas):
             rota.custo_frete_entressafra = float(linha['custo_frete_entressafra'])
             rota.full_clean()
             rota.save()
+
+
+@login_required
+def previsoes_grid(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+
+    if request.method == 'POST':
+        linhas_fabrica = json.loads(request.POST.get('linhas_fabrica_json', '[]'))
+        linhas_armazem = json.loads(request.POST.get('linhas_armazem_json', '[]'))
+        try:
+            _salvar_previsoes(cenario, linhas_fabrica, linhas_armazem)
+        except (ValueError, TypeError, PrevisaoFabrica.DoesNotExist, PrevisaoArmazem.DoesNotExist) as exc:
+            return HttpResponseBadRequest(f"Erro ao salvar previsões: {exc}")
+
+    previsoes_fab = list(
+        PrevisaoFabrica.objects.filter(fabrica__cenario_id=cenario.id).select_related('fabrica')
+    )
+    previsoes_arm = list(
+        PrevisaoArmazem.objects.filter(armazem__cenario_id=cenario.id).select_related('armazem')
+    )
+    rows_fabrica = [
+        {
+            "id": p.id, "fabrica": p.fabrica.nome, "mes_referencia": p.mes_referencia.strftime('%Y-%m'),
+            "recebimento_produtor": p.recebimento_produtor, "vendas": p.vendas,
+        }
+        for p in previsoes_fab
+    ]
+    rows_armazem = [
+        {
+            "id": p.id, "armazem": p.armazem.nome, "mes_referencia": p.mes_referencia.strftime('%Y-%m'),
+            "recebimento_produtor": p.recebimento_produtor, "vendas": p.vendas,
+        }
+        for p in previsoes_arm
+    ]
+    context = {
+        "cenario": cenario, "active": "previsoes",
+        "columns_fabrica": PREVISAO_FABRICA_COLUMNS, "rows_fabrica": rows_fabrica,
+        "columns_armazem": PREVISAO_ARMAZEM_COLUMNS, "rows_armazem": rows_armazem,
+    }
+    template = 'simulacao/_previsoes_content.html' if request.htmx else 'simulacao/previsoes.html'
+    return render(request, template, context)
+
+
+def _salvar_previsoes(cenario, linhas_fabrica, linhas_armazem):
+    with transaction.atomic():
+        for linha in linhas_fabrica:
+            previsao_id = linha.get('id')
+            if not previsao_id:
+                continue
+            previsao = PrevisaoFabrica.objects.get(id=previsao_id, fabrica__cenario_id=cenario.id)
+            previsao.recebimento_produtor = float(linha['recebimento_produtor'])
+            previsao.vendas = float(linha['vendas'])
+            previsao.full_clean()
+            previsao.save()
+        for linha in linhas_armazem:
+            previsao_id = linha.get('id')
+            if not previsao_id:
+                continue
+            previsao = PrevisaoArmazem.objects.get(id=previsao_id, armazem__cenario_id=cenario.id)
+            previsao.recebimento_produtor = float(linha['recebimento_produtor'])
+            previsao.vendas = float(linha['vendas'])
+            previsao.full_clean()
+            previsao.save()

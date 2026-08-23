@@ -30,3 +30,19 @@ ARMAZEM_COLUMNS = [
     {"field": "capacidade_expedicao_diaria", "label": "Expedição Diária (Ton)", "type": "number", "editable": True, "decimals": 1},
     {"field": "estoque_inicial", "label": "Estoque Inicial (Ton)", "type": "number", "editable": True, "decimals": 1},
 ]
+
+PREVISAO_FABRICA_COLUMNS = [
+    {"field": "id", "label": "ID", "type": "number", "editable": False, "visible": False},
+    {"field": "fabrica", "label": "Fábrica", "type": "text", "editable": False},
+    {"field": "mes_referencia", "label": "Mês", "type": "text", "editable": False},
+    {"field": "recebimento_produtor", "label": "Recebimento Produtor (Ton)", "type": "number", "editable": True, "decimals": 1},
+    {"field": "vendas", "label": "Vendas (Ton)", "type": "number", "editable": True, "decimals": 1},
+]
+
+PREVISAO_ARMAZEM_COLUMNS = [
+    {"field": "id", "label": "ID", "type": "number", "editable": False, "visible": False},
+    {"field": "armazem", "label": "Armazém", "type": "text", "editable": False},
+    {"field": "mes_referencia", "label": "Mês", "type": "text", "editable": False},
+    {"field": "recebimento_produtor", "label": "Recebimento Produtor (Ton)", "type": "number", "editable": True, "decimals": 1},
+    {"field": "vendas", "label": "Vendas (Ton)", "type": "number", "editable": True, "decimals": 1},
+]

@@ -52,7 +52,8 @@ function construirColunasTabulator(colunas) {
     });
 }
 
-function initGridEditor(tableElementId, colunasElementId, linhasElementId, formId) {
+function initGridEditor(tableElementId, colunasElementId, linhasElementId, formId, paramName) {
+    paramName = paramName || "linhas_json";
     const colunas = JSON.parse(document.getElementById(colunasElementId).textContent);
     const linhas = JSON.parse(document.getElementById(linhasElementId).textContent);
 
@@ -61,7 +62,7 @@ function initGridEditor(tableElementId, colunasElementId, linhasElementId, formI
     });
 
     document.getElementById(formId).addEventListener("htmx:configRequest", function (evt) {
-        evt.detail.parameters.linhas_json = JSON.stringify(table.getData());
+        evt.detail.parameters[paramName] = JSON.stringify(table.getData());
     });
 
     return table;

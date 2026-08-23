@@ -11,4 +11,8 @@
        hx-get="{% url 'simulacao:rotas_grid' cenario_id=cenario.id %}"
        hx-target="#cenario-content" hx-push-url="true"
        class="tab {% if active == 'rotas' %}tab-active{% endif %}">Rotas</a>
+    <a href="{% url 'simulacao:previsoes_grid' cenario_id=cenario.id %}"
+       hx-get="{% url 'simulacao:previsoes_grid' cenario_id=cenario.id %}"
+       hx-target="#cenario-content" hx-push-url="true"
+       class="tab {% if active == 'previsoes' %}tab-active{% endif %}">Previsões</a>
 </div>

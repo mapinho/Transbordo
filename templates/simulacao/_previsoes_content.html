@@ -1,0 +1,24 @@
+{% include "simulacao/_subnav.html" %}
+
+<form hx-post="{% url 'simulacao:previsoes_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" hx-swap="outerHTML" id="form-previsoes">
+    {% csrf_token %}
+
+    <h3 class="font-medium mb-2">Fábricas</h3>
+    <div id="tabulator-previsoes-fabrica" class="mb-6"></div>
+
+    <h3 class="font-medium mb-2">Armazéns</h3>
+    <div id="tabulator-previsoes-armazem" class="mb-6"></div>
+
+    <button type="submit" class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2">
+        Salvar Previsões
+    </button>
+</form>
+
+{{ columns_fabrica|json_script:"colunas-previsoes-fabrica" }}
+{{ rows_fabrica|json_script:"linhas-previsoes-fabrica" }}
+{{ columns_armazem|json_script:"colunas-previsoes-armazem" }}
+{{ rows_armazem|json_script:"linhas-previsoes-armazem" }}
+<script>
+    initGridEditor("tabulator-previsoes-fabrica", "colunas-previsoes-fabrica", "linhas-previsoes-fabrica", "form-previsoes", "linhas_fabrica_json");
+    initGridEditor("tabulator-previsoes-armazem", "colunas-previsoes-armazem", "linhas-previsoes-armazem", "form-previsoes", "linhas_armazem_json");
+</script>
