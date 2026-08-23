@@ -1,0 +1,51 @@
+{% load static %}
+{% load django_htmx %}
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="grao-e-aco">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Transbordo{% endblock %}</title>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    {% django_htmx_script %}
+    <script src="https://cdn.tailwindcss.com/4"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+    <style>
+        :root {
+            --cor-primaria: #2f6f3e;      /* verde — Grão & Aço */
+            --cor-primaria-hover: #24572f;
+            --cor-acento: #b8860b;        /* âmbar */
+            --cor-superficie: #ffffff;
+            --cor-borda: #e2e8f0;
+        }
+        [data-theme="grao-e-aco-escuro"] {
+            --cor-superficie: #1e293b;
+            --cor-borda: #334155;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <nav class="border-b border-[--cor-borda] bg-[--cor-superficie] px-6 py-3 flex items-center justify-between">
+        <span class="font-semibold text-[--cor-primaria]">Comigo — Transbordo</span>
+        {% if request.user.is_authenticated %}
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="text-sm text-slate-600 hover:underline">Sair ({{ request.user.username }})</button>
+        </form>
+        {% endif %}
+    </nav>
+    <main class="p-6">
+        {% if messages %}
+        <ul class="mb-4">
+            {% for message in messages %}
+            <li class="rounded border border-[--cor-borda] bg-white px-4 py-2 mb-2">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    <script src="{% static 'simulacao/js/modal.js' %}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

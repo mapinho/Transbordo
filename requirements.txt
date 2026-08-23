@@ -10,3 +10,7 @@ fastmcp==3.4.2
 mcp[cli]==1.28.0
 google-genai==2.10.0
 Django>=6.0,<6.1
+django-htmx>=1.19,<2.0
+django-cotton>=2.7,<3.0
+django-crispy-forms>=2.7,<3.0
+crispy-tailwind>=1.0,<2.0
