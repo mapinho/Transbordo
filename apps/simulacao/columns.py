@@ -46,3 +46,11 @@ PREVISAO_ARMAZEM_COLUMNS = [
     {"field": "recebimento_produtor", "label": "Recebimento Produtor (Ton)", "type": "number", "editable": True, "decimals": 1},
     {"field": "vendas", "label": "Vendas (Ton)", "type": "number", "editable": True, "decimals": 1},
 ]
+
+SAFRA_COLUMNS = [
+    {"field": "id", "label": "ID", "type": "number", "editable": False, "visible": False},
+    {"field": "tipo", "label": "Tipo", "type": "text", "editable": False},
+    {"field": "unidade", "label": "Unidade", "type": "text", "editable": False},
+    {"field": "data_inicio", "label": "Início", "type": "date", "editable": True},
+    {"field": "data_fim", "label": "Fim", "type": "date", "editable": True},
+]

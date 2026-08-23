@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from django.contrib.auth.decorators import login_required
@@ -12,8 +13,17 @@ from apps.simulacao.columns import (
     PREVISAO_ARMAZEM_COLUMNS,
     PREVISAO_FABRICA_COLUMNS,
     ROTA_COLUMNS,
+    SAFRA_COLUMNS,
 )
-from apps.simulacao.models import Armazem, Cenario, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota
+from apps.simulacao.models import (
+    Armazem,
+    Cenario,
+    Fabrica,
+    PrevisaoArmazem,
+    PrevisaoFabrica,
+    Rota,
+    SafraUnidade,
+)
 
 
 @login_required
@@ -224,3 +234,50 @@ def _salvar_previsoes(cenario, linhas_fabrica, linhas_armazem):
             previsao.vendas = float(linha['vendas'])
             previsao.full_clean()
             previsao.save()
+
+
+@login_required
+def safras_grid(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+
+    if request.method == 'POST':
+        linhas = json.loads(request.POST.get('linhas_json', '[]'))
+        try:
+            _salvar_safras(cenario, linhas)
+        except (ValueError, TypeError, SafraUnidade.DoesNotExist) as exc:
+            return HttpResponseBadRequest(f"Erro ao salvar datas de safra: {exc}")
+
+    safras = list(SafraUnidade.objects.filter(cenario_id=cenario.id))
+    armazem_ids = {s.entidade_id for s in safras if s.entidade_tipo == 'Armazém'}
+    fabrica_ids = {s.entidade_id for s in safras if s.entidade_tipo != 'Armazém'}
+    armazens_map = {a.id: a.nome for a in Armazem.objects.filter(id__in=armazem_ids)} if armazem_ids else {}
+    fabricas_map = {f.id: f.nome for f in Fabrica.objects.filter(id__in=fabrica_ids)} if fabrica_ids else {}
+
+    rows = []
+    for s in safras:
+        if s.entidade_tipo == 'Armazém':
+            unidade_nome = armazens_map.get(s.entidade_id, 'N/A')
+        else:
+            unidade_nome = fabricas_map.get(s.entidade_id, 'N/A')
+        rows.append({
+            "id": s.id, "tipo": s.entidade_tipo, "unidade": unidade_nome,
+            "data_inicio": s.data_inicio.strftime('%Y-%m-%d'),
+            "data_fim": s.data_fim.strftime('%Y-%m-%d'),
+        })
+
+    context = {"cenario": cenario, "active": "safras", "columns": SAFRA_COLUMNS, "rows": rows}
+    template = 'simulacao/_safras_content.html' if request.htmx else 'simulacao/safras.html'
+    return render(request, template, context)
+
+
+def _salvar_safras(cenario, linhas):
+    with transaction.atomic():
+        for linha in linhas:
+            safra_id = linha.get('id')
+            if not safra_id:
+                continue
+            safra = SafraUnidade.objects.get(id=safra_id, cenario_id=cenario.id)
+            safra.data_inicio = datetime.date.fromisoformat(linha['data_inicio'])
+            safra.data_fim = datetime.date.fromisoformat(linha['data_fim'])
+            safra.full_clean()
+            safra.save()

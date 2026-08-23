@@ -1,0 +1,15 @@
+{% include "simulacao/_subnav.html" %}
+
+<form hx-post="{% url 'simulacao:safras_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" hx-swap="outerHTML" id="form-safras">
+    {% csrf_token %}
+    <div id="tabulator-safras"></div>
+    <button type="submit" class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2 mt-4">
+        Salvar Datas
+    </button>
+</form>
+
+{{ columns|json_script:"colunas-safras" }}
+{{ rows|json_script:"linhas-safras" }}
+<script>
+    initGridEditor("tabulator-safras", "colunas-safras", "linhas-safras", "form-safras");
+</script>
