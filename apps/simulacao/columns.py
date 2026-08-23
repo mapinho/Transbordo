@@ -13,3 +13,11 @@ FABRICA_COLUMNS = [
     {"field": "carga_media_caminhao", "label": "Carga Média (Ton)", "type": "number", "editable": True, "decimals": 1},
     {"field": "estoque_inicial", "label": "Estoque Inicial (Ton)", "type": "number", "editable": True, "decimals": 1},
 ]
+
+ARMAZEM_COLUMNS = [
+    {"field": "id", "label": "ID", "type": "number", "editable": False, "visible": False},
+    {"field": "nome", "label": "Armazém", "type": "text", "editable": True},
+    {"field": "capacidade_estatica", "label": "Capacidade Estática (Ton)", "type": "number", "editable": True, "decimals": 1},
+    {"field": "capacidade_expedicao_diaria", "label": "Expedição Diária (Ton)", "type": "number", "editable": True, "decimals": 1},
+    {"field": "estoque_inicial", "label": "Estoque Inicial (Ton)", "type": "number", "editable": True, "decimals": 1},
+]

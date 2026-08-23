@@ -1,0 +1,15 @@
+{% include "simulacao/_subnav.html" %}
+
+<form hx-post="{% url 'simulacao:armazens_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" hx-swap="outerHTML" id="form-armazens">
+    {% csrf_token %}
+    <div id="tabulator-armazens"></div>
+    <button type="submit" class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2 mt-4">
+        Salvar Alterações Armazéns
+    </button>
+</form>
+
+{{ columns|json_script:"colunas-armazens" }}
+{{ rows|json_script:"linhas-armazens" }}
+<script>
+    initGridEditor("tabulator-armazens", "colunas-armazens", "linhas-armazens", "form-armazens");
+</script>

@@ -6,8 +6,8 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.simulacao import services
-from apps.simulacao.columns import FABRICA_COLUMNS
-from apps.simulacao.models import Cenario, Fabrica
+from apps.simulacao.columns import ARMAZEM_COLUMNS, FABRICA_COLUMNS
+from apps.simulacao.models import Armazem, Cenario, Fabrica
 
 
 @login_required
@@ -71,3 +71,47 @@ def _salvar_fabricas(cenario, linhas):
             fabrica.estoque_inicial = float(linha['estoque_inicial'])
             fabrica.full_clean()
             fabrica.save()
+
+
+@login_required
+def armazens_grid(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+
+    if request.method == 'POST':
+        linhas = json.loads(request.POST.get('linhas_json', '[]'))
+        try:
+            _salvar_armazens(cenario, linhas)
+        except (ValueError, TypeError, Armazem.DoesNotExist) as exc:
+            return HttpResponseBadRequest(f"Erro ao salvar armazéns: {exc}")
+
+    armazens = list(Armazem.objects.filter(cenario_id=cenario.id).order_by('nome'))
+    rows = [
+        {
+            "id": a.id, "nome": a.nome,
+            "capacidade_estatica": a.capacidade_estatica,
+            "capacidade_expedicao_diaria": a.capacidade_expedicao_diaria,
+            "estoque_inicial": a.estoque_inicial,
+        }
+        for a in armazens
+    ]
+    context = {"cenario": cenario, "active": "armazens", "columns": ARMAZEM_COLUMNS, "rows": rows}
+    template = 'simulacao/_armazens_content.html' if request.htmx else 'simulacao/armazens.html'
+    return render(request, template, context)
+
+
+def _salvar_armazens(cenario, linhas):
+    with transaction.atomic():
+        for linha in linhas:
+            armazem_id = linha.get('id')
+            if armazem_id:
+                armazem = Armazem.objects.get(id=armazem_id, cenario_id=cenario.id)
+            else:
+                if not linha.get('nome'):
+                    continue
+                armazem = Armazem(cooperativa_id=cenario.cooperativa_id, cenario_id=cenario.id)
+            armazem.nome = linha['nome']
+            armazem.capacidade_estatica = float(linha['capacidade_estatica'])
+            armazem.capacidade_expedicao_diaria = float(linha['capacidade_expedicao_diaria'])
+            armazem.estoque_inicial = float(linha.get('estoque_inicial') or 0)
+            armazem.full_clean()
+            armazem.save()

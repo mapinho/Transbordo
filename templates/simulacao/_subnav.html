@@ -3,4 +3,8 @@
        hx-get="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}"
        hx-target="#cenario-content" hx-push-url="true"
        class="tab {% if active == 'fabricas' %}tab-active{% endif %}">Fábricas</a>
+    <a href="{% url 'simulacao:armazens_grid' cenario_id=cenario.id %}"
+       hx-get="{% url 'simulacao:armazens_grid' cenario_id=cenario.id %}"
+       hx-target="#cenario-content" hx-push-url="true"
+       class="tab {% if active == 'armazens' %}tab-active{% endif %}">Armazéns</a>
 </div>
