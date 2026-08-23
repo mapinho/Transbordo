@@ -16,10 +16,24 @@ class ListScenariosTests(TestCase):
         Cenario.all_cooperativas.create(cooperativa=cooperativa, nome='Oficial', is_oficial=True)
         Cenario.all_cooperativas.create(cooperativa=cooperativa, nome='Alfa', is_oficial=False)
 
-        resultado = services.list_scenarios()
+        resultado = services.list_scenarios(cooperativa.id)
 
         self.assertEqual([r['nome'] for r in resultado], ['Oficial', 'Alfa', 'Zebra'])
         self.assertTrue(resultado[0]['is_oficial'])
+
+    def test_nao_vaza_cenarios_de_outra_cooperativa(self):
+        cooperativa_a = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        cooperativa_b = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        Cenario.all_cooperativas.create(cooperativa=cooperativa_a, nome='Cenário A1', is_oficial=True)
+        Cenario.all_cooperativas.create(cooperativa=cooperativa_a, nome='Cenário A2', is_oficial=False)
+        Cenario.all_cooperativas.create(cooperativa=cooperativa_b, nome='Cenário B1', is_oficial=True)
+
+        resultado = services.list_scenarios(cooperativa_a.id)
+
+        self.assertEqual(
+            sorted(r['nome'] for r in resultado), ['Cenário A1', 'Cenário A2']
+        )
+        self.assertNotIn('Cenário B1', [r['nome'] for r in resultado])
 
 
 class GetDailyMovementsTests(TestCase):
@@ -90,6 +104,36 @@ class GetDailyMovementsTests(TestCase):
         self.assertIn('not-a-date', msg)
         self.assertNotIn('does not match format', msg)
         self.assertIn('AAAA-MM-DD', msg)
+
+    def test_nao_vaza_movimentacoes_de_outra_cooperativa(self):
+        MovimentacaoDiaria.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario,
+            data=datetime.date(2026, 1, 1), armazem=self.armazem, fabrica=self.fabrica,
+            quantidade_ton=6.0, custo_total=120.0,
+        )
+
+        cooperativa_b = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        cenario_b = Cenario.all_cooperativas.create(cooperativa=cooperativa_b, nome='Cenário Coop B')
+        armazem_b = Armazem.all_cooperativas.create(
+            cooperativa=cooperativa_b, cenario=cenario_b, nome='Armazém Coop B',
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0,
+        )
+        fabrica_b = Fabrica.all_cooperativas.create(
+            cooperativa=cooperativa_b, cenario=cenario_b, nome='Fábrica Coop B',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0,
+        )
+        MovimentacaoDiaria.all_cooperativas.create(
+            cooperativa=cooperativa_b, cenario=cenario_b,
+            data=datetime.date(2026, 1, 1), armazem=armazem_b, fabrica=fabrica_b,
+            quantidade_ton=999.0, custo_total=9999.0,
+        )
+
+        resultado = services.get_daily_movements(scenario_id=self.cenario.id)
+
+        self.assertEqual(len(resultado), 1)
+        self.assertEqual(resultado[0]['origem'], 'Armazém Teste')
 
 
 class GetMonthlySummaryTests(TestCase):

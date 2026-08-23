@@ -30,7 +30,7 @@ class CenarioScopedModel(CooperativaScopedModel):
 
 
 class Cenario(CooperativaScopedModel):
-    nome = models.CharField(max_length=100, unique=True)
+    nome = models.CharField(max_length=100)
     data_criacao = models.DateTimeField(default=timezone.now)
     is_oficial = models.BooleanField(default=False)
 
@@ -38,6 +38,12 @@ class Cenario(CooperativaScopedModel):
         verbose_name = 'Cenário'
         verbose_name_plural = 'Cenários'
         ordering = ['nome']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cooperativa', 'nome'],
+                name='simulacao_cenario_unique_cooperativa_nome',
+            ),
+        ]
 
     def __str__(self):
         return self.nome

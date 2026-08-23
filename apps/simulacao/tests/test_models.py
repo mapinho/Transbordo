@@ -1,6 +1,7 @@
 import datetime
 
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from apps.core.models import Cooperativa
@@ -22,6 +23,23 @@ class CenarioTests(TestCase):
         cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')
 
         self.assertEqual(str(cenario), 'Cenário Teste')
+
+    def test_duas_cooperativas_podem_ter_cenario_com_mesmo_nome(self):
+        outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Baseline')
+
+        cenario_outra_coop = Cenario.all_cooperativas.create(
+            cooperativa=outra_cooperativa, nome='Baseline'
+        )
+
+        self.assertEqual(cenario_outra_coop.nome, 'Baseline')
+
+    def test_mesma_cooperativa_nao_pode_ter_dois_cenarios_com_mesmo_nome(self):
+        Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Baseline')
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Baseline')
 
 
 class FabricaTests(TestCase):

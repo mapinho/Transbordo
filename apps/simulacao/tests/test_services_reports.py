@@ -35,6 +35,32 @@ class GetFactoriesSummaryTests(ReportsFixtureMixin, TestCase):
         self.assertEqual(resultado[0]['fabrica'], 'Fábrica Teste')
         self.assertEqual(resultado[0]['recebimento_produtor_ton'], 100)
 
+    def test_nao_vaza_resumo_de_outra_cooperativa(self):
+        ResumoMensalFabrica.all_cooperativas.create(
+            cooperativa=self.cooperativa, cenario=self.cenario, mes='2026-01', fabrica=self.fabrica,
+            rec_produtor=100, rec_transbordo=50, esmagado=120, saldo_estoque=30,
+            capacidade_estatica=10000, excedente=0,
+        )
+
+        cooperativa_b = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        cenario_b = Cenario.all_cooperativas.create(cooperativa=cooperativa_b, nome='Cenário Coop B')
+        fabrica_b = Fabrica.all_cooperativas.create(
+            cooperativa=cooperativa_b, cenario=cenario_b, nome='Fábrica Coop B',
+            capacidade_estatica=10000, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0,
+        )
+        ResumoMensalFabrica.all_cooperativas.create(
+            cooperativa=cooperativa_b, cenario=cenario_b, mes='2026-01', fabrica=fabrica_b,
+            rec_produtor=999, rec_transbordo=999, esmagado=999, saldo_estoque=999,
+            capacidade_estatica=10000, excedente=0,
+        )
+
+        resultado = services.get_factories_summary(self.cenario.id)
+
+        self.assertEqual(len(resultado), 1)
+        self.assertEqual(resultado[0]['fabrica'], 'Fábrica Teste')
+
 
 class GetWarehousesSummaryTests(ReportsFixtureMixin, TestCase):
     def test_retorna_resumo_com_nome_do_armazem(self):

@@ -28,9 +28,14 @@ def _parse_date(value: str, field_name: str) -> datetime.date:
         )
 
 
-def list_scenarios() -> list[dict]:
-    """Porte 1:1 de `logistics_services.list_scenarios`."""
-    scenarios_list = Cenario.all_cooperativas.order_by('-is_oficial', 'nome')
+def list_scenarios(cooperativa_id: int) -> list[dict]:
+    """Porte de `logistics_services.list_scenarios`, com o limite de tenant
+    explícito via `cooperativa_id` (ver ADR 0006) -- o original SQLAlchemy
+    não tinha noção de multi-tenancy, então esse parâmetro não tem
+    equivalente 1:1 na assinatura de origem."""
+    scenarios_list = Cenario.all_cooperativas.filter(
+        cooperativa_id=cooperativa_id
+    ).order_by('-is_oficial', 'nome')
     return [
         {
             "id": c.id,
@@ -150,14 +155,17 @@ def get_monthly_summary(
 
 def get_factories_summary(scenario_id: int) -> list[dict]:
     """Porte 1:1 de `logistics_services.get_factories_summary`."""
-    resumos = ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id)
+    resumos = list(ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id))
+    fabrica_ids = {r.fabrica_id for r in resumos}
+    fabricas_map = {
+        f.id: f.nome for f in Fabrica.all_cooperativas.filter(id__in=fabrica_ids)
+    } if fabrica_ids else {}
     results = []
     for r in resumos:
-        fab = Fabrica.all_cooperativas.filter(id=r.fabrica_id).first()
         results.append({
             "mes": r.mes,
             "fabrica_id": r.fabrica_id,
-            "fabrica": fab.nome if fab else "N/A",
+            "fabrica": fabricas_map.get(r.fabrica_id, "N/A"),
             "recebimento_produtor_ton": r.rec_produtor,
             "recebimento_transbordo_ton": r.rec_transbordo,
             "esmagado_ton": r.esmagado,
@@ -170,14 +178,17 @@ def get_factories_summary(scenario_id: int) -> list[dict]:
 
 def get_warehouses_summary(scenario_id: int) -> list[dict]:
     """Porte 1:1 de `logistics_services.get_warehouses_summary`."""
-    resumos = ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id)
+    resumos = list(ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id))
+    armazem_ids = {r.armazem_id for r in resumos}
+    armazens_map = {
+        a.id: a.nome for a in Armazem.all_cooperativas.filter(id__in=armazem_ids)
+    } if armazem_ids else {}
     results = []
     for r in resumos:
-        arm = Armazem.all_cooperativas.filter(id=r.armazem_id).first()
         results.append({
             "mes": r.mes,
             "armazem_id": r.armazem_id,
-            "armazem": arm.nome if arm else "N/A",
+            "armazem": armazens_map.get(r.armazem_id, "N/A"),
             "recebimento_produtor_ton": r.rec_produtor,
             "envio_transbordo_ton": r.envio_transbordo,
             "vendas_ton": r.vendas,
@@ -272,27 +283,33 @@ def get_stock_excesses_report(scenario_id: int) -> list[dict]:
     """Porte 1:1 de `logistics_services.get_stock_excesses_report`."""
     alertas = []
 
-    res_fab = ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id, excedente__gt=0)
+    res_fab = list(ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id, excedente__gt=0))
+    fabrica_ids = {r.fabrica_id for r in res_fab}
+    fabricas_map = {
+        f.id: f.nome for f in Fabrica.all_cooperativas.filter(id__in=fabrica_ids)
+    } if fabrica_ids else {}
     for r in res_fab:
-        fab = Fabrica.all_cooperativas.filter(id=r.fabrica_id).first()
         alertas.append({
             "mes": r.mes,
             "entidade_tipo": "Fabrica",
             "entidade_id": r.fabrica_id,
-            "entidade_nome": fab.nome if fab else "N/A",
+            "entidade_nome": fabricas_map.get(r.fabrica_id, "N/A"),
             "estoque_final_ton": r.saldo_estoque,
             "capacidade_estatica_ton": r.capacidade_estatica,
             "excedente_estouro_ton": r.excedente,
         })
 
-    res_arm = ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id, excedente__gt=0)
+    res_arm = list(ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id, excedente__gt=0))
+    armazem_ids = {r.armazem_id for r in res_arm}
+    armazens_map = {
+        a.id: a.nome for a in Armazem.all_cooperativas.filter(id__in=armazem_ids)
+    } if armazem_ids else {}
     for r in res_arm:
-        arm = Armazem.all_cooperativas.filter(id=r.armazem_id).first()
         alertas.append({
             "mes": r.mes,
             "entidade_tipo": "Armazem",
             "entidade_id": r.armazem_id,
-            "entidade_nome": arm.nome if arm else "N/A",
+            "entidade_nome": armazens_map.get(r.armazem_id, "N/A"),
             "estoque_final_ton": r.saldo_estoque,
             "capacidade_estatica_ton": r.capacidade_estatica,
             "excedente_estouro_ton": r.excedente,
@@ -305,27 +322,33 @@ def get_stock_ruptures_report(scenario_id: int) -> list[dict]:
     """Porte 1:1 de `logistics_services.get_stock_ruptures_report`."""
     alertas = []
 
-    res_fab = ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id, saldo_estoque__lt=0)
+    res_fab = list(ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id, saldo_estoque__lt=0))
+    fabrica_ids = {r.fabrica_id for r in res_fab}
+    fabricas_map = {
+        f.id: f.nome for f in Fabrica.all_cooperativas.filter(id__in=fabrica_ids)
+    } if fabrica_ids else {}
     for r in res_fab:
-        fab = Fabrica.all_cooperativas.filter(id=r.fabrica_id).first()
         alertas.append({
             "mes": r.mes,
             "entidade_tipo": "Fabrica",
             "entidade_id": r.fabrica_id,
-            "entidade_nome": fab.nome if fab else "N/A",
+            "entidade_nome": fabricas_map.get(r.fabrica_id, "N/A"),
             "estoque_final_ton": r.saldo_estoque,
             "capacidade_estatica_ton": r.capacidade_estatica,
             "deficit_ton": abs(r.saldo_estoque),
         })
 
-    res_arm = ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id, saldo_estoque__lt=0)
+    res_arm = list(ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id, saldo_estoque__lt=0))
+    armazem_ids = {r.armazem_id for r in res_arm}
+    armazens_map = {
+        a.id: a.nome for a in Armazem.all_cooperativas.filter(id__in=armazem_ids)
+    } if armazem_ids else {}
     for r in res_arm:
-        arm = Armazem.all_cooperativas.filter(id=r.armazem_id).first()
         alertas.append({
             "mes": r.mes,
             "entidade_tipo": "Armazem",
             "entidade_id": r.armazem_id,
-            "entidade_nome": arm.nome if arm else "N/A",
+            "entidade_nome": armazens_map.get(r.armazem_id, "N/A"),
             "estoque_final_ton": r.saldo_estoque,
             "capacidade_estatica_ton": r.capacidade_estatica,
             "deficit_ton": abs(r.saldo_estoque),
