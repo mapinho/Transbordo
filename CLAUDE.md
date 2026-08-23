@@ -86,10 +86,11 @@ On Streamlit Cloud, credentials are read from `st.secrets` instead of `.env`.
 - `templates/` — pre-generated Excel templates for data upload.
 - `tests/` — pytest suite; `conftest.py` provides an in-memory SQLite `session` fixture plus minimal valid `cenario`/`fabrica`/`armazem`/`rota` fixtures.
 - `config/`, `apps/core|simulacao|integracoes/`, `manage.py` — novo projeto Django (Fase 5, em progresso); ver a seção Fase 5 acima.
+- `apps/simulacao/models.py` — Django port of `models.py`'s 11 tables, every one with `cooperativa_id` (Fase 5, Port do Domínio). `apps/simulacao/engine.py` — port of `calculations.py`. `apps/simulacao/services.py` — port of `logistics_services.py`. All three use `Model.all_cooperativas` internally, not `Model.objects` — see `docs/decisions/0006-...`.
 
 ## Key Business Rules
 
-- Cenário oficial = `cenario_id IS NULL` (baseline). Simulations are deep clones of it with a real `cenario_id`.
+- Cenário oficial = a `Cenario` row with `is_oficial=True` (a real row, like any other). Every descendant table's `cenario_id` is a real, non-null FK to a `Cenario.id`, including the official one. The single exception is `LogExecucao.cenario_id`, which is nullable specifically to mean "this execution ran against the official scenario" (see the field's own comment in `models.py`) — that convention does NOT apply to any other table.
 - Daily mass balance: `Estoque Final = Estoque Inicial + Recebimento − Vendas ± Transbordo` (fábricas also subtract `Esmagamento`).
 - Monthly forecast volumes are rateably split across the days of the month.
 - Optimization objective priority (see `calculations.py`): 1) avoid a fábrica running out of raw material (huge `Slack` coefficient) > 2) minimize total frete cost > 3) prefer draining armazéns currently "em safra".

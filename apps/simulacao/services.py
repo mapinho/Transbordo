@@ -2,7 +2,14 @@ import datetime
 
 import pandas as pd
 
-from apps.simulacao.models import Armazem, Cenario, Fabrica, MovimentacaoDiaria
+from apps.simulacao.models import (
+    Armazem,
+    Cenario,
+    Fabrica,
+    MovimentacaoDiaria,
+    ResumoMensalArmazem,
+    ResumoMensalFabrica,
+)
 
 # Ver ADR 0006: services.py consulta via `all_cooperativas`, não `objects`.
 
@@ -139,3 +146,189 @@ def get_monthly_summary(
         "resumo_mensal": df_mes.to_dict(orient="records"),
         "detalhe_rotas": df_rotas.to_dict(orient="records"),
     }
+
+
+def get_factories_summary(scenario_id: int) -> list[dict]:
+    """Porte 1:1 de `logistics_services.get_factories_summary`."""
+    resumos = ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id)
+    results = []
+    for r in resumos:
+        fab = Fabrica.all_cooperativas.filter(id=r.fabrica_id).first()
+        results.append({
+            "mes": r.mes,
+            "fabrica_id": r.fabrica_id,
+            "fabrica": fab.nome if fab else "N/A",
+            "recebimento_produtor_ton": r.rec_produtor,
+            "recebimento_transbordo_ton": r.rec_transbordo,
+            "esmagado_ton": r.esmagado,
+            "saldo_estoque_ton": r.saldo_estoque,
+            "capacidade_estatica_ton": r.capacidade_estatica,
+            "excedente_estoque_ton": r.excedente,
+        })
+    return sorted(results, key=lambda x: (x["mes"], x["fabrica"]))
+
+
+def get_warehouses_summary(scenario_id: int) -> list[dict]:
+    """Porte 1:1 de `logistics_services.get_warehouses_summary`."""
+    resumos = ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id)
+    results = []
+    for r in resumos:
+        arm = Armazem.all_cooperativas.filter(id=r.armazem_id).first()
+        results.append({
+            "mes": r.mes,
+            "armazem_id": r.armazem_id,
+            "armazem": arm.nome if arm else "N/A",
+            "recebimento_produtor_ton": r.rec_produtor,
+            "envio_transbordo_ton": r.envio_transbordo,
+            "vendas_ton": r.vendas,
+            "saldo_estoque_ton": r.saldo_estoque,
+            "capacidade_estatica_ton": r.capacidade_estatica,
+            "excedente_estoque_ton": r.excedente,
+        })
+    return sorted(results, key=lambda x: (x["mes"], x["armazem"]))
+
+
+def compare_factories(scenario_id: int) -> list[dict]:
+    """Porte 1:1 de `logistics_services.compare_factories`."""
+    resumos = list(ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id))
+    if not resumos:
+        return []
+
+    fabrica_ids = {r.fabrica_id for r in resumos}
+    fabricas_map = {
+        f.id: f.nome for f in Fabrica.all_cooperativas.filter(id__in=fabrica_ids)
+    }
+
+    df = pd.DataFrame([{
+        "fabrica_id": r.fabrica_id,
+        "fabrica": fabricas_map.get(r.fabrica_id, "N/A"),
+        "rec_produtor": r.rec_produtor,
+        "rec_transbordo": r.rec_transbordo,
+        "esmagado": r.esmagado,
+        "saldo_estoque": r.saldo_estoque,
+        "excedente": r.excedente,
+    } for r in resumos])
+
+    comp = df.groupby(["fabrica_id", "fabrica"]).agg({
+        "rec_produtor": "sum",
+        "rec_transbordo": "sum",
+        "esmagado": "sum",
+        "saldo_estoque": "max",
+        "excedente": "sum",
+    }).reset_index()
+
+    comp.rename(columns={
+        "rec_produtor": "recebimento_produtor_total_ton",
+        "rec_transbordo": "recebimento_transbordo_total_ton",
+        "esmagado": "esmagado_total_ton",
+        "saldo_estoque": "pico_estoque_mensal_ton",
+        "excedente": "excedente_total_acumulado_ton",
+    }, inplace=True)
+
+    return comp.to_dict(orient="records")
+
+
+def compare_warehouses(scenario_id: int) -> list[dict]:
+    """Porte 1:1 de `logistics_services.compare_warehouses`."""
+    resumos = list(ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id))
+    if not resumos:
+        return []
+
+    armazem_ids = {r.armazem_id for r in resumos}
+    armazens_map = {
+        a.id: a.nome for a in Armazem.all_cooperativas.filter(id__in=armazem_ids)
+    }
+
+    df = pd.DataFrame([{
+        "armazem_id": r.armazem_id,
+        "armazem": armazens_map.get(r.armazem_id, "N/A"),
+        "rec_produtor": r.rec_produtor,
+        "envio_transbordo": r.envio_transbordo,
+        "vendas": r.vendas,
+        "saldo_estoque": r.saldo_estoque,
+        "excedente": r.excedente,
+    } for r in resumos])
+
+    comp = df.groupby(["armazem_id", "armazem"]).agg({
+        "rec_produtor": "sum",
+        "envio_transbordo": "sum",
+        "vendas": "sum",
+        "saldo_estoque": "max",
+        "excedente": "sum",
+    }).reset_index()
+
+    comp.rename(columns={
+        "rec_produtor": "recebimento_produtor_total_ton",
+        "envio_transbordo": "envio_transbordo_total_ton",
+        "vendas": "vendas_total_ton",
+        "saldo_estoque": "pico_estoque_mensal_ton",
+        "excedente": "excedente_total_acumulado_ton",
+    }, inplace=True)
+
+    return comp.to_dict(orient="records")
+
+
+def get_stock_excesses_report(scenario_id: int) -> list[dict]:
+    """Porte 1:1 de `logistics_services.get_stock_excesses_report`."""
+    alertas = []
+
+    res_fab = ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id, excedente__gt=0)
+    for r in res_fab:
+        fab = Fabrica.all_cooperativas.filter(id=r.fabrica_id).first()
+        alertas.append({
+            "mes": r.mes,
+            "entidade_tipo": "Fabrica",
+            "entidade_id": r.fabrica_id,
+            "entidade_nome": fab.nome if fab else "N/A",
+            "estoque_final_ton": r.saldo_estoque,
+            "capacidade_estatica_ton": r.capacidade_estatica,
+            "excedente_estouro_ton": r.excedente,
+        })
+
+    res_arm = ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id, excedente__gt=0)
+    for r in res_arm:
+        arm = Armazem.all_cooperativas.filter(id=r.armazem_id).first()
+        alertas.append({
+            "mes": r.mes,
+            "entidade_tipo": "Armazem",
+            "entidade_id": r.armazem_id,
+            "entidade_nome": arm.nome if arm else "N/A",
+            "estoque_final_ton": r.saldo_estoque,
+            "capacidade_estatica_ton": r.capacidade_estatica,
+            "excedente_estouro_ton": r.excedente,
+        })
+
+    return sorted(alertas, key=lambda x: (x["mes"], x["entidade_tipo"], x["entidade_nome"]))
+
+
+def get_stock_ruptures_report(scenario_id: int) -> list[dict]:
+    """Porte 1:1 de `logistics_services.get_stock_ruptures_report`."""
+    alertas = []
+
+    res_fab = ResumoMensalFabrica.all_cooperativas.filter(cenario_id=scenario_id, saldo_estoque__lt=0)
+    for r in res_fab:
+        fab = Fabrica.all_cooperativas.filter(id=r.fabrica_id).first()
+        alertas.append({
+            "mes": r.mes,
+            "entidade_tipo": "Fabrica",
+            "entidade_id": r.fabrica_id,
+            "entidade_nome": fab.nome if fab else "N/A",
+            "estoque_final_ton": r.saldo_estoque,
+            "capacidade_estatica_ton": r.capacidade_estatica,
+            "deficit_ton": abs(r.saldo_estoque),
+        })
+
+    res_arm = ResumoMensalArmazem.all_cooperativas.filter(cenario_id=scenario_id, saldo_estoque__lt=0)
+    for r in res_arm:
+        arm = Armazem.all_cooperativas.filter(id=r.armazem_id).first()
+        alertas.append({
+            "mes": r.mes,
+            "entidade_tipo": "Armazem",
+            "entidade_id": r.armazem_id,
+            "entidade_nome": arm.nome if arm else "N/A",
+            "estoque_final_ton": r.saldo_estoque,
+            "capacidade_estatica_ton": r.capacidade_estatica,
+            "deficit_ton": abs(r.saldo_estoque),
+        })
+
+    return sorted(alertas, key=lambda x: (x["mes"], x["entidade_tipo"], x["entidade_nome"]))
