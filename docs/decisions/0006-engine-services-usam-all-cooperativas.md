@@ -15,6 +15,9 @@ o único limite de tenant sempre foi o `cenario_id` passado pelo chamador.
 - Toda query em `engine.py`/`services.py` usa `Model.all_cooperativas` (manager sem escopo, ADR 0001/
   0003), nunca `Model.objects` (o `TenantManager` fail-closed, que depende de
   `CooperativaScopeMiddleware` ter rodado numa requisição HTTP).
+- O invariante exato: toda função pública de `engine.py`/`services.py` recebe um parâmetro explícito
+  de limite de tenant -- `cenario_id`, `scenario_id`, ou, quando não há `cenario_id` para escopar (é o
+  caso de `list_scenarios`, que lista os próprios cenários), `cooperativa_id` diretamente.
 - Justificativa: estas funções precisam funcionar corretamente quando chamadas fora de uma requisição
   HTTP — um worker Procrastinate (Fase 5, próxima etapa do roteiro), um management command, ou os
   próprios testes automatizados deste módulo. Depender do contexto implícito de middleware aqui faria
