@@ -1,14 +1,19 @@
 import datetime
 
 import pandas as pd
+from django.db import transaction
 
 from apps.simulacao.models import (
     Armazem,
     Cenario,
     Fabrica,
     MovimentacaoDiaria,
+    PrevisaoArmazem,
+    PrevisaoFabrica,
     ResumoMensalArmazem,
     ResumoMensalFabrica,
+    Rota,
+    SafraUnidade,
 )
 
 # Ver ADR 0006: services.py consulta via `all_cooperativas`, não `objects`.
@@ -316,6 +321,87 @@ def get_stock_excesses_report(scenario_id: int) -> list[dict]:
         })
 
     return sorted(alertas, key=lambda x: (x["mes"], x["entidade_tipo"], x["entidade_nome"]))
+
+
+def clone_scenario(cooperativa_id: int, scenario_name: str, source_scenario_id: int) -> int:
+    """Porte 1:1 de `scenarios.clone_scenario` (SQLAlchemy). Diferente das
+    demais funções deste módulo, recebe um ID de origem potencialmente
+    vindo de fora (o cenário a clonar) -- valida explicitamente que
+    pertence a `cooperativa_id` antes de tocar em qualquer dado (ver ADR
+    0006 e spec 2026-08-23, §5)."""
+    try:
+        origem = Cenario.all_cooperativas.get(id=source_scenario_id, cooperativa_id=cooperativa_id)
+    except Cenario.DoesNotExist:
+        raise ValueError(
+            f"Cenário de origem {source_scenario_id} não encontrado para esta cooperativa."
+        )
+
+    with transaction.atomic():
+        novo = Cenario.all_cooperativas.create(
+            cooperativa_id=cooperativa_id, nome=scenario_name, is_oficial=False,
+        )
+
+        fabrica_map = {}
+        for f in Fabrica.all_cooperativas.filter(cenario_id=origem.id):
+            nova = Fabrica.all_cooperativas.create(
+                cooperativa_id=cooperativa_id, cenario_id=novo.id, nome=f.nome,
+                capacidade_estatica=f.capacidade_estatica,
+                capacidade_esmagamento_diaria=f.capacidade_esmagamento_diaria,
+                capacidade_recebimento_diaria=f.capacidade_recebimento_diaria,
+                limite_caminhoes=f.limite_caminhoes,
+                carga_media_caminhao=f.carga_media_caminhao,
+                estoque_inicial=f.estoque_inicial,
+            )
+            fabrica_map[f.id] = nova.id
+
+        armazem_map = {}
+        for a in Armazem.all_cooperativas.filter(cenario_id=origem.id):
+            nova = Armazem.all_cooperativas.create(
+                cooperativa_id=cooperativa_id, cenario_id=novo.id, nome=a.nome,
+                capacidade_estatica=a.capacidade_estatica,
+                capacidade_expedicao_diaria=a.capacidade_expedicao_diaria,
+                estoque_inicial=a.estoque_inicial,
+            )
+            armazem_map[a.id] = nova.id
+
+        for r in Rota.all_cooperativas.filter(cenario_id=origem.id):
+            if r.armazem_id in armazem_map and r.fabrica_id in fabrica_map:
+                Rota.all_cooperativas.create(
+                    cooperativa_id=cooperativa_id, cenario_id=novo.id,
+                    armazem_id=armazem_map[r.armazem_id], fabrica_id=fabrica_map[r.fabrica_id],
+                    distancia_km=r.distancia_km, custo_frete_ton=r.custo_frete_ton,
+                    custo_frete_entressafra=r.custo_frete_entressafra,
+                )
+
+        if fabrica_map:
+            for p in PrevisaoFabrica.all_cooperativas.filter(fabrica_id__in=fabrica_map.keys()):
+                PrevisaoFabrica.all_cooperativas.create(
+                    cooperativa_id=cooperativa_id, fabrica_id=fabrica_map[p.fabrica_id],
+                    mes_referencia=p.mes_referencia,
+                    recebimento_produtor=p.recebimento_produtor, vendas=p.vendas,
+                )
+
+        if armazem_map:
+            for p in PrevisaoArmazem.all_cooperativas.filter(armazem_id__in=armazem_map.keys()):
+                PrevisaoArmazem.all_cooperativas.create(
+                    cooperativa_id=cooperativa_id, armazem_id=armazem_map[p.armazem_id],
+                    mes_referencia=p.mes_referencia,
+                    recebimento_produtor=p.recebimento_produtor, vendas=p.vendas,
+                )
+
+        for s in SafraUnidade.all_cooperativas.filter(cenario_id=origem.id):
+            if s.entidade_tipo == 'Armazém':
+                novo_entidade_id = armazem_map.get(s.entidade_id)
+            else:
+                novo_entidade_id = fabrica_map.get(s.entidade_id)
+            if novo_entidade_id:
+                SafraUnidade.all_cooperativas.create(
+                    cooperativa_id=cooperativa_id, cenario_id=novo.id,
+                    entidade_tipo=s.entidade_tipo, entidade_id=novo_entidade_id,
+                    data_inicio=s.data_inicio, data_fim=s.data_fim,
+                )
+
+    return novo.id
 
 
 def get_stock_ruptures_report(scenario_id: int) -> list[dict]:
