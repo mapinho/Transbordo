@@ -6,8 +6,8 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.simulacao import services
-from apps.simulacao.columns import ARMAZEM_COLUMNS, FABRICA_COLUMNS
-from apps.simulacao.models import Armazem, Cenario, Fabrica
+from apps.simulacao.columns import ARMAZEM_COLUMNS, FABRICA_COLUMNS, ROTA_COLUMNS
+from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota
 
 
 @login_required
@@ -115,3 +115,43 @@ def _salvar_armazens(cenario, linhas):
             armazem.estoque_inicial = float(linha.get('estoque_inicial') or 0)
             armazem.full_clean()
             armazem.save()
+
+
+@login_required
+def rotas_grid(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+
+    if request.method == 'POST':
+        linhas = json.loads(request.POST.get('linhas_json', '[]'))
+        try:
+            _salvar_rotas(cenario, linhas)
+        except (ValueError, TypeError, Rota.DoesNotExist) as exc:
+            return HttpResponseBadRequest(f"Erro ao salvar rotas: {exc}")
+
+    rotas = list(Rota.objects.filter(cenario_id=cenario.id).select_related('armazem', 'fabrica'))
+    rows = [
+        {
+            "id": r.id, "origem": r.armazem.nome, "destino": r.fabrica.nome,
+            "distancia_km": r.distancia_km,
+            "custo_frete_ton": r.custo_frete_ton,
+            "custo_frete_entressafra": r.custo_frete_entressafra,
+        }
+        for r in rotas
+    ]
+    context = {"cenario": cenario, "active": "rotas", "columns": ROTA_COLUMNS, "rows": rows}
+    template = 'simulacao/_rotas_content.html' if request.htmx else 'simulacao/rotas.html'
+    return render(request, template, context)
+
+
+def _salvar_rotas(cenario, linhas):
+    with transaction.atomic():
+        for linha in linhas:
+            rota_id = linha.get('id')
+            if not rota_id:
+                continue
+            rota = Rota.objects.get(id=rota_id, cenario_id=cenario.id)
+            rota.distancia_km = float(linha['distancia_km'])
+            rota.custo_frete_ton = float(linha['custo_frete_ton'])
+            rota.custo_frete_entressafra = float(linha['custo_frete_entressafra'])
+            rota.full_clean()
+            rota.save()

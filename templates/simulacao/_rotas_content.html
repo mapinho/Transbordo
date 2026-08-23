@@ -1,0 +1,15 @@
+{% include "simulacao/_subnav.html" %}
+
+<form hx-post="{% url 'simulacao:rotas_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" hx-swap="outerHTML" id="form-rotas">
+    {% csrf_token %}
+    <div id="tabulator-rotas"></div>
+    <button type="submit" class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2 mt-4">
+        Salvar Alterações Rotas
+    </button>
+</form>
+
+{{ columns|json_script:"colunas-rotas" }}
+{{ rows|json_script:"linhas-rotas" }}
+<script>
+    initGridEditor("tabulator-rotas", "colunas-rotas", "linhas-rotas", "form-rotas");
+</script>

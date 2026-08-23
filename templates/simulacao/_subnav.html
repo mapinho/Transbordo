@@ -7,4 +7,8 @@
        hx-get="{% url 'simulacao:armazens_grid' cenario_id=cenario.id %}"
        hx-target="#cenario-content" hx-push-url="true"
        class="tab {% if active == 'armazens' %}tab-active{% endif %}">Armazéns</a>
+    <a href="{% url 'simulacao:rotas_grid' cenario_id=cenario.id %}"
+       hx-get="{% url 'simulacao:rotas_grid' cenario_id=cenario.id %}"
+       hx-target="#cenario-content" hx-push-url="true"
+       class="tab {% if active == 'rotas' %}tab-active{% endif %}">Rotas</a>
 </div>
