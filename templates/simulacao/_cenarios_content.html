@@ -27,7 +27,7 @@
     <ul class="divide-y divide-[--cor-borda]">
         {% for cenario in cenarios %}
         <li class="py-2">
-            <a href="{% url 'simulacao:cenarios_list' %}{{ cenario.id }}/fabricas/" class="text-[--cor-primaria] hover:underline">
+            <a href="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}" class="text-[--cor-primaria] hover:underline">
                 {{ cenario.nome }}{% if cenario.is_oficial %} (Oficial){% endif %}
             </a>
         </li>

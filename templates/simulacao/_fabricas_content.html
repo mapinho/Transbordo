@@ -1,0 +1,15 @@
+{% include "simulacao/_subnav.html" %}
+
+<form hx-post="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" hx-swap="outerHTML" id="form-fabricas">
+    {% csrf_token %}
+    <div id="tabulator-fabricas"></div>
+    <button type="submit" class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2 mt-4">
+        Salvar Alterações Fábricas
+    </button>
+</form>
+
+{{ columns|json_script:"colunas-fabricas" }}
+{{ rows|json_script:"linhas-fabricas" }}
+<script>
+    initGridEditor("tabulator-fabricas", "colunas-fabricas", "linhas-fabricas", "form-fabricas");
+</script>
