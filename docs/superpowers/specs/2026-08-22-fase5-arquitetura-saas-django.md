@@ -132,11 +132,12 @@ specs/           # spec por módulo de negócio
 1. **Fundação** — projeto Django 6 no diretório local (já apontando para `origin`/Transbordo), apps `core`/`simulacao`/`integracoes`, settings `base/dev/prod`, CI (GitHub Actions) desde o commit zero, models `Cooperativa`+`User`+`TenantManager`.
 2. **Port do domínio** — `engine.py`, `services.py`, os 9 models com `cooperativa_id`, testes de isolamento de tenant.
 3. **UI** — views HTMX+Tailwind+daisyUI+cotton para cenários/fábricas/armazéns/rotas/previsões, Tabulator+IMask.js nas telas de edição em massa.
-4. **Procrastinate** — task assíncrona de simulação + polling HTMX de progresso.
-5. **Face JSON** — Django Ninja para MCP server e Assistente de IA.
-6. **Auth** — allauth (Google + Microsoft + local), papéis, sem auto-cadastro.
-7. **Deploy** — Dockerfile/compose adaptado, Apache re-roteado, `/healthz/`.
-8. **Cutover** — segunda cooperativa piloto valida isolamento e desempenho sob carga concorrente, Streamlit desligado. `Comigo.git` permanece congelado.
+4. **Carga de Dados** — importação de planilha .xlsx (upload, pré-visualização, confirmação) — a otimização não tem o que otimizar sem dados carregados.
+5. **Procrastinate** — task assíncrona de simulação + polling HTMX de progresso.
+6. **Face JSON** — Django Ninja para MCP server e Assistente de IA.
+7. **Auth** — allauth (Google + Microsoft + local), papéis, sem auto-cadastro.
+8. **Deploy** — Dockerfile/compose adaptado, Apache re-roteado, `/healthz/`.
+9. **Cutover** — segunda cooperativa piloto valida isolamento e desempenho sob carga concorrente, Streamlit desligado. `Comigo.git` permanece congelado.
 
 ## Decisões em aberto / riscos
 
