@@ -130,3 +130,22 @@ class CargaTests(TestCase):
 
         for nome in ABAS_NA_ORDEM:
             self.assertContains(resposta, nome)
+
+    def test_confirmar_nome_de_cenario_duplicado_nao_derruba_com_500(self):
+        self.client.post(
+            reverse('simulacao:carga'),
+            {'nome_novo': 'Oficial 2026', 'arquivo': upload()}, follow=True,
+        )
+        token1 = self.client.session['carga']['token']
+        self.client.post(reverse('simulacao:carga_preview', args=[token1]), follow=True)
+
+        self.client.post(
+            reverse('simulacao:carga'),
+            {'nome_novo': 'Oficial 2026', 'arquivo': upload()}, follow=True,
+        )
+        token2 = self.client.session['carga']['token']
+
+        resposta = self.client.post(reverse('simulacao:carga_preview', args=[token2]))
+
+        self.assertEqual(resposta.status_code, 400)
+        self.assertContains(resposta, 'Oficial 2026', status_code=400)

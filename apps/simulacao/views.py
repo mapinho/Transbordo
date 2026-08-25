@@ -359,10 +359,13 @@ def carga_preview(request, token):
 
     if request.method == 'POST':
         with default_storage.open(caminho, 'rb') as arquivo:
-            _relatorio, gravado = aplicar(
-                arquivo, cenario=cenario,
-                cooperativa=request.user.cooperativa, nome_novo=guardado['nome_novo'],
-            )
+            try:
+                _relatorio, gravado = aplicar(
+                    arquivo, cenario=cenario,
+                    cooperativa=request.user.cooperativa, nome_novo=guardado['nome_novo'],
+                )
+            except ValueError as erro:
+                return HttpResponseBadRequest(str(erro))
         default_storage.delete(caminho)
         del request.session['carga']
         if gravado is None:
