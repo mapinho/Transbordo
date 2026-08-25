@@ -1,5 +1,7 @@
+import tempfile
+
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.core.models import Cooperativa, User
@@ -18,6 +20,23 @@ def upload(nome='dados.xlsx', **abas):
 
 
 class CargaTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Uploads de carga vao para MEDIA_ROOT/carga/<token>.xlsx; sem isolar
+        # aqui, uma pre-visualizacao que nao e confirmada (varios testes deste
+        # arquivo fazem isso de proposito) deixa .xlsx real em media/carga/ a
+        # cada execucao da suite.
+        cls._media_root = tempfile.TemporaryDirectory()
+        cls._media_root_override = override_settings(MEDIA_ROOT=cls._media_root.name)
+        cls._media_root_override.enable()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._media_root_override.disable()
+        cls._media_root.cleanup()
+        super().tearDownClass()
+
     def setUp(self):
         self.coop = Cooperativa.objects.create(nome='Comigo', slug='comigo')
         self.user = User.objects.create_user(
