@@ -168,3 +168,14 @@ class CargaTests(TestCase):
 
         self.assertEqual(resposta.status_code, 400)
         self.assertContains(resposta, 'Oficial 2026', status_code=400)
+
+    def test_upload_com_nome_de_cenario_muito_longo_e_rejeitado_na_hora(self):
+        nome_longo = 'X' * 101
+
+        resposta = self.client.post(
+            reverse('simulacao:carga'),
+            {'nome_novo': nome_longo, 'arquivo': upload()},
+        )
+
+        self.assertEqual(resposta.status_code, 400)
+        self.assertFalse(self.client.session.get('carga'))

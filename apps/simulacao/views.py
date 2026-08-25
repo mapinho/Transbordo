@@ -3,6 +3,7 @@ import json
 import secrets
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponseBadRequest
@@ -312,6 +313,7 @@ def carga_upload(request):
 
         cenario_id = request.POST.get('cenario_id')
         nome_novo = (request.POST.get('nome_novo') or '').strip()
+        max_nome = Cenario._meta.get_field('nome').max_length
         if cenario_id:
             # Filtrar pela cooperativa: um cenário alheio não é distinguível
             # de um inexistente.
@@ -321,6 +323,10 @@ def carga_upload(request):
         elif not nome_novo:
             return HttpResponseBadRequest(
                 'Informe um cenário existente ou o nome de um novo.'
+            )
+        elif len(nome_novo) > max_nome:
+            return HttpResponseBadRequest(
+                f'O nome do cenário não pode ter mais de {max_nome} caracteres.'
             )
 
         anterior = request.session.get('carga')
@@ -364,8 +370,9 @@ def carga_preview(request, token):
                     arquivo, cenario=cenario,
                     cooperativa=request.user.cooperativa, nome_novo=guardado['nome_novo'],
                 )
-            except ValueError as erro:
-                return HttpResponseBadRequest(str(erro))
+            except (ValueError, ValidationError) as erro:
+                mensagem = '; '.join(erro.messages) if isinstance(erro, ValidationError) else str(erro)
+                return HttpResponseBadRequest(mensagem)
         default_storage.delete(caminho)
         del request.session['carga']
         if gravado is None:
