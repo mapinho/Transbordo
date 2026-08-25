@@ -1,0 +1,49 @@
+<h1 class="text-xl font-semibold mb-4">Carga de Dados</h1>
+
+<c-card class="mb-6">
+    <h2 class="font-medium mb-3">Enviar planilha</h2>
+    <p class="text-sm mb-4">
+        Uma pasta <code>.xlsx</code> com as abas
+        {% for aba in abas %}<strong>{{ aba }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+        Abas ausentes são ignoradas. Nada é gravado até você confirmar na tela seguinte.
+    </p>
+    <p class="mb-4">
+        <a href="{% url 'simulacao:carga_template' %}" class="text-[--cor-primaria] hover:underline">
+            Baixar planilha modelo
+        </a>
+    </p>
+
+    <form method="post" enctype="multipart/form-data" action="{% url 'simulacao:carga' %}"
+          class="flex flex-col gap-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm mb-1" for="id_cenario_id">Importar em um cenário existente</label>
+            <select id="id_cenario_id" name="cenario_id" class="border rounded px-2 py-1">
+                <option value="">— criar um cenário novo —</option>
+                {% for cenario in cenarios %}
+                <option value="{{ cenario.id }}">{{ cenario.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm mb-1" for="id_nome_novo">…ou nomeie um cenário novo</label>
+            <input type="text" id="id_nome_novo" name="nome_novo" class="border rounded px-2 py-1">
+            {% if not cenarios %}
+            <p class="text-sm mt-1">
+                Esta cooperativa ainda não tem cenários — o primeiro será marcado como oficial.
+            </p>
+            {% endif %}
+        </div>
+        <div>
+            <label class="block text-sm mb-1" for="id_arquivo">Planilha</label>
+            <input type="file" id="id_arquivo" name="arquivo" accept=".xlsx" required
+                   class="border rounded px-2 py-1">
+        </div>
+        <div>
+            <button type="submit"
+                    class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2">
+                Pré-visualizar
+            </button>
+        </div>
+    </form>
+</c-card>

@@ -1,9 +1,11 @@
 import datetime
 import json
+import secrets
 
 from django.contrib.auth.decorators import login_required
+from django.core.files.storage import default_storage
 from django.db import transaction
-from django.http import HttpResponseBadRequest
+from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.simulacao import services
@@ -24,6 +26,9 @@ from apps.simulacao.models import (
     Rota,
     SafraUnidade,
 )
+from apps.simulacao.planilha import ABAS_NA_ORDEM, analisar, aplicar, gerar_template
+
+XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
 @login_required
@@ -281,3 +286,98 @@ def _salvar_safras(cenario, linhas):
             safra.data_fim = datetime.date.fromisoformat(linha['data_fim'])
             safra.full_clean()
             safra.save()
+
+
+def _caminho_da_carga(token):
+    return f'carga/{token}.xlsx'
+
+
+@login_required
+def carga_template(request):
+    return FileResponse(
+        gerar_template(), as_attachment=True,
+        filename='modelo-carga-comigo.xlsx', content_type=XLSX,
+    )
+
+
+@login_required
+def carga_upload(request):
+    cooperativa_id = request.user.cooperativa_id
+    cenarios = list(Cenario.all_cooperativas.filter(cooperativa_id=cooperativa_id))
+
+    if request.method == 'POST':
+        arquivo = request.FILES.get('arquivo')
+        if not arquivo:
+            return HttpResponseBadRequest('Nenhum arquivo enviado.')
+
+        cenario_id = request.POST.get('cenario_id')
+        nome_novo = (request.POST.get('nome_novo') or '').strip()
+        if cenario_id:
+            # Filtrar pela cooperativa: um cenário alheio não é distinguível
+            # de um inexistente.
+            get_object_or_404(
+                Cenario.all_cooperativas, id=cenario_id, cooperativa_id=cooperativa_id,
+            )
+        elif not nome_novo:
+            return HttpResponseBadRequest(
+                'Informe um cenário existente ou o nome de um novo.'
+            )
+
+        anterior = request.session.get('carga')
+        if anterior:
+            default_storage.delete(_caminho_da_carga(anterior['token']))
+
+        token = secrets.token_urlsafe(16)
+        default_storage.save(_caminho_da_carga(token), arquivo)
+        request.session['carga'] = {
+            'token': token,
+            'cenario_id': int(cenario_id) if cenario_id else None,
+            'nome_novo': nome_novo or None,
+        }
+        return redirect('simulacao:carga_preview', token=token)
+
+    context = {'cenarios': cenarios, 'abas': ABAS_NA_ORDEM}
+    template = 'simulacao/_carga_content.html' if request.htmx else 'simulacao/carga.html'
+    return render(request, template, context)
+
+
+@login_required
+def carga_preview(request, token):
+    guardado = request.session.get('carga')
+    if not guardado or guardado['token'] != token:
+        raise Http404('Carga não encontrada.')
+
+    cooperativa_id = request.user.cooperativa_id
+    cenario = None
+    if guardado['cenario_id']:
+        cenario = get_object_or_404(
+            Cenario.all_cooperativas,
+            id=guardado['cenario_id'], cooperativa_id=cooperativa_id,
+        )
+
+    caminho = _caminho_da_carga(token)
+
+    if request.method == 'POST':
+        with default_storage.open(caminho, 'rb') as arquivo:
+            _relatorio, gravado = aplicar(
+                arquivo, cenario=cenario,
+                cooperativa=request.user.cooperativa, nome_novo=guardado['nome_novo'],
+            )
+        default_storage.delete(caminho)
+        del request.session['carga']
+        if gravado is None:
+            return HttpResponseBadRequest('A planilha não pôde ser aplicada.')
+        return redirect('simulacao:fabricas_grid', cenario_id=gravado.id)
+
+    with default_storage.open(caminho, 'rb') as arquivo:
+        relatorio = analisar(arquivo, cenario)
+
+    context = {
+        'relatorio': relatorio, 'token': token,
+        'cenario': cenario, 'nome_novo': guardado['nome_novo'],
+    }
+    template = (
+        'simulacao/_carga_preview_content.html' if request.htmx
+        else 'simulacao/carga_preview.html'
+    )
+    return render(request, template, context)

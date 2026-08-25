@@ -1,0 +1,77 @@
+<h1 class="text-xl font-semibold mb-4">
+    Pré-visualização — {% if cenario %}{{ cenario.nome }}{% else %}{{ nome_novo }} (novo){% endif %}
+</h1>
+
+{% if relatorio.tem_erro_estrutural %}
+<c-card class="mb-6">
+    <h2 class="font-medium mb-2">A planilha não pôde ser lida</h2>
+    <p>{{ relatorio.erro_estrutural }}</p>
+    <p class="mt-4">
+        <a href="{% url 'simulacao:carga' %}" class="text-[--cor-primaria] hover:underline">
+            Enviar outra planilha
+        </a>
+    </p>
+</c-card>
+{% else %}
+
+<c-card class="mb-6">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left border-b border-[--cor-borda]">
+                <th class="py-2">Aba</th>
+                <th class="py-2">Criar</th>
+                <th class="py-2">Atualizar</th>
+                <th class="py-2">Rejeitadas</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for resumo in relatorio.abas %}
+            <tr class="border-b border-[--cor-borda]">
+                <td class="py-2">{{ resumo.aba }}</td>
+                <td class="py-2">{{ resumo.criar }}</td>
+                <td class="py-2">{{ resumo.atualizar }}</td>
+                <td class="py-2">{{ resumo.rejeitadas|length }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</c-card>
+
+{% if relatorio.total_rejeitadas %}
+<c-card class="mb-6">
+    <h2 class="font-medium mb-3">Linhas rejeitadas ({{ relatorio.total_rejeitadas }})</h2>
+    <p class="text-sm mb-3">
+        Estas linhas não serão importadas; as demais serão. Corrija a planilha e reenvie, ou
+        confirme para importar apenas o que está válido.
+    </p>
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="text-left border-b border-[--cor-borda]">
+                <th class="py-2">Aba</th>
+                <th class="py-2">Linha</th>
+                <th class="py-2">Motivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for resumo in relatorio.abas %}{% for rejeitada in resumo.rejeitadas %}
+            <tr class="border-b border-[--cor-borda]">
+                <td class="py-2">{{ rejeitada.aba }}</td>
+                <td class="py-2">{{ rejeitada.linha }}</td>
+                <td class="py-2">{{ rejeitada.motivo }}</td>
+            </tr>
+            {% endfor %}{% endfor %}
+        </tbody>
+    </table>
+</c-card>
+{% endif %}
+
+<form method="post" action="{% url 'simulacao:carga_preview' token=token %}" class="flex gap-3">
+    {% csrf_token %}
+    <button type="submit" name="confirmar" value="1"
+            class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2">
+        Confirmar e importar
+    </button>
+    <a href="{% url 'simulacao:carga' %}"
+       class="rounded border border-[--cor-borda] px-4 py-2">Cancelar</a>
+</form>
+{% endif %}
