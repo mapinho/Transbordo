@@ -101,10 +101,16 @@ stack Streamlit morrer, o banco `comigo` deixa de ser fonte e o comando morre ju
 
 Duas funções de responsabilidade única em `apps/simulacao/legado.py`:
 
-- `ler_legado(database_url) -> DadosLegado` — devolve uma dataclass com listas de dicts puros. Não
-  conhece Django.
+- `abrir_sessao_legado(database_url) -> Session` — constrói a engine SQLAlchemy sobre o banco legado.
+- `ler_legado(session) -> DadosLegado` — recebe uma sessão já aberta e devolve uma dataclass com listas
+  de dicts puros. Não conhece Django.
 - `escrever(dados, cooperativa) -> dict[str, int]` — recebe essas listas, escreve no schema Django,
-  devolve contagens por tabela. Não conhece SQLAlchemy.
+  devolve contagens por tabela (das linhas efetivamente escritas). Não conhece SQLAlchemy.
+
+A sessão é **injetada** em `ler_legado` em vez de a função construir a própria engine a partir da URL:
+uma URL de SQLite em memória cria um banco novo e vazio a cada conexão, então a versão que constrói a
+própria engine seria intestável sem um Postgres legado à disposição. Com a sessão injetada, os testes
+usam o mesmo padrão que `tests/conftest.py` já emprega.
 
 Toda a lógica não-trivial (remapeamento de IDs, ordem de inserção, apagamento) mora em `escrever`, que é
 testável com dicts montados à mão. **Os testes não precisam do banco `comigo`** — o que importa porque
@@ -188,3 +194,17 @@ com dados de produção carregados. É precisamente a prova que as Tasks 5-9 da 
 - **A ferramenta não tem migração inversa.** Se o banco Django acumular dados que só existam lá, este
   comando os destrói. Enquanto o Django não for fonte da verdade, isso é aceitável; quando for, a
   ferramenta precisa ser aposentada, não adaptada.
+- **Datetimes naive do legado.** `Cenario.data_criacao` é naive no legado e `USE_TZ = True` aqui. O que
+  o Django 6 realmente faz nesse caso — verificado no fonte de `DateTimeField.get_prep_value` durante a
+  revisão desta fase — é emitir um `RuntimeWarning` e então chamar `make_aware` com o `TIME_ZONE`
+  default. Como o default é `America/Sao_Paulo`, que é justamente o fuso em que o app Streamlit gravou
+  esses valores, **não há deslocamento de horário**. A conversão explícita em
+  `legado._data_criacao_aware` existe para eliminar o warning (a saída de teste impecável é exigência
+  do projeto) e para tornar a intenção legível, não para corrigir um bug de fuso. Um planejamento
+  anterior desta fase afirmou que o Django trataria o valor como UTC e deslocaria tudo em 3 horas;
+  isso é falso e não deve ser repetido.
+- **Safra com `entidade_id` órfão.** `SafraUnidade.entidade_id` não é FK, então uma safra pode
+  sobreviver à unidade que referencia. `escrever` pula essas linhas em vez de abortar — o mesmo que
+  `services.clone_scenario` faz — e as contagens devolvidas refletem as linhas realmente escritas. Um
+  `safras` menor que o esperado é o sinal para o operador investigar. Na verificação de 2026-08-24 o
+  banco legado tinha zero linhas nessa condição.
