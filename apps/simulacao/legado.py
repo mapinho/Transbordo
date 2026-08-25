@@ -12,6 +12,19 @@ from sqlalchemy.orm import sessionmaker
 
 import models as legado
 
+from django.db import transaction
+from django.utils import timezone
+
+from apps.simulacao.models import (
+    Armazem,
+    Cenario,
+    Fabrica,
+    PrevisaoArmazem,
+    PrevisaoFabrica,
+    Rota,
+    SafraUnidade,
+)
+
 
 @dataclass
 class DadosLegado:
@@ -120,3 +133,141 @@ def ler_legado(session) -> DadosLegado:
             for s in session.query(legado.SafraUnidade).order_by(legado.SafraUnidade.id)
         ],
     )
+
+
+def _tornar_aware(valor):
+    """Datetimes do legado são naive e foram gravados em horário local
+    (o app Streamlit roda no Brasil). Com USE_TZ=True, escrevê-los sem
+    converter faria o Django tratá-los como UTC."""
+    if valor is None:
+        return None
+    if timezone.is_naive(valor):
+        return timezone.make_aware(valor)
+    return valor
+
+
+def _apagar_tenant(cooperativa):
+    """Ordem inversa de dependência. Explícita em vez de confiar no cascade
+    do `Cenario`, para não quebrar em silêncio se algum `on_delete` mudar."""
+    SafraUnidade.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    PrevisaoFabrica.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    PrevisaoArmazem.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    Rota.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    Fabrica.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    Armazem.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    Cenario.all_cooperativas.filter(cooperativa=cooperativa).delete()
+
+
+def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
+    """Substitui o conteúdo do tenant pelos dados do legado e devolve as
+    contagens por tabela.
+
+    DESTRUTIVO: apaga tudo o que o tenant tem antes de inserir. Edições
+    feitas nas grades são perdidas. Ver §3 da spec.
+
+    Usa `all_cooperativas` porque roda fora de request, sem contextvar de
+    tenant definida -- `objects` devolveria queryset vazio (ADR 0006).
+
+    O remapeamento de IDs espelha `services.clone_scenario`, que resolve o
+    mesmo problema ao clonar um cenário.
+    """
+    with transaction.atomic():
+        _apagar_tenant(cooperativa)
+
+        cenario_map = {}
+        for c in dados.cenarios:
+            novo = Cenario.all_cooperativas.create(
+                cooperativa=cooperativa,
+                nome=c['nome'],
+                is_oficial=c['is_oficial'],
+                data_criacao=_tornar_aware(c['data_criacao']),
+            )
+            cenario_map[c['id']] = novo.id
+
+        fabrica_map = {}
+        for f in dados.fabricas:
+            nova = Fabrica.all_cooperativas.create(
+                cooperativa=cooperativa,
+                cenario_id=cenario_map[f['cenario_id']],
+                nome=f['nome'],
+                capacidade_estatica=f['capacidade_estatica'],
+                capacidade_esmagamento_diaria=f['capacidade_esmagamento_diaria'],
+                capacidade_recebimento_diaria=f['capacidade_recebimento_diaria'],
+                limite_caminhoes=f['limite_caminhoes'],
+                carga_media_caminhao=f['carga_media_caminhao'],
+                estoque_inicial=f['estoque_inicial'],
+            )
+            fabrica_map[f['id']] = nova.id
+
+        armazem_map = {}
+        for a in dados.armazens:
+            novo = Armazem.all_cooperativas.create(
+                cooperativa=cooperativa,
+                cenario_id=cenario_map[a['cenario_id']],
+                nome=a['nome'],
+                capacidade_estatica=a['capacidade_estatica'],
+                capacidade_expedicao_diaria=a['capacidade_expedicao_diaria'],
+                estoque_inicial=a['estoque_inicial'],
+            )
+            armazem_map[a['id']] = novo.id
+
+        Rota.all_cooperativas.bulk_create([
+            Rota(
+                cooperativa=cooperativa,
+                cenario_id=cenario_map[r['cenario_id']],
+                armazem_id=armazem_map[r['armazem_id']],
+                fabrica_id=fabrica_map[r['fabrica_id']],
+                distancia_km=r['distancia_km'],
+                custo_frete_ton=r['custo_frete_ton'],
+                custo_frete_entressafra=r['custo_frete_entressafra'],
+            )
+            for r in dados.rotas
+        ])
+
+        PrevisaoFabrica.all_cooperativas.bulk_create([
+            PrevisaoFabrica(
+                cooperativa=cooperativa,
+                fabrica_id=fabrica_map[p['fabrica_id']],
+                mes_referencia=p['mes_referencia'],
+                recebimento_produtor=p['recebimento_produtor'],
+                vendas=p['vendas'],
+            )
+            for p in dados.previsoes_fabrica
+        ])
+
+        PrevisaoArmazem.all_cooperativas.bulk_create([
+            PrevisaoArmazem(
+                cooperativa=cooperativa,
+                armazem_id=armazem_map[p['armazem_id']],
+                mes_referencia=p['mes_referencia'],
+                recebimento_produtor=p['recebimento_produtor'],
+                vendas=p['vendas'],
+            )
+            for p in dados.previsoes_armazem
+        ])
+
+        SafraUnidade.all_cooperativas.bulk_create([
+            SafraUnidade(
+                cooperativa=cooperativa,
+                cenario_id=cenario_map[s['cenario_id']],
+                entidade_tipo=s['entidade_tipo'],
+                entidade_id=(
+                    armazem_map[s['entidade_id']]
+                    if s['entidade_tipo'] == 'Armazém'
+                    else fabrica_map[s['entidade_id']]
+                ),
+                data_inicio=s['data_inicio'],
+                data_fim=s['data_fim'],
+            )
+            for s in dados.safras
+        ])
+
+    return {
+        'cenarios': len(dados.cenarios),
+        'fabricas': len(dados.fabricas),
+        'armazens': len(dados.armazens),
+        'rotas': len(dados.rotas),
+        'previsoes_fabrica': len(dados.previsoes_fabrica),
+        'previsoes_armazem': len(dados.previsoes_armazem),
+        'safras': len(dados.safras),
+    }
