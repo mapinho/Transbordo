@@ -186,6 +186,46 @@ class EscreverTests(TestCase):
         replanejado = Cenario.all_cooperativas.get(nome='Replanejado com Vendas')
         self.assertIsNotNone(replanejado.data_criacao)
 
+    def test_previsao_com_recebimento_e_vendas_none_grava_como_zero(self):
+        """`recebimento_produtor`/`vendas` são nullable no legado; os campos
+        Django são `FloatField(default=0)`, NOT NULL. Um `None` explícito
+        deve cair no default -- mesmo tratamento que `data_criacao` já
+        recebe (ver `_zero_se_none`)."""
+        dados = dados_de_exemplo()
+        dados.previsoes_fabrica[0]['recebimento_produtor'] = None
+        dados.previsoes_fabrica[0]['vendas'] = None
+        dados.previsoes_armazem[0]['recebimento_produtor'] = None
+        dados.previsoes_armazem[0]['vendas'] = None
+
+        escrever(dados, self.coop)
+
+        oficial = Cenario.all_cooperativas.get(nome='Oficial (Planejado)')
+        fabrica = Fabrica.all_cooperativas.get(cenario_id=oficial.id)
+        armazem = Armazem.all_cooperativas.get(cenario_id=oficial.id)
+        previsao_fabrica = PrevisaoFabrica.all_cooperativas.get(fabrica_id=fabrica.id)
+        previsao_armazem = PrevisaoArmazem.all_cooperativas.get(armazem_id=armazem.id)
+
+        self.assertEqual(previsao_fabrica.recebimento_produtor, 0)
+        self.assertEqual(previsao_fabrica.vendas, 0)
+        self.assertEqual(previsao_armazem.recebimento_produtor, 0)
+        self.assertEqual(previsao_armazem.vendas, 0)
+
+    def test_cenario_editado_a_mao_no_django_e_perdido_ao_reespelhar(self):
+        """Consequência aceita da estratégia apagar-e-recarregar (spec §3):
+        uma linha que existe só do lado Django -- nunca veio do legado --
+        desaparece sem aviso na execução seguinte."""
+        Cenario.all_cooperativas.create(
+            cooperativa=self.coop, nome='Editado à mão', is_oficial=False,
+        )
+
+        escrever(dados_de_exemplo(), self.coop)
+
+        self.assertFalse(
+            Cenario.all_cooperativas.filter(
+                cooperativa=self.coop, nome='Editado à mão',
+            ).exists()
+        )
+
     def test_e_idempotente_entre_execucoes(self):
         primeira = escrever(dados_de_exemplo(), self.coop)
         segunda = escrever(dados_de_exemplo(), self.coop)

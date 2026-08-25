@@ -7,20 +7,22 @@ docs/superpowers/specs/2026-08-24-espelhamento-dados-legado-design.md.
 """
 from dataclasses import dataclass, field
 
+from django.db import transaction
+from django.utils import timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import models as legado
-
-from django.db import transaction
-from django.utils import timezone
-
 from apps.simulacao.models import (
     Armazem,
     Cenario,
     Fabrica,
+    LogExecucao,
+    MovimentacaoDiaria,
     PrevisaoArmazem,
     PrevisaoFabrica,
+    ResumoMensalArmazem,
+    ResumoMensalFabrica,
     Rota,
     SafraUnidade,
 )
@@ -153,16 +155,44 @@ def _data_criacao_aware(valor):
     return valor
 
 
+def _zero_se_none(valor):
+    """`previsoes_fabrica.recebimento_produtor`/`vendas` e os mesmos dois
+    campos em `previsoes_armazem` são nullable no legado; os campos Django
+    são `FloatField(default=0)`, NOT NULL. Um `None` explícito bypassa esse
+    default do mesmo jeito que `data_criacao` bypassava o dele -- mesmo
+    tratamento aqui, por simetria com `_data_criacao_aware`."""
+    return 0 if valor is None else valor
+
+
+# Ordem de exclusão de `_apagar_tenant` -- é a ordem que o comando imprime na
+# confirmação. É também ordem inversa de dependência: os quatro modelos de
+# saída da otimização referenciam Cenario/Fabrica/Armazem (LogExecucao só às
+# vezes, mas nunca o contrário) e por isso vêm primeiro; Cenario, que nada
+# referencia, vem por último. Mexer na ordem sem preservar essa propriedade
+# quebra a exclusão com um erro de FK.
+MODELOS_APAGADOS = (
+    MovimentacaoDiaria,
+    ResumoMensalFabrica,
+    ResumoMensalArmazem,
+    LogExecucao,
+    SafraUnidade,
+    PrevisaoFabrica,
+    PrevisaoArmazem,
+    Rota,
+    Fabrica,
+    Armazem,
+    Cenario,
+)
+
+
 def _apagar_tenant(cooperativa):
-    """Ordem inversa de dependência. Explícita em vez de confiar no cascade
-    do `Cenario`, para não quebrar em silêncio se algum `on_delete` mudar."""
-    SafraUnidade.all_cooperativas.filter(cooperativa=cooperativa).delete()
-    PrevisaoFabrica.all_cooperativas.filter(cooperativa=cooperativa).delete()
-    PrevisaoArmazem.all_cooperativas.filter(cooperativa=cooperativa).delete()
-    Rota.all_cooperativas.filter(cooperativa=cooperativa).delete()
-    Fabrica.all_cooperativas.filter(cooperativa=cooperativa).delete()
-    Armazem.all_cooperativas.filter(cooperativa=cooperativa).delete()
-    Cenario.all_cooperativas.filter(cooperativa=cooperativa).delete()
+    """Ordem inversa de dependência (`MODELOS_APAGADOS`). Explícita para
+    cada modelo tenant-owned em vez de confiar no cascade do `Cenario`: esse
+    cascade não cobriria `LogExecucao` com `cenario_id IS NULL` -- a
+    convenção que marca "rodou contra o cenário oficial" (ver ADR 0005) --,
+    que ficaria para trás numa versão que confiasse só no cascade."""
+    for modelo in MODELOS_APAGADOS:
+        modelo.all_cooperativas.filter(cooperativa=cooperativa).delete()
 
 
 def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
@@ -176,7 +206,12 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
     tenant definida -- `objects` devolveria queryset vazio (ADR 0006).
 
     O remapeamento de IDs espelha `services.clone_scenario`, que resolve o
-    mesmo problema ao clonar um cenário.
+    mesmo problema ao clonar um cenário -- mas diverge dele de propósito na
+    rota de erro: `clone_scenario` pula rotas e previsões sem FK resolvível,
+    enquanto aqui um miss levanta `KeyError`. Rotas e previsões são
+    FK-backed no schema legado, então um miss é corrupção de dados real e
+    deve ser barulhento, ao contrário de `SafraUnidade.entidade_id`, que não
+    é FK dos dois lados e por isso é a única linha pulada em vez de abortar.
     """
     with transaction.atomic():
         _apagar_tenant(cooperativa)
@@ -237,8 +272,8 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
                 cooperativa=cooperativa,
                 fabrica_id=fabrica_map[p['fabrica_id']],
                 mes_referencia=p['mes_referencia'],
-                recebimento_produtor=p['recebimento_produtor'],
-                vendas=p['vendas'],
+                recebimento_produtor=_zero_se_none(p['recebimento_produtor']),
+                vendas=_zero_se_none(p['vendas']),
             )
             for p in dados.previsoes_fabrica
         ]
@@ -249,8 +284,8 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
                 cooperativa=cooperativa,
                 armazem_id=armazem_map[p['armazem_id']],
                 mes_referencia=p['mes_referencia'],
-                recebimento_produtor=p['recebimento_produtor'],
-                vendas=p['vendas'],
+                recebimento_produtor=_zero_se_none(p['recebimento_produtor']),
+                vendas=_zero_se_none(p['vendas']),
             )
             for p in dados.previsoes_armazem
         ]

@@ -90,6 +90,22 @@ class EspelharLegadoTests(TestCase):
 
         self.assertIn('inexistente', str(ctx.exception))
 
+    def test_rejeita_repoint_de_usuario_admin_vector(self):
+        """Admin Vector é cross-tenant por definição (`cooperativa=None`
+        obrigatório, ver `user_papel_cooperativa_coerentes`); repontá-lo
+        violaria a constraint. A rejeição precisa vir antes de qualquer
+        escrita, não como um IntegrityError cru vindo do banco."""
+        User.objects.create_user(
+            username='vetor', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+
+        with self.assertRaises(CommandError) as ctx:
+            call_command('espelhar_legado', '--usuario', 'vetor', '--yes',
+                         stdout=StringIO())
+
+        self.assertIn('vetor', str(ctx.exception))
+        self.assertFalse(Cooperativa.objects.filter(slug='comigo').exists())
+
     def test_usuario_inexistente_nao_deixa_tenant_orfao(self):
         """A validação do usuário precisa vir antes do get_or_create do tenant."""
         with self.assertRaises(CommandError):
