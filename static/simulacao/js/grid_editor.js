@@ -45,7 +45,8 @@ function construirColunasTabulator(colunas) {
             return {
                 title: col.label, field: col.field, editor: "date",
                 editorParams: { format: "dd/MM/yyyy" },
-                formatter: "date", formatterParams: { outputFormat: "dd/MM/yyyy" },
+                formatter: "datetime",
+                formatterParams: { inputFormat: "yyyy-MM-dd", outputFormat: "dd/MM/yyyy", invalidPlaceholder: "(data inválida)" },
             };
         }
         return { title: col.label, field: col.field, editable: false };
