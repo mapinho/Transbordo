@@ -9,12 +9,15 @@ function formatarNumeroPtBr(cell, decimais) {
 function editorNumeroPtBr(decimais) {
     return function (cell, onRendered, success, cancel) {
         const input = document.createElement("input");
-        input.value = cell.getValue() ?? "";
         input.classList.add("tabulator-editor-numero");
         const mask = IMask(input, {
             mask: Number, radix: ",", thousandsSeparator: ".",
             scale: decimais, padFractionalZeros: false, normalizeZeros: true,
         });
+        const valorAtual = cell.getValue();
+        if (valorAtual !== null && valorAtual !== undefined && valorAtual !== "") {
+            mask.typedValue = Number(valorAtual);
+        }
         onRendered(function () { input.focus(); });
         function salvar() {
             success(mask.unmaskedValue === "" ? null : Number(mask.unmaskedValue));
