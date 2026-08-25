@@ -103,6 +103,7 @@ class EspelharLegadoTests(TestCase):
             call_command('espelhar_legado', stdout=StringIO())
 
         self.assertEqual(Cenario.all_cooperativas.count(), 0)
+        self.assertFalse(Cooperativa.objects.filter(slug='comigo').exists())
 
     def test_sem_yes_mas_com_confirmacao_escreve(self):
         with mock.patch(f'{CAMINHO}.input', return_value='s', create=True):

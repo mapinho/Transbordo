@@ -64,13 +64,15 @@ class Command(BaseCommand):
                 )
 
         slug = options['cooperativa_slug']
-        cooperativa, criada = Cooperativa.objects.get_or_create(
-            slug=slug, defaults={'nome': slug.capitalize()},
-        )
+        ja_existe = Cooperativa.objects.filter(slug=slug).exists()
 
-        if not options['yes'] and not self._confirmar(cooperativa, criada):
+        if not options['yes'] and not self._confirmar(slug, ja_existe):
             self.stdout.write('Cancelado. Nada foi alterado.')
             return
+
+        cooperativa, _ = Cooperativa.objects.get_or_create(
+            slug=slug, defaults={'nome': slug.capitalize()},
+        )
 
         sessao = abrir_sessao_legado(database_url)
         try:
@@ -91,17 +93,17 @@ class Command(BaseCommand):
         for tabela, quantidade in contagens.items():
             self.stdout.write(f'  {tabela}: {quantidade}')
 
-    def _confirmar(self, cooperativa, criada):
-        if criada:
+    def _confirmar(self, slug, ja_existe):
+        if not ja_existe:
             self.stdout.write(
-                f"Tenant '{cooperativa.slug}' será criado — nada a apagar."
+                f"Tenant '{slug}' será criado — nada a apagar."
             )
         else:
             self.stdout.write(
-                f"ATENÇÃO: tudo o que o tenant '{cooperativa.slug}' tem hoje será "
+                f"ATENÇÃO: tudo o que o tenant '{slug}' tem hoje será "
                 'APAGADO e recarregado do legado:'
             )
             for modelo in MODELOS_AFETADOS:
-                total = modelo.all_cooperativas.filter(cooperativa=cooperativa).count()
+                total = modelo.all_cooperativas.filter(cooperativa__slug=slug).count()
                 self.stdout.write(f'  {modelo.__name__}: {total} linha(s)')
         return input('Continuar? [s/N] ').strip().lower() == 's'
