@@ -135,12 +135,19 @@ def ler_legado(session) -> DadosLegado:
     )
 
 
-def _tornar_aware(valor):
-    """Datetimes do legado são naive e foram gravados em horário local
-    (o app Streamlit roda no Brasil). Com USE_TZ=True, escrevê-los sem
-    converter faria o Django tratá-los como UTC."""
+def _data_criacao_aware(valor):
+    """`Cenario.data_criacao` no legado é nullable; no Django é
+    `DateTimeField(default=timezone.now)`, sem `null=True`. Um `None` explícito
+    aqui bypassa esse default e vira `IntegrityError` (NOT NULL). Por isso,
+    ausência de valor cai no default do próprio modelo -- `timezone.now()` --
+    em vez de propagar `None`.
+
+    Para um valor presente, naive (horário local do Brasil, onde o app
+    Streamlit roda), torná-lo aware evita o `RuntimeWarning` de "naive
+    datetime" que o Django emite ao gravar um `DateTimeField` naive com
+    `USE_TZ=True`."""
     if valor is None:
-        return None
+        return timezone.now()
     if timezone.is_naive(valor):
         return timezone.make_aware(valor)
     return valor
@@ -180,7 +187,7 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
                 cooperativa=cooperativa,
                 nome=c['nome'],
                 is_oficial=c['is_oficial'],
-                data_criacao=_tornar_aware(c['data_criacao']),
+                data_criacao=_data_criacao_aware(c['data_criacao']),
             )
             cenario_map[c['id']] = novo.id
 
@@ -211,7 +218,7 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
             )
             armazem_map[a['id']] = novo.id
 
-        Rota.all_cooperativas.bulk_create([
+        rotas = [
             Rota(
                 cooperativa=cooperativa,
                 cenario_id=cenario_map[r['cenario_id']],
@@ -222,9 +229,10 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
                 custo_frete_entressafra=r['custo_frete_entressafra'],
             )
             for r in dados.rotas
-        ])
+        ]
+        Rota.all_cooperativas.bulk_create(rotas)
 
-        PrevisaoFabrica.all_cooperativas.bulk_create([
+        previsoes_fabrica = [
             PrevisaoFabrica(
                 cooperativa=cooperativa,
                 fabrica_id=fabrica_map[p['fabrica_id']],
@@ -233,9 +241,10 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
                 vendas=p['vendas'],
             )
             for p in dados.previsoes_fabrica
-        ])
+        ]
+        PrevisaoFabrica.all_cooperativas.bulk_create(previsoes_fabrica)
 
-        PrevisaoArmazem.all_cooperativas.bulk_create([
+        previsoes_armazem = [
             PrevisaoArmazem(
                 cooperativa=cooperativa,
                 armazem_id=armazem_map[p['armazem_id']],
@@ -244,30 +253,37 @@ def escrever(dados: DadosLegado, cooperativa) -> dict[str, int]:
                 vendas=p['vendas'],
             )
             for p in dados.previsoes_armazem
-        ])
+        ]
+        PrevisaoArmazem.all_cooperativas.bulk_create(previsoes_armazem)
 
-        SafraUnidade.all_cooperativas.bulk_create([
-            SafraUnidade(
+        # `entidade_id` é um IntegerField simples, sem FK dos dois lados: o
+        # legado pode ter uma safra apontando para um armazém/fábrica que já
+        # não existe. Espelhando `services.clone_scenario`, a linha órfã é
+        # pulada em vez de abortar o espelhamento inteiro com um KeyError --
+        # e a contagem devolvida reflete o que foi de fato gravado, para que
+        # um `safras: 130` contra um esperado 133 torne o descarte visível.
+        safras = []
+        for s in dados.safras:
+            entidade_map = armazem_map if s['entidade_tipo'] == 'Armazém' else fabrica_map
+            novo_entidade_id = entidade_map.get(s['entidade_id'])
+            if novo_entidade_id is None:
+                continue
+            safras.append(SafraUnidade(
                 cooperativa=cooperativa,
                 cenario_id=cenario_map[s['cenario_id']],
                 entidade_tipo=s['entidade_tipo'],
-                entidade_id=(
-                    armazem_map[s['entidade_id']]
-                    if s['entidade_tipo'] == 'Armazém'
-                    else fabrica_map[s['entidade_id']]
-                ),
+                entidade_id=novo_entidade_id,
                 data_inicio=s['data_inicio'],
                 data_fim=s['data_fim'],
-            )
-            for s in dados.safras
-        ])
+            ))
+        SafraUnidade.all_cooperativas.bulk_create(safras)
 
     return {
         'cenarios': len(dados.cenarios),
         'fabricas': len(dados.fabricas),
         'armazens': len(dados.armazens),
-        'rotas': len(dados.rotas),
-        'previsoes_fabrica': len(dados.previsoes_fabrica),
-        'previsoes_armazem': len(dados.previsoes_armazem),
-        'safras': len(dados.safras),
+        'rotas': len(rotas),
+        'previsoes_fabrica': len(previsoes_fabrica),
+        'previsoes_armazem': len(previsoes_armazem),
+        'safras': len(safras),
     }

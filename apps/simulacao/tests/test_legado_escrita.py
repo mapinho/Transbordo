@@ -1,4 +1,5 @@
 import datetime
+import warnings
 
 from django.test import TestCase
 from django.utils import timezone
@@ -122,6 +123,23 @@ class EscreverTests(TestCase):
         self.assertEqual(safra.entidade_id, fabrica.id)
         self.assertNotEqual(safra.entidade_id, 101)
 
+    def test_safra_com_entidade_id_orfa_e_pulada_sem_abortar_o_espelhamento(self):
+        """`entidade_id` não é FK dos dois lados no legado -- pode apontar
+        para um armazém/fábrica que não existe mais. `clone_scenario` (o
+        precedente que este código espelha) pula a linha órfã em vez de
+        abortar; `escrever` deve fazer o mesmo, e a contagem devolvida deve
+        refletir apenas o que foi de fato gravado."""
+        dados = dados_de_exemplo()
+        dados.safras.append({
+            'cenario_id': 6, 'entidade_tipo': 'Armazém', 'entidade_id': 999999,
+            'data_inicio': datetime.date(2026, 2, 1), 'data_fim': datetime.date(2026, 5, 31),
+        })
+
+        contagens = escrever(dados, self.coop)
+
+        self.assertEqual(contagens['safras'], 2)
+        self.assertEqual(SafraUnidade.all_cooperativas.count(), 2)
+
     def test_previsao_segue_a_fabrica_do_cenario_correspondente(self):
         escrever(dados_de_exemplo(), self.coop)
 
@@ -131,10 +149,21 @@ class EscreverTests(TestCase):
 
         self.assertEqual(previsao.vendas, 1800.0)
 
-    def test_data_criacao_vira_aware_sem_deslocar_o_horario(self):
-        """USE_TZ=True: escrever o datetime naive do legado sem converter faria
-        o Django interpretá-lo como UTC, deslocando tudo em 3 horas."""
-        escrever(dados_de_exemplo(), self.coop)
+    def test_data_criacao_vira_aware_sem_warning_de_naive_datetime(self):
+        """Com USE_TZ=True, o Django NÃO trata um DateTimeField naive como
+        UTC: ele emite um RuntimeWarning e grava usando o fuso padrão
+        (America/Sao_Paulo), o mesmo resultado que `_data_criacao_aware`
+        produz explicitamente. O motivo de tornar o valor aware antes de
+        gravar não é evitar um deslocamento de horário -- é evitar esse
+        RuntimeWarning, já que 'saída de teste impecável' é uma restrição
+        deste projeto (ver CLAUDE.md)."""
+        with warnings.catch_warnings(record=True) as capturado:
+            warnings.simplefilter('always')
+            escrever(dados_de_exemplo(), self.coop)
+
+        naive = [w for w in capturado if issubclass(w.category, RuntimeWarning)
+                 and 'naive datetime' in str(w.message)]
+        self.assertEqual(naive, [], f'escrita emitiu RuntimeWarning de naive datetime: {naive}')
 
         oficial = Cenario.all_cooperativas.get(nome='Oficial (Planejado)')
         local = timezone.localtime(oficial.data_criacao)
@@ -144,6 +173,18 @@ class EscreverTests(TestCase):
             (local.year, local.month, local.day, local.hour, local.minute),
             (2026, 6, 1, 14, 19),
         )
+
+    def test_data_criacao_none_usa_default_do_modelo(self):
+        """`Cenario.data_criacao` é nullable no legado, mas NOT NULL no Django
+        (`default=timezone.now`). Um `None` explícito bypassa esse default e
+        vira `IntegrityError`; a escrita deve cair no default em vez disso."""
+        dados = dados_de_exemplo()
+        dados.cenarios[1]['data_criacao'] = None
+
+        escrever(dados, self.coop)
+
+        replanejado = Cenario.all_cooperativas.get(nome='Replanejado com Vendas')
+        self.assertIsNotNone(replanejado.data_criacao)
 
     def test_e_idempotente_entre_execucoes(self):
         primeira = escrever(dados_de_exemplo(), self.coop)
