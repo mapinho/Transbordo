@@ -6,10 +6,11 @@ lógica seja testável com uma pasta montada em memória. Ver
 docs/superpowers/specs/2026-08-25-carga-de-dados-design.md.
 """
 import datetime
+import io
 from dataclasses import dataclass, field
 
 from django.db import transaction
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from apps.simulacao.models import (
     Armazem, Cenario, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota, SafraUnidade,
@@ -695,3 +696,20 @@ def _gravar_safras(linhas, cenario, coop, fabricas, armazens):
         safra.data_fim = fim
         safra.full_clean()
         safra.save()
+
+
+def gerar_template():
+    """Pasta modelo com as cinco abas e seus cabeçalhos, sem dados.
+
+    Construída a partir de COLUNAS_POR_ABA -- a mesma constante que o parser
+    consome -- para que o template não possa divergir do que a importação aceita.
+    """
+    wb = Workbook()
+    wb.remove(wb.active)
+    for nome in ABAS_NA_ORDEM:
+        ws = wb.create_sheet(nome)
+        ws.append(COLUNAS_POR_ABA[nome])
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
