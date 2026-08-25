@@ -173,3 +173,154 @@ class AnalisarFabricasArmazensTests(TestCase):
         self.assertEqual(relatorio.resumo(ABA_ARMAZENS).criar, 1)
         self.assertEqual(relatorio.resumo(ABA_ARMAZENS).atualizar, 0)
         self.assertEqual(len(relatorio.resumo(ABA_ARMAZENS).rejeitadas), 0)
+
+
+import datetime
+
+from apps.simulacao.planilha import ABA_PREVISOES, ABA_ROTAS, ABA_SAFRAS
+
+ROTA_OK = {
+    'origem': 'ARMAZÉM A',
+    'destino': 'FÁBRICA TESTE',
+    'distancia_km': 118.5,
+    'custo_frete_ton': 42.75,
+    'custo_frete_entressafra': 38.0,
+}
+
+
+class AnalisarResolucaoTests(TestCase):
+    def setUp(self):
+        self.coop = Cooperativa.objects.create(nome='Comigo', slug='comigo')
+        self.cenario = Cenario.all_cooperativas.create(
+            cooperativa=self.coop, nome='Oficial', is_oficial=True,
+        )
+
+    def test_rota_resolve_contra_unidades_criadas_na_mesma_pasta(self):
+        """O caso do bootstrap: cenário vazio, tudo vem da própria pasta."""
+        pasta = montar_pasta(fabricas=[FABRICA_OK], armazens=[ARMAZEM_OK], rotas=[ROTA_OK])
+
+        relatorio = analisar(pasta, None)
+
+        self.assertEqual(relatorio.resumo(ABA_ROTAS).criar, 1)
+        self.assertEqual(relatorio.resumo(ABA_ROTAS).rejeitadas, [])
+
+    def test_rota_resolve_contra_unidades_ja_no_banco(self):
+        Fabrica.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, nome='FÁBRICA TESTE',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=1,
+        )
+        Armazem.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, nome='ARMAZÉM A',
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=1,
+        )
+
+        relatorio = analisar(montar_pasta(rotas=[ROTA_OK]), self.cenario)
+
+        self.assertEqual(relatorio.resumo(ABA_ROTAS).criar, 1)
+
+    def test_rota_com_origem_inexistente_e_rejeitada_com_motivo(self):
+        ruim = dict(ROTA_OK, origem='ARMAZÉM FANTASMA')
+
+        relatorio = analisar(montar_pasta(fabricas=[FABRICA_OK], rotas=[ruim]), None)
+
+        rejeitadas = relatorio.resumo(ABA_ROTAS).rejeitadas
+        self.assertEqual(len(rejeitadas), 1)
+        self.assertIn('ARMAZÉM FANTASMA', rejeitadas[0].motivo)
+
+    def test_custo_entressafra_em_branco_assume_o_de_safra(self):
+        """Comportamento do legado (data_loader.py:386-387), preservado."""
+        sem = dict(ROTA_OK, custo_frete_entressafra=None)
+        pasta = montar_pasta(fabricas=[FABRICA_OK], armazens=[ARMAZEM_OK], rotas=[sem])
+
+        relatorio = analisar(pasta, None)
+
+        self.assertEqual(relatorio.resumo(ABA_ROTAS).criar, 1)
+        self.assertEqual(relatorio.resumo(ABA_ROTAS).rejeitadas, [])
+
+    def test_previsao_resolve_fabrica_ou_armazem_pelo_nome(self):
+        previsoes = [
+            {'entidade': 'FÁBRICA TESTE', 'mes_referencia': datetime.date(2026, 3, 15),
+             'recebimento_produtor': 4500.5, 'vendas': 1200.25},
+            {'entidade': 'ARMAZÉM A', 'mes_referencia': datetime.date(2026, 3, 1),
+             'recebimento_produtor': 7800.0, 'vendas': 300.0},
+        ]
+        pasta = montar_pasta(fabricas=[FABRICA_OK], armazens=[ARMAZEM_OK], previsoes=previsoes)
+
+        relatorio = analisar(pasta, None)
+
+        self.assertEqual(relatorio.resumo(ABA_PREVISOES).criar, 2)
+
+    def test_previsao_com_entidade_desconhecida_e_rejeitada_nao_pulada(self):
+        """O legado só incrementava `skipped`, sem registro nenhum."""
+        previsoes = [{'entidade': 'NINGUÉM', 'mes_referencia': datetime.date(2026, 3, 1),
+                      'recebimento_produtor': 1, 'vendas': 1}]
+
+        relatorio = analisar(montar_pasta(fabricas=[FABRICA_OK], previsoes=previsoes), None)
+
+        rejeitadas = relatorio.resumo(ABA_PREVISOES).rejeitadas
+        self.assertEqual(len(rejeitadas), 1)
+        self.assertIn('NINGUÉM', rejeitadas[0].motivo)
+
+    def test_nome_ambiguo_e_rejeitado_nomeando_o_conflito(self):
+        """O legado escolhe a fábrica em silêncio (data_loader.py:439-453)."""
+        pasta = montar_pasta(
+            fabricas=[dict(FABRICA_OK, nome='DUPLICADO')],
+            armazens=[dict(ARMAZEM_OK, nome='DUPLICADO')],
+            previsoes=[{'entidade': 'DUPLICADO', 'mes_referencia': datetime.date(2026, 3, 1),
+                        'recebimento_produtor': 1, 'vendas': 1}],
+        )
+
+        relatorio = analisar(pasta, None)
+
+        rejeitadas = relatorio.resumo(ABA_PREVISOES).rejeitadas
+        self.assertEqual(len(rejeitadas), 1)
+        self.assertIn('ambígu', rejeitadas[0].motivo.lower())
+
+    def test_mes_referencia_nao_parseavel_rejeita_sem_abortar_a_aba(self):
+        previsoes = [
+            {'entidade': 'FÁBRICA TESTE', 'mes_referencia': 'mês que vem',
+             'recebimento_produtor': 1, 'vendas': 1},
+            {'entidade': 'FÁBRICA TESTE', 'mes_referencia': datetime.date(2026, 4, 1),
+             'recebimento_produtor': 2, 'vendas': 2},
+        ]
+
+        relatorio = analisar(montar_pasta(fabricas=[FABRICA_OK], previsoes=previsoes), None)
+
+        resumo = relatorio.resumo(ABA_PREVISOES)
+        self.assertEqual(resumo.criar, 1)
+        self.assertEqual(len(resumo.rejeitadas), 1)
+        self.assertIn('mes_referencia', resumo.rejeitadas[0].motivo)
+
+    def test_previsao_com_valores_em_branco_vale_zero(self):
+        previsoes = [{'entidade': 'FÁBRICA TESTE', 'mes_referencia': datetime.date(2026, 3, 1),
+                      'recebimento_produtor': None, 'vendas': None}]
+
+        relatorio = analisar(montar_pasta(fabricas=[FABRICA_OK], previsoes=previsoes), None)
+
+        self.assertEqual(relatorio.resumo(ABA_PREVISOES).criar, 1)
+        self.assertEqual(relatorio.resumo(ABA_PREVISOES).rejeitadas, [])
+
+    def test_safra_resolve_unidade_e_deriva_o_tipo(self):
+        safras = [
+            {'unidade': 'ARMAZÉM A', 'data_inicio': datetime.date(2026, 2, 1),
+             'data_fim': datetime.date(2026, 5, 31)},
+            {'unidade': 'FÁBRICA TESTE', 'data_inicio': datetime.date(2026, 2, 15),
+             'data_fim': datetime.date(2026, 6, 15)},
+        ]
+        pasta = montar_pasta(fabricas=[FABRICA_OK], armazens=[ARMAZEM_OK], safras=safras)
+
+        relatorio = analisar(pasta, None)
+
+        self.assertEqual(relatorio.resumo(ABA_SAFRAS).criar, 2)
+
+    def test_safra_com_data_fim_antes_do_inicio_e_rejeitada(self):
+        safras = [{'unidade': 'ARMAZÉM A', 'data_inicio': datetime.date(2026, 5, 1),
+                   'data_fim': datetime.date(2026, 2, 1)}]
+
+        relatorio = analisar(montar_pasta(armazens=[ARMAZEM_OK], safras=safras), None)
+
+        rejeitadas = relatorio.resumo(ABA_SAFRAS).rejeitadas
+        self.assertEqual(len(rejeitadas), 1)
+        self.assertIn('data_fim', rejeitadas[0].motivo)

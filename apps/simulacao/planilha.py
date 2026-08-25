@@ -5,11 +5,14 @@ existe para que a pré-visualização seja confiável e para que quase toda a
 lógica seja testável com uma pasta montada em memória. Ver
 docs/superpowers/specs/2026-08-25-carga-de-dados-design.md.
 """
+import datetime
 from dataclasses import dataclass, field
 
 from openpyxl import load_workbook
 
-from apps.simulacao.models import Armazem, Fabrica
+from apps.simulacao.models import (
+    Armazem, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota, SafraUnidade,
+)
 
 ABA_FABRICAS = 'Fábricas'
 ABA_ARMAZENS = 'Armazéns'
@@ -179,6 +182,197 @@ def _analisar_unidades(aba, linhas, existentes, resumo):
     return nomes
 
 
+def _data(valores, coluna):
+    """Devolve (date, erro). Aceita date/datetime do Excel e texto ISO."""
+    bruto = valores.get(coluna)
+    if bruto is None or (isinstance(bruto, str) and not bruto.strip()):
+        return None, f'{coluna} em branco'
+    if isinstance(bruto, datetime.datetime):
+        return bruto.date(), None
+    if isinstance(bruto, datetime.date):
+        return bruto, None
+    try:
+        return datetime.date.fromisoformat(str(bruto).strip()), None
+    except ValueError:
+        return None, f'{coluna} não é uma data válida (use AAAA-MM-DD): {bruto!r}'
+
+
+def _resolver(nome, fabricas, armazens):
+    """Devolve (tipo, erro). tipo é 'Fábrica' ou 'Armazém'.
+
+    Nome presente nos dois conjuntos é ambíguo -- rejeita em vez de escolher.
+    O legado escolhe a fábrica em silêncio (data_loader.py:439-453).
+    """
+    eh_fabrica = nome in fabricas
+    eh_armazem = nome in armazens
+    if eh_fabrica and eh_armazem:
+        return None, (
+            f"'{nome}' é ambíguo: existe uma fábrica e um armazém com esse nome neste cenário"
+        )
+    if eh_fabrica:
+        return 'Fábrica', None
+    if eh_armazem:
+        return 'Armazém', None
+    return None, f"'{nome}' não corresponde a nenhuma fábrica nem armazém deste cenário"
+
+
+def _chaves_de_rota(cenario):
+    if cenario is None:
+        return set()
+    return {
+        (r.armazem.nome, r.fabrica.nome)
+        for r in Rota.all_cooperativas.filter(cenario=cenario).select_related(
+            'armazem', 'fabrica'
+        )
+    }
+
+
+def _chaves_de_previsao(cenario):
+    if cenario is None:
+        return set()
+    chaves = {
+        ('Fábrica', p.fabrica.nome, p.mes_referencia)
+        for p in PrevisaoFabrica.all_cooperativas.filter(
+            fabrica__cenario=cenario
+        ).select_related('fabrica')
+    }
+    chaves |= {
+        ('Armazém', p.armazem.nome, p.mes_referencia)
+        for p in PrevisaoArmazem.all_cooperativas.filter(
+            armazem__cenario=cenario
+        ).select_related('armazem')
+    }
+    return chaves
+
+
+def _chaves_de_safra(cenario):
+    if cenario is None:
+        return set()
+    fabricas = dict(
+        Fabrica.all_cooperativas.filter(cenario=cenario).values_list('id', 'nome')
+    )
+    armazens = dict(
+        Armazem.all_cooperativas.filter(cenario=cenario).values_list('id', 'nome')
+    )
+    chaves = set()
+    for s in SafraUnidade.all_cooperativas.filter(cenario=cenario):
+        mapa = armazens if s.entidade_tipo == 'Armazém' else fabricas
+        nome = mapa.get(s.entidade_id)
+        if nome:
+            chaves.add((s.entidade_tipo, nome, s.data_inicio))
+    return chaves
+
+
+def _analisar_rotas(linhas, fabricas, armazens, chaves_no_banco, resumo):
+    for numero, valores in linhas:
+        origem = _texto(valores, 'origem')
+        destino = _texto(valores, 'destino')
+        if not origem or not destino:
+            resumo.rejeitadas.append(
+                LinhaRejeitada(ABA_ROTAS, numero, 'origem ou destino em branco', valores)
+            )
+            continue
+        if origem not in armazens:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                ABA_ROTAS, numero,
+                f"origem '{origem}' não corresponde a nenhum armazém deste cenário", valores,
+            ))
+            continue
+        if destino not in fabricas:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                ABA_ROTAS, numero,
+                f"destino '{destino}' não corresponde a nenhuma fábrica deste cenário", valores,
+            ))
+            continue
+        erros = []
+        for coluna in ('distancia_km', 'custo_frete_ton'):
+            _, erro = _numero(valores, coluna)
+            if erro:
+                erros.append(erro)
+        # custo_frete_entressafra em branco assume custo_frete_ton
+        # (data_loader.py:386-387); só um valor presente e não numérico é erro.
+        if valores.get('custo_frete_entressafra') is not None:
+            _, erro = _numero(valores, 'custo_frete_entressafra')
+            if erro:
+                erros.append(erro)
+        if erros:
+            resumo.rejeitadas.append(
+                LinhaRejeitada(ABA_ROTAS, numero, '; '.join(erros), valores)
+            )
+            continue
+        if (origem, destino) in chaves_no_banco:
+            resumo.atualizar += 1
+        else:
+            resumo.criar += 1
+
+
+def _analisar_previsoes(linhas, fabricas, armazens, chaves_no_banco, resumo):
+    for numero, valores in linhas:
+        nome = _texto(valores, 'entidade')
+        if not nome:
+            resumo.rejeitadas.append(
+                LinhaRejeitada(ABA_PREVISOES, numero, 'entidade em branco', valores)
+            )
+            continue
+        tipo, erro = _resolver(nome, fabricas, armazens)
+        if erro:
+            resumo.rejeitadas.append(LinhaRejeitada(ABA_PREVISOES, numero, erro, valores))
+            continue
+        mes, erro = _data(valores, 'mes_referencia')
+        if erro:
+            resumo.rejeitadas.append(LinhaRejeitada(ABA_PREVISOES, numero, erro, valores))
+            continue
+        mes = mes.replace(day=1)
+        # recebimento_produtor e vendas em branco valem 0 (bug A9 da Fase 1).
+        erro_numerico = None
+        for coluna in ('recebimento_produtor', 'vendas'):
+            if valores.get(coluna) is None:
+                continue
+            _, erro = _numero(valores, coluna)
+            if erro:
+                erro_numerico = erro
+                break
+        if erro_numerico:
+            resumo.rejeitadas.append(
+                LinhaRejeitada(ABA_PREVISOES, numero, erro_numerico, valores)
+            )
+            continue
+        if (tipo, nome, mes) in chaves_no_banco:
+            resumo.atualizar += 1
+        else:
+            resumo.criar += 1
+
+
+def _analisar_safras(linhas, fabricas, armazens, chaves_no_banco, resumo):
+    for numero, valores in linhas:
+        nome = _texto(valores, 'unidade')
+        if not nome:
+            resumo.rejeitadas.append(
+                LinhaRejeitada(ABA_SAFRAS, numero, 'unidade em branco', valores)
+            )
+            continue
+        tipo, erro = _resolver(nome, fabricas, armazens)
+        if erro:
+            resumo.rejeitadas.append(LinhaRejeitada(ABA_SAFRAS, numero, erro, valores))
+            continue
+        inicio, erro_i = _data(valores, 'data_inicio')
+        fim, erro_f = _data(valores, 'data_fim')
+        if erro_i or erro_f:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                ABA_SAFRAS, numero, '; '.join(e for e in (erro_i, erro_f) if e), valores,
+            ))
+            continue
+        if fim < inicio:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                ABA_SAFRAS, numero, 'data_fim é anterior a data_inicio', valores,
+            ))
+            continue
+        if (tipo, nome, inicio) in chaves_no_banco:
+            resumo.atualizar += 1
+        else:
+            resumo.criar += 1
+
+
 def analisar(arquivo, cenario):
     """Lê a pasta e classifica cada linha. NUNCA escreve.
 
@@ -203,11 +397,24 @@ def analisar(arquivo, cenario):
 
     relatorio = Relatorio(abas=[ResumoAba(aba=n) for n in ABAS_NA_ORDEM])
 
-    _analisar_unidades(
+    nomes_fabricas = fabricas_no_banco | _analisar_unidades(
         ABA_FABRICAS, abas[ABA_FABRICAS], fabricas_no_banco, relatorio.resumo(ABA_FABRICAS),
     )
-    _analisar_unidades(
+    nomes_armazens = armazens_no_banco | _analisar_unidades(
         ABA_ARMAZENS, abas[ABA_ARMAZENS], armazens_no_banco, relatorio.resumo(ABA_ARMAZENS),
+    )
+
+    _analisar_rotas(
+        abas[ABA_ROTAS], nomes_fabricas, nomes_armazens,
+        _chaves_de_rota(cenario), relatorio.resumo(ABA_ROTAS),
+    )
+    _analisar_previsoes(
+        abas[ABA_PREVISOES], nomes_fabricas, nomes_armazens,
+        _chaves_de_previsao(cenario), relatorio.resumo(ABA_PREVISOES),
+    )
+    _analisar_safras(
+        abas[ABA_SAFRAS], nomes_fabricas, nomes_armazens,
+        _chaves_de_safra(cenario), relatorio.resumo(ABA_SAFRAS),
     )
 
     return relatorio
