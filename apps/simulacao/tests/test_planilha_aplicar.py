@@ -317,3 +317,21 @@ class AplicarTests(TestCase):
             aplicar(pasta_completa(), cooperativa=self.coop, nome_novo='')
 
         self.assertFalse(Cenario.all_cooperativas.filter(cooperativa=self.coop).exists())
+
+    def test_nome_do_cenario_duplicado_levanta_valueerror_nao_integrityerror(self):
+        """(finding 3, round 2) `full_clean()` não pega isto -- ver o
+        comentário em `aplicar` sobre `Cenario._default_manager` ser o
+        `objects` fail-closed (`TenantManager`), sempre vazio fora de uma
+        requisição. A guarda é uma checagem local explícita com
+        `all_cooperativas`, não validação de constraint; por isso o erro é
+        `ValueError`, não `ValidationError` nem `IntegrityError` cru -- a
+        Task 4 expõe isto a um formulário onde a pessoa digita o nome, e um
+        `IntegrityError` sem tratamento viraria um 500."""
+        aplicar(pasta_completa(), cooperativa=self.coop, nome_novo='Repetido')
+
+        with self.assertRaises(ValueError):
+            aplicar(pasta_completa(), cooperativa=self.coop, nome_novo='Repetido')
+
+        self.assertEqual(
+            Cenario.all_cooperativas.filter(cooperativa=self.coop, nome='Repetido').count(), 1,
+        )

@@ -494,6 +494,22 @@ def aplicar(arquivo, cenario=None, cooperativa=None, nome_novo=None):
 
     with transaction.atomic():
         if cenario is None:
+            # Guarda explícita, local a este módulo -- não uma checagem de
+            # constraint. `full_clean()` (abaixo) não pega isto: sua etapa
+            # `validate_constraints()` consulta `Cenario._default_manager`,
+            # que é o `objects` fail-closed de `CooperativaScopedModel`
+            # (TenantManager, ver docs/decisions/0001 e 0006), sempre vazio
+            # fora de uma requisição -- exatamente onde `aplicar` roda. Sem
+            # esta checagem local com `all_cooperativas`, um nome repetido
+            # levantaria `IntegrityError` cru (a Task 4 expõe `aplicar` a um
+            # formulário web onde `nome_novo` é digitado por uma pessoa; um
+            # `IntegrityError` não tratado vira 500, não uma mensagem para o
+            # usuário). Não "simplificar" isto para confiar em `full_clean()`
+            # -- ver Finding 3 do review da Task 3 para o porquê.
+            if Cenario.all_cooperativas.filter(cooperativa=cooperativa, nome=nome_novo).exists():
+                raise ValueError(
+                    f"Já existe um cenário chamado '{nome_novo}' nesta cooperativa."
+                )
             primeiro = not Cenario.all_cooperativas.filter(cooperativa=cooperativa).exists()
             cenario = Cenario(
                 cooperativa=cooperativa, nome=nome_novo, is_oficial=primeiro,
