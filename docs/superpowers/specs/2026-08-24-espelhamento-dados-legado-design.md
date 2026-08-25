@@ -50,8 +50,11 @@ rotas = 238; 4 meses de previsão por unidade (14 × 4 = 56, 119 × 4 = 476); 7 
 
 **A pendência A11 da Fase 1 está de fato resolvida.** `CLAUDE.md` lista como tarefa manual pendente
 confirmar que não há linhas `cenario_id IS NULL` antes de aplicar o `ALTER TABLE ... SET NOT NULL`. A
-verificação foi feita: **zero** nulos em `fabricas`, `armazens`, `rotas`, `safras_unidades` e
-`movimentacoes_diarias`. O `ALTER TABLE` pode ser aplicado com segurança, ou o item pode ser encerrado.
+verificação foi feita nas **7 tabelas**, todas com **zero** nulos: `fabricas` (0/14), `armazens`
+(0/119), `rotas` (0/238), `safras_unidades` (0/133), `movimentacoes_diarias` (0/13299),
+`resumo_mensal_fabrica` (0/188) e `resumo_mensal_armazem` (0/1598). Ressalva: isso foi medido no banco
+`comigo` local, que não é necessariamente a instância de produção a que a pendência A11 se refere — a
+mesma consulta precisa ser repetida lá antes de migrar.
 
 **O port Django das Previsões está fiel ao schema real, e isso não era óbvio.**
 `previsoes_fabrica` e `previsoes_armazem` **não têm coluna `cenario_id`** no banco real — penduram
