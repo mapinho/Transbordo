@@ -160,6 +160,9 @@ def _analisar_unidades(aba, linhas, existentes, resumo):
         if not nome:
             resumo.rejeitadas.append(LinhaRejeitada(aba, numero, 'nome em branco', valores))
             continue
+        if nome in nomes:
+            resumo.rejeitadas.append(LinhaRejeitada(aba, numero, 'nome duplicado na planilha', valores))
+            continue
         erros = []
         for coluna in OBRIGATORIOS_POR_ABA[aba]:
             _, erro = _numero(valores, coluna)

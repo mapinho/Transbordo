@@ -145,3 +145,31 @@ class AnalisarFabricasArmazensTests(TestCase):
 
         depois = (Fabrica.all_cooperativas.count(), Armazem.all_cooperativas.count())
         self.assertEqual(antes, depois)
+
+    def test_nome_duplicado_na_mesma_aba_rejeita_segunda_ocorrencia(self):
+        """Duas linhas com o mesmo nome na mesma aba: primeira é criação, segunda é rejeitada."""
+        duplicada = dict(FABRICA_OK, nome='FÁBRICA TESTE')  # mesmo nome de FABRICA_OK
+        outra = dict(FABRICA_OK, nome='OUTRA FÁBRICA')
+
+        relatorio = analisar(montar_pasta(fabricas=[FABRICA_OK, duplicada, outra]), None)
+
+        resumo = relatorio.resumo(ABA_FABRICAS)
+        self.assertEqual(resumo.criar, 2)  # FÁBRICA TESTE e OUTRA FÁBRICA
+        self.assertEqual(len(resumo.rejeitadas), 1)
+        rejeitada = resumo.rejeitadas[0]
+        self.assertIn('duplicado', rejeitada.motivo)
+        self.assertEqual(rejeitada.linha, 3)  # segunda linha de dados = Excel row 3
+
+    def test_mesmo_nome_em_abas_diferentes_nao_e_duplicado(self):
+        """Mesmo nome em Fábricas e Armazéns é válido -- são entidades diferentes."""
+        fabrica = dict(FABRICA_OK, nome='ENTIDADE COMPARTILHADA')
+        armazem = dict(ARMAZEM_OK, nome='ENTIDADE COMPARTILHADA')
+
+        relatorio = analisar(montar_pasta(fabricas=[fabrica], armazens=[armazem]), None)
+
+        self.assertEqual(relatorio.resumo(ABA_FABRICAS).criar, 1)
+        self.assertEqual(relatorio.resumo(ABA_FABRICAS).atualizar, 0)
+        self.assertEqual(len(relatorio.resumo(ABA_FABRICAS).rejeitadas), 0)
+        self.assertEqual(relatorio.resumo(ABA_ARMAZENS).criar, 1)
+        self.assertEqual(relatorio.resumo(ABA_ARMAZENS).atualizar, 0)
+        self.assertEqual(len(relatorio.resumo(ABA_ARMAZENS).rejeitadas), 0)
