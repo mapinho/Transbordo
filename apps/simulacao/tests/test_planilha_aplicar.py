@@ -1,11 +1,12 @@
 import datetime
 import io
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from apps.core.models import Cooperativa
 from apps.simulacao.models import (
-    Armazem, Cenario, Fabrica, PrevisaoFabrica, Rota, SafraUnidade,
+    Armazem, Cenario, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota, SafraUnidade,
 )
 from apps.simulacao.planilha import ABA_FABRICAS, analisar, aplicar
 from apps.simulacao.tests.planilha_fixtures import montar_pasta
@@ -110,15 +111,38 @@ class AplicarTests(TestCase):
         self.assertIsNone(cenario)
         self.assertFalse(Cenario.all_cooperativas.filter(nome='Nao Deve Existir').exists())
 
-    def test_relatorio_de_aplicar_bate_com_o_de_analisar(self):
-        pasta = pasta_completa()
+    def test_total_de_linhas_gravadas_no_banco_bate_com_total_criar_prometido(self):
+        """A garantia central da tarefa: o que `analisar` promete em
+        `total_criar` é exatamente o que `aplicar` grava -- verificado
+        contando linhas reais no banco, não comparando o relatório consigo
+        mesmo (`aplicar` devolve o `Relatorio` de `analisar` sem modificá-lo,
+        então uma comparação relatório-a-relatório passaria mesmo que nenhum
+        `_gravar_*` escrevesse nada). A pasta mistura uma linha aceita e uma
+        rejeitada em cada uma das cinco abas.
+        """
+        pasta = montar_pasta(
+            fabricas=[FABRICA_OK, dict(FABRICA_OK, nome='FÁBRICA RUIM', estoque_inicial=None)],
+            armazens=[ARMAZEM_OK, dict(ARMAZEM_OK, nome='ARMAZÉM RUIM', estoque_inicial=None)],
+            rotas=[ROTA_OK, dict(ROTA_OK, origem='FANTASMA')],
+            previsoes=[PREVISAO_OK, dict(PREVISAO_OK, entidade='NINGUÉM')],
+            safras=[SAFRA_OK, dict(SAFRA_OK, data_fim=datetime.date(2020, 1, 1))],
+        )
         previsto = analisar(pasta, None)
         pasta.seek(0)
 
-        aplicado, _ = aplicar(pasta, cooperativa=self.coop, nome_novo='Oficial')
+        _, cenario = aplicar(pasta, cooperativa=self.coop, nome_novo='Oficial')
 
-        self.assertEqual(aplicado.total_criar, previsto.total_criar)
-        self.assertEqual(aplicado.total_rejeitadas, previsto.total_rejeitadas)
+        self.assertEqual(previsto.total_criar, 5)  # sanidade: uma aceita por aba
+        self.assertEqual(previsto.total_rejeitadas, 5)
+        total_gravado = (
+            Fabrica.all_cooperativas.filter(cenario=cenario).count()
+            + Armazem.all_cooperativas.filter(cenario=cenario).count()
+            + Rota.all_cooperativas.filter(cenario=cenario).count()
+            + PrevisaoFabrica.all_cooperativas.filter(fabrica__cenario=cenario).count()
+            + PrevisaoArmazem.all_cooperativas.filter(armazem__cenario=cenario).count()
+            + SafraUnidade.all_cooperativas.filter(cenario=cenario).count()
+        )
+        self.assertEqual(total_gravado, previsto.total_criar)
 
     def test_nao_toca_em_cenario_de_outra_cooperativa(self):
         outra = Cooperativa.objects.create(nome='Outra', slug='outra')
@@ -265,3 +289,31 @@ class AplicarTests(TestCase):
             cenario=cenario, entidade_id=fabrica.id, entidade_tipo='Armazém',
         )
         self.assertEqual(safra_armazem.data_fim, datetime.date(2026, 6, 15))
+
+    # -- Achados do review da Task 3 (findings 2 e 3) ---------------------
+
+    def test_nome_maior_que_o_limite_do_model_nao_e_gravado(self):
+        """(finding 2) `analisar` só checava branco/duplicado/numérico para
+        'nome' -- um nome maior que o `max_length` do model (100) passava
+        como 'criar' e `aplicar` estourava `ValidationError` no meio da
+        transação. `_analisar_unidades` agora rejeita o nome longo direto,
+        então nem chega a `aplicar` tentar gravá-lo."""
+        muito_longo = 'X' * 101
+        pasta = montar_pasta(
+            fabricas=[FABRICA_OK, dict(FABRICA_OK, nome=muito_longo)],
+        )
+
+        relatorio, cenario = aplicar(pasta, cooperativa=self.coop, nome_novo='Oficial')
+
+        self.assertEqual(Fabrica.all_cooperativas.filter(cenario=cenario).count(), 1)
+        rejeitadas = relatorio.resumo(ABA_FABRICAS).rejeitadas
+        self.assertEqual(len(rejeitadas), 1)
+        self.assertIn('100 caracteres', rejeitadas[0].motivo)
+
+    def test_nome_do_cenario_em_branco_levanta_validationerror_e_nao_grava(self):
+        """(finding 3) `Cenario` era criado com `.create()` direto, sem
+        `full_clean()` -- um nome em branco era persistido em silêncio."""
+        with self.assertRaises(ValidationError):
+            aplicar(pasta_completa(), cooperativa=self.coop, nome_novo='')
+
+        self.assertFalse(Cenario.all_cooperativas.filter(cooperativa=self.coop).exists())

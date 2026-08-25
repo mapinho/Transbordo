@@ -50,6 +50,13 @@ OBRIGATORIOS_POR_ABA = {
     ABA_ARMAZENS: COLUNAS_POR_ABA[ABA_ARMAZENS][1:],
 }
 
+# Fábricas e Armazéns são as únicas abas cuja coluna 'nome' é gravada direto
+# num CharField do model (Rotas/Previsões/Safras só usam o texto da célula
+# para resolver contra essas duas -- não persistem texto livre). O limite
+# vem do próprio model para não arriscar divergir de models.py (finding 2 do
+# review da Task 3).
+MODELO_POR_ABA = {ABA_FABRICAS: Fabrica, ABA_ARMAZENS: Armazem}
+
 
 @dataclass
 class LinhaRejeitada:
@@ -159,10 +166,16 @@ def _analisar_unidades(aba, linhas, existentes, resumo):
     abas seguintes resolverem contra ele.
     """
     nomes = set()
+    max_nome = MODELO_POR_ABA[aba]._meta.get_field('nome').max_length
     for numero, valores in linhas:
         nome = _texto(valores, 'nome')
         if not nome:
             resumo.rejeitadas.append(LinhaRejeitada(aba, numero, 'nome em branco', valores))
+            continue
+        if len(nome) > max_nome:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                aba, numero, f'nome tem mais de {max_nome} caracteres', valores,
+            ))
             continue
         if nome in nomes:
             resumo.rejeitadas.append(LinhaRejeitada(aba, numero, 'nome duplicado na planilha', valores))
@@ -246,6 +259,16 @@ def _chaves_de_previsao(cenario):
     return chaves
 
 
+def _tipo_canonico(entidade_tipo):
+    """'Armazém' identifica um armazém; qualquer outra grafia persistida
+    (ex.: 'fabrica' minúsculo -- ver tests/test_models_a11.py e a nota em
+    `_gravar_safras`) conta como fábrica. Extraído para que `_chaves_de_safra`
+    (o que `analisar` promete) e `_gravar_safras` (o que `aplicar` grava)
+    nunca divirjam sobre o que é canônico -- finding 4 do review da Task 3.
+    """
+    return 'Armazém' if entidade_tipo == 'Armazém' else 'Fábrica'
+
+
 def _chaves_de_safra(cenario):
     if cenario is None:
         return set()
@@ -257,7 +280,7 @@ def _chaves_de_safra(cenario):
     )
     chaves = set()
     for s in SafraUnidade.all_cooperativas.filter(cenario=cenario):
-        tipo = 'Armazém' if s.entidade_tipo == 'Armazém' else 'Fábrica'
+        tipo = _tipo_canonico(s.entidade_tipo)
         mapa = armazens if tipo == 'Armazém' else fabricas
         nome = mapa.get(s.entidade_id)
         if nome:
@@ -472,9 +495,11 @@ def aplicar(arquivo, cenario=None, cooperativa=None, nome_novo=None):
     with transaction.atomic():
         if cenario is None:
             primeiro = not Cenario.all_cooperativas.filter(cooperativa=cooperativa).exists()
-            cenario = Cenario.all_cooperativas.create(
+            cenario = Cenario(
                 cooperativa=cooperativa, nome=nome_novo, is_oficial=primeiro,
             )
+            cenario.full_clean()
+            cenario.save()
         coop = cenario.cooperativa
 
         fabricas = _gravar_unidades(Fabrica, ABA_FABRICAS, abas[ABA_FABRICAS], cenario, coop)
@@ -489,16 +514,19 @@ def aplicar(arquivo, cenario=None, cooperativa=None, nome_novo=None):
 def _gravar_unidades(modelo, aba, linhas, cenario, coop):
     """Fábricas e Armazéns. Devolve {nome: instância} do cenário ao final.
 
-    Espelha `_analisar_unidades`: nome em branco é pulado, e uma segunda
-    ocorrência do mesmo nome na planilha é pulada (correção a) -- gravá-la
-    sobrescreveria a primeira linha, que `analisar` já classificou sozinha
-    como criação/atualização.
+    Espelha `_analisar_unidades`: nome em branco, nome maior que o
+    `max_length` do model (finding 2 do review da Task 3), e uma segunda
+    ocorrência do mesmo nome na planilha (correção a) são pulados -- gravar
+    qualquer um deles sobrescreveria/violaria o que `analisar` já classificou.
     """
     existentes = {u.nome: u for u in modelo.all_cooperativas.filter(cenario=cenario)}
+    max_nome = modelo._meta.get_field('nome').max_length
     vistos = set()
     for _, valores in linhas:
         nome = _texto(valores, 'nome')
         if not nome:
+            continue
+        if len(nome) > max_nome:
             continue
         if nome in vistos:
             continue
@@ -642,10 +670,7 @@ def _gravar_safras(linhas, cenario, coop, fabricas, armazens):
             cenario=cenario, entidade_id=unidade.id, data_inicio=inicio,
         )
         safra = next(
-            (
-                s for s in candidatas
-                if ('Armazém' if s.entidade_tipo == 'Armazém' else 'Fábrica') == tipo
-            ),
+            (s for s in candidatas if _tipo_canonico(s.entidade_tipo) == tipo),
             None,
         ) or SafraUnidade(
             cooperativa=coop, cenario=cenario, entidade_id=unidade.id, data_inicio=inicio,

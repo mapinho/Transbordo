@@ -162,6 +162,24 @@ class AnalisarFabricasArmazensTests(TestCase):
         self.assertIn('duplicado', rejeitada.motivo)
         self.assertEqual(rejeitada.linha, 3)  # segunda linha de dados = Excel row 3
 
+    def test_nome_maior_que_o_limite_do_model_e_rejeitado(self):
+        """(finding 2 do review da Task 3) `Fabrica.nome`/`Armazem.nome` são
+        `CharField(max_length=100)` -- sem esta checagem, a linha era
+        reportada como 'criar' e só estourava na hora de gravar."""
+        muito_longo = 'X' * 101
+        pasta = montar_pasta(
+            fabricas=[dict(FABRICA_OK, nome=muito_longo)],
+            armazens=[dict(ARMAZEM_OK, nome=muito_longo)],
+        )
+
+        relatorio = analisar(pasta, None)
+
+        for aba in (ABA_FABRICAS, ABA_ARMAZENS):
+            resumo = relatorio.resumo(aba)
+            self.assertEqual(resumo.criar, 0)
+            self.assertEqual(len(resumo.rejeitadas), 1)
+            self.assertIn('100 caracteres', resumo.rejeitadas[0].motivo)
+
     def test_mesmo_nome_em_abas_diferentes_nao_e_duplicado(self):
         """Mesmo nome em Fábricas e Armazéns é válido -- são entidades diferentes."""
         fabrica = dict(FABRICA_OK, nome='ENTIDADE COMPARTILHADA')
