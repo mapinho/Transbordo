@@ -30,8 +30,8 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
-    <nav class="border-b border-[--cor-borda] bg-[--cor-superficie] px-6 py-3 flex items-center justify-between">
-        <span class="font-semibold text-[--cor-primaria]">Comigo — Transbordo</span>
+    <nav class="border-b border-[var(--cor-borda)] bg-[var(--cor-superficie)] px-6 py-3 flex items-center justify-between">
+        <span class="font-semibold text-[var(--cor-primaria)]">Comigo — Transbordo</span>
         {% if request.user.is_authenticated %}
         <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
@@ -43,7 +43,7 @@
         {% if messages %}
         <ul class="mb-4">
             {% for message in messages %}
-            <li class="rounded border border-[--cor-borda] bg-white px-4 py-2 mb-2">{{ message }}</li>
+            <li class="rounded border border-[var(--cor-borda)] bg-white px-4 py-2 mb-2">{{ message }}</li>
             {% endfor %}
         </ul>
         {% endif %}

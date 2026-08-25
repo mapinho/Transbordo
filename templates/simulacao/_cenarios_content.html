@@ -16,7 +16,7 @@
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="rounded bg-[--cor-primaria] hover:bg-[--cor-primaria-hover] text-white px-4 py-2">
+        <button type="submit" class="rounded bg-[var(--cor-primaria)] hover:bg-[var(--cor-primaria-hover)] text-white px-4 py-2">
             Criar Cenário
         </button>
     </form>
@@ -24,10 +24,10 @@
 
 <c-card>
     <h2 class="font-medium mb-3">Escolher Cenário para Editar</h2>
-    <ul class="divide-y divide-[--cor-borda]">
+    <ul class="divide-y divide-[var(--cor-borda)]">
         {% for cenario in cenarios %}
         <li class="py-2">
-            <a href="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}" class="text-[--cor-primaria] hover:underline">
+            <a href="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}" class="text-[var(--cor-primaria)] hover:underline">
                 {{ cenario.nome }}{% if cenario.is_oficial %} (Oficial){% endif %}
             </a>
         </li>
@@ -36,7 +36,7 @@
 </c-card>
 
 <p class="mt-6">
-    <a href="{% url 'simulacao:carga' %}" class="text-[--cor-primaria] hover:underline">
+    <a href="{% url 'simulacao:carga' %}" class="text-[var(--cor-primaria)] hover:underline">
         Carregar dados por planilha
     </a>
 </p>
