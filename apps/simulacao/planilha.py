@@ -8,10 +8,11 @@ docs/superpowers/specs/2026-08-25-carga-de-dados-design.md.
 import datetime
 from dataclasses import dataclass, field
 
+from django.db import transaction
 from openpyxl import load_workbook
 
 from apps.simulacao.models import (
-    Armazem, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota, SafraUnidade,
+    Armazem, Cenario, Fabrica, PrevisaoArmazem, PrevisaoFabrica, Rota, SafraUnidade,
 )
 
 ABA_FABRICAS = 'Fábricas'
@@ -442,3 +443,214 @@ def analisar(arquivo, cenario):
     )
 
     return relatorio
+
+
+def aplicar(arquivo, cenario=None, cooperativa=None, nome_novo=None):
+    """Reanalisa a pasta e grava as linhas válidas. Devolve (relatorio, cenario).
+
+    Com `cenario=None`, cria o cenário a partir de `cooperativa` e `nome_novo`,
+    marcando-o oficial se for o primeiro daquela cooperativa. A criação acontece
+    DENTRO da mesma transação que grava as linhas, para que uma pasta com erro
+    não deixe um cenário vazio para trás.
+
+    Devolve (relatorio, None) sem escrever nada quando há erro estrutural.
+
+    Cada `_gravar_*` espelha as rejeições do `_analisar_*` correspondente
+    (nome/chave em branco, referência não resolvida, duplicata na própria
+    planilha, campo numérico/data inválido) para que o relatório devolvido
+    por `analisar` nunca prometa uma escrita que `aplicar` não faz.
+    """
+    relatorio = analisar(arquivo, cenario)
+    if relatorio.tem_erro_estrutural:
+        return relatorio, None
+
+    arquivo.seek(0)
+    abas, erro = _ler_abas(arquivo)
+    if erro:  # defensivo: a mesma pasta acabou de ser lida com sucesso
+        return _erro(erro), None
+
+    with transaction.atomic():
+        if cenario is None:
+            primeiro = not Cenario.all_cooperativas.filter(cooperativa=cooperativa).exists()
+            cenario = Cenario.all_cooperativas.create(
+                cooperativa=cooperativa, nome=nome_novo, is_oficial=primeiro,
+            )
+        coop = cenario.cooperativa
+
+        fabricas = _gravar_unidades(Fabrica, ABA_FABRICAS, abas[ABA_FABRICAS], cenario, coop)
+        armazens = _gravar_unidades(Armazem, ABA_ARMAZENS, abas[ABA_ARMAZENS], cenario, coop)
+        _gravar_rotas(abas[ABA_ROTAS], cenario, coop, fabricas, armazens)
+        _gravar_previsoes(abas[ABA_PREVISOES], coop, fabricas, armazens)
+        _gravar_safras(abas[ABA_SAFRAS], cenario, coop, fabricas, armazens)
+
+    return relatorio, cenario
+
+
+def _gravar_unidades(modelo, aba, linhas, cenario, coop):
+    """Fábricas e Armazéns. Devolve {nome: instância} do cenário ao final.
+
+    Espelha `_analisar_unidades`: nome em branco é pulado, e uma segunda
+    ocorrência do mesmo nome na planilha é pulada (correção a) -- gravá-la
+    sobrescreveria a primeira linha, que `analisar` já classificou sozinha
+    como criação/atualização.
+    """
+    existentes = {u.nome: u for u in modelo.all_cooperativas.filter(cenario=cenario)}
+    vistos = set()
+    for _, valores in linhas:
+        nome = _texto(valores, 'nome')
+        if not nome:
+            continue
+        if nome in vistos:
+            continue
+        numeros = {}
+        invalida = False
+        for coluna in OBRIGATORIOS_POR_ABA[aba]:
+            valor, erro = _numero(valores, coluna)
+            if erro:
+                invalida = True
+                break
+            numeros[coluna] = valor
+        if invalida:
+            continue
+        vistos.add(nome)
+        unidade = existentes.get(nome) or modelo(cooperativa=coop, cenario=cenario, nome=nome)
+        for coluna, valor in numeros.items():
+            setattr(unidade, coluna, valor)
+        if aba == ABA_FABRICAS:
+            unidade.limite_caminhoes = int(unidade.limite_caminhoes)
+        unidade.full_clean()
+        unidade.save()
+        existentes[nome] = unidade
+    return existentes
+
+
+def _gravar_rotas(linhas, cenario, coop, fabricas, armazens):
+    """Espelha `_analisar_rotas`: origem/destino não resolvidos e uma segunda
+    ocorrência da mesma (origem, destino) na planilha são puladas (correção b).
+    """
+    vistos = set()
+    for _, valores in linhas:
+        origem = _texto(valores, 'origem')
+        destino = _texto(valores, 'destino')
+        if origem not in armazens or destino not in fabricas:
+            continue
+        if (origem, destino) in vistos:
+            continue
+        distancia, erro_d = _numero(valores, 'distancia_km')
+        custo, erro_c = _numero(valores, 'custo_frete_ton')
+        if erro_d or erro_c:
+            continue
+        if valores.get('custo_frete_entressafra') is None:
+            entressafra = custo
+        else:
+            entressafra, erro_e = _numero(valores, 'custo_frete_entressafra')
+            if erro_e:
+                continue
+        vistos.add((origem, destino))
+        armazem = armazens[origem]
+        fabrica = fabricas[destino]
+        rota = Rota.all_cooperativas.filter(
+            cenario=cenario, armazem=armazem, fabrica=fabrica,
+        ).first() or Rota(
+            cooperativa=coop, cenario=cenario, armazem=armazem, fabrica=fabrica,
+        )
+        rota.distancia_km = distancia
+        rota.custo_frete_ton = custo
+        rota.custo_frete_entressafra = entressafra
+        rota.full_clean()
+        rota.save()
+
+
+def _gravar_previsoes(linhas, coop, fabricas, armazens):
+    """Espelha `_analisar_previsoes`: entidade não resolvida, mês não
+    parseável e uma segunda ocorrência de (nome, mês normalizado ao dia 1)
+    na planilha são puladas (correção b).
+    """
+    vistos = set()
+    for _, valores in linhas:
+        nome = _texto(valores, 'entidade')
+        if not nome:
+            continue
+        tipo, erro = _resolver(nome, set(fabricas), set(armazens))
+        if erro:
+            continue
+        mes, erro = _data(valores, 'mes_referencia')
+        if erro:
+            continue
+        mes = mes.replace(day=1)
+        if (nome, mes) in vistos:
+            continue
+        numeros = {}
+        invalida = False
+        for coluna in ('recebimento_produtor', 'vendas'):
+            if valores.get(coluna) is None:
+                numeros[coluna] = 0
+                continue
+            valor, erro = _numero(valores, coluna)
+            if erro:
+                invalida = True
+                break
+            numeros[coluna] = valor
+        if invalida:
+            continue
+        vistos.add((nome, mes))
+        if tipo == 'Fábrica':
+            modelo, campo, unidade = PrevisaoFabrica, 'fabrica', fabricas[nome]
+        else:
+            modelo, campo, unidade = PrevisaoArmazem, 'armazem', armazens[nome]
+        previsao = modelo.all_cooperativas.filter(
+            mes_referencia=mes, **{campo: unidade},
+        ).first() or modelo(cooperativa=coop, mes_referencia=mes, **{campo: unidade})
+        previsao.recebimento_produtor = numeros['recebimento_produtor']
+        previsao.vendas = numeros['vendas']
+        previsao.full_clean()
+        previsao.save()
+
+
+def _gravar_safras(linhas, cenario, coop, fabricas, armazens):
+    """Espelha `_analisar_safras`: unidade não resolvida, datas inválidas e
+    uma segunda ocorrência de (nome, data_inicio) na planilha são puladas
+    (correção b).
+
+    Correção (c): `entidade_tipo` no banco nem sempre é grafado de forma
+    canônica (ver `_chaves_de_safra` -- variantes como 'fabrica' minúsculo
+    se propagam por cenários clonados e importados do legado). Por isso a
+    consulta NÃO filtra por `entidade_tipo`: filtra só por
+    (cenario, entidade_id, data_inicio) e escolhe, entre os resultados, o
+    que canonicaliza para o tipo desta linha -- `entidade_id` sozinho não
+    identifica a unidade porque fábricas e armazéns vêm de sequências de id
+    independentes e podem colidir. Ao gravar, `entidade_tipo` é sempre
+    ajustado para o valor canônico, convergindo o dado ao longo do tempo.
+    """
+    vistos = set()
+    for _, valores in linhas:
+        nome = _texto(valores, 'unidade')
+        if not nome:
+            continue
+        tipo, erro = _resolver(nome, set(fabricas), set(armazens))
+        if erro:
+            continue
+        inicio, erro_i = _data(valores, 'data_inicio')
+        fim, erro_f = _data(valores, 'data_fim')
+        if erro_i or erro_f or fim < inicio:
+            continue
+        if (nome, inicio) in vistos:
+            continue
+        vistos.add((nome, inicio))
+        unidade = armazens[nome] if tipo == 'Armazém' else fabricas[nome]
+        candidatas = SafraUnidade.all_cooperativas.filter(
+            cenario=cenario, entidade_id=unidade.id, data_inicio=inicio,
+        )
+        safra = next(
+            (
+                s for s in candidatas
+                if ('Armazém' if s.entidade_tipo == 'Armazém' else 'Fábrica') == tipo
+            ),
+            None,
+        ) or SafraUnidade(
+            cooperativa=coop, cenario=cenario, entidade_id=unidade.id, data_inicio=inicio,
+        )
+        safra.entidade_tipo = tipo
+        safra.data_fim = fim
+        safra.full_clean()
+        safra.save()
