@@ -256,14 +256,16 @@ def _chaves_de_safra(cenario):
     )
     chaves = set()
     for s in SafraUnidade.all_cooperativas.filter(cenario=cenario):
-        mapa = armazens if s.entidade_tipo == 'Armazém' else fabricas
+        tipo = 'Armazém' if s.entidade_tipo == 'Armazém' else 'Fábrica'
+        mapa = armazens if tipo == 'Armazém' else fabricas
         nome = mapa.get(s.entidade_id)
         if nome:
-            chaves.add((s.entidade_tipo, nome, s.data_inicio))
+            chaves.add((tipo, nome, s.data_inicio))
     return chaves
 
 
 def _analisar_rotas(linhas, fabricas, armazens, chaves_no_banco, resumo):
+    vistos = set()
     for numero, valores in linhas:
         origem = _texto(valores, 'origem')
         destino = _texto(valores, 'destino')
@@ -283,6 +285,11 @@ def _analisar_rotas(linhas, fabricas, armazens, chaves_no_banco, resumo):
                 ABA_ROTAS, numero,
                 f"destino '{destino}' não corresponde a nenhuma fábrica deste cenário", valores,
             ))
+            continue
+        if (origem, destino) in vistos:
+            resumo.rejeitadas.append(
+                LinhaRejeitada(ABA_ROTAS, numero, 'rota duplicada na planilha', valores)
+            )
             continue
         erros = []
         for coluna in ('distancia_km', 'custo_frete_ton'):
@@ -304,9 +311,11 @@ def _analisar_rotas(linhas, fabricas, armazens, chaves_no_banco, resumo):
             resumo.atualizar += 1
         else:
             resumo.criar += 1
+        vistos.add((origem, destino))
 
 
 def _analisar_previsoes(linhas, fabricas, armazens, chaves_no_banco, resumo):
+    vistos = set()
     for numero, valores in linhas:
         nome = _texto(valores, 'entidade')
         if not nome:
@@ -323,6 +332,12 @@ def _analisar_previsoes(linhas, fabricas, armazens, chaves_no_banco, resumo):
             resumo.rejeitadas.append(LinhaRejeitada(ABA_PREVISOES, numero, erro, valores))
             continue
         mes = mes.replace(day=1)
+        if (nome, mes) in vistos:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                ABA_PREVISOES, numero,
+                'previsão duplicada na planilha (mesma entidade e mês)', valores,
+            ))
+            continue
         # recebimento_produtor e vendas em branco valem 0 (bug A9 da Fase 1).
         erro_numerico = None
         for coluna in ('recebimento_produtor', 'vendas'):
@@ -341,9 +356,11 @@ def _analisar_previsoes(linhas, fabricas, armazens, chaves_no_banco, resumo):
             resumo.atualizar += 1
         else:
             resumo.criar += 1
+        vistos.add((nome, mes))
 
 
 def _analisar_safras(linhas, fabricas, armazens, chaves_no_banco, resumo):
+    vistos = set()
     for numero, valores in linhas:
         nome = _texto(valores, 'unidade')
         if not nome:
@@ -367,10 +384,17 @@ def _analisar_safras(linhas, fabricas, armazens, chaves_no_banco, resumo):
                 ABA_SAFRAS, numero, 'data_fim é anterior a data_inicio', valores,
             ))
             continue
+        if (nome, inicio) in vistos:
+            resumo.rejeitadas.append(LinhaRejeitada(
+                ABA_SAFRAS, numero,
+                'safra duplicada na planilha (mesma unidade e data de início)', valores,
+            ))
+            continue
         if (tipo, nome, inicio) in chaves_no_banco:
             resumo.atualizar += 1
         else:
             resumo.criar += 1
+        vistos.add((nome, inicio))
 
 
 def analisar(arquivo, cenario):

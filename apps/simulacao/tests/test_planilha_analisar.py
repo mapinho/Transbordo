@@ -3,7 +3,9 @@ import io
 from django.test import TestCase
 
 from apps.core.models import Cooperativa
-from apps.simulacao.models import Armazem, Cenario, Fabrica
+from apps.simulacao.models import (
+    Armazem, Cenario, Fabrica, PrevisaoFabrica, Rota, SafraUnidade,
+)
 from apps.simulacao.planilha import ABA_ARMAZENS, ABA_FABRICAS, analisar
 from apps.simulacao.tests.planilha_fixtures import montar_pasta, montar_pasta_bruta
 
@@ -324,3 +326,110 @@ class AnalisarResolucaoTests(TestCase):
         rejeitadas = relatorio.resumo(ABA_SAFRAS).rejeitadas
         self.assertEqual(len(rejeitadas), 1)
         self.assertIn('data_fim', rejeitadas[0].motivo)
+
+    # -- Fix round (review findings 1-3) --------------------------------
+
+    def test_rota_duplicada_na_planilha_e_rejeitada(self):
+        """Mesma (origem, destino) duas vezes: primeira é criação, segunda é rejeitada."""
+        pasta = montar_pasta(
+            fabricas=[FABRICA_OK], armazens=[ARMAZEM_OK], rotas=[ROTA_OK, dict(ROTA_OK)],
+        )
+
+        relatorio = analisar(pasta, None)
+
+        resumo = relatorio.resumo(ABA_ROTAS)
+        self.assertEqual(resumo.criar, 1)
+        self.assertEqual(len(resumo.rejeitadas), 1)
+        self.assertIn('rota duplicada na planilha', resumo.rejeitadas[0].motivo)
+
+    def test_previsao_duplicada_na_planilha_e_rejeitada(self):
+        """Mesma (entidade, mês) duas vezes: primeira é criação, segunda é rejeitada."""
+        linha = {'entidade': 'FÁBRICA TESTE', 'mes_referencia': datetime.date(2026, 3, 1),
+                  'recebimento_produtor': 1, 'vendas': 1}
+        pasta = montar_pasta(fabricas=[FABRICA_OK], previsoes=[linha, dict(linha)])
+
+        relatorio = analisar(pasta, None)
+
+        resumo = relatorio.resumo(ABA_PREVISOES)
+        self.assertEqual(resumo.criar, 1)
+        self.assertEqual(len(resumo.rejeitadas), 1)
+        self.assertIn('previsão duplicada na planilha', resumo.rejeitadas[0].motivo)
+
+    def test_safra_duplicada_na_planilha_e_rejeitada(self):
+        """Mesma (unidade, data_inicio) duas vezes: primeira é criação, segunda é rejeitada."""
+        linha = {'unidade': 'ARMAZÉM A', 'data_inicio': datetime.date(2026, 2, 1),
+                  'data_fim': datetime.date(2026, 5, 31)}
+        pasta = montar_pasta(armazens=[ARMAZEM_OK], safras=[linha, dict(linha)])
+
+        relatorio = analisar(pasta, None)
+
+        resumo = relatorio.resumo(ABA_SAFRAS)
+        self.assertEqual(resumo.criar, 1)
+        self.assertEqual(len(resumo.rejeitadas), 1)
+        self.assertIn('safra duplicada na planilha', resumo.rejeitadas[0].motivo)
+
+    def test_rota_ja_no_banco_conta_como_atualizacao(self):
+        fabrica = Fabrica.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, nome='FÁBRICA TESTE',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=1,
+        )
+        armazem = Armazem.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, nome='ARMAZÉM A',
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=1,
+        )
+        Rota.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, armazem=armazem, fabrica=fabrica,
+            distancia_km=100, custo_frete_ton=40, custo_frete_entressafra=35,
+        )
+
+        relatorio = analisar(montar_pasta(rotas=[ROTA_OK]), self.cenario)
+
+        resumo = relatorio.resumo(ABA_ROTAS)
+        self.assertEqual(resumo.criar, 0)
+        self.assertEqual(resumo.atualizar, 1)
+
+    def test_previsao_ja_no_banco_conta_como_atualizacao(self):
+        fabrica = Fabrica.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, nome='FÁBRICA TESTE',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=1,
+        )
+        PrevisaoFabrica.all_cooperativas.create(
+            cooperativa=self.coop, fabrica=fabrica, mes_referencia=datetime.date(2026, 3, 1),
+            recebimento_produtor=1, vendas=1,
+        )
+        previsao = {'entidade': 'FÁBRICA TESTE', 'mes_referencia': datetime.date(2026, 3, 15),
+                    'recebimento_produtor': 2, 'vendas': 2}
+
+        relatorio = analisar(montar_pasta(previsoes=[previsao]), self.cenario)
+
+        resumo = relatorio.resumo(ABA_PREVISOES)
+        self.assertEqual(resumo.criar, 0)
+        self.assertEqual(resumo.atualizar, 1)
+
+    def test_safra_ja_no_banco_com_entidade_tipo_nao_canonico_conta_como_atualizacao(self):
+        """Mirrors tests/test_scenarios_c4_c5.py: entidade_tipo persistido para uma
+        fábrica nem sempre é o literal 'Fábrica' -- a convenção é checar
+        `== 'Armazém'` primeiro e assumir Fábrica em qualquer outro caso."""
+        fabrica = Fabrica.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, nome='FÁBRICA TESTE',
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=1,
+        )
+        SafraUnidade.all_cooperativas.create(
+            cooperativa=self.coop, cenario=self.cenario, entidade_tipo='fabrica',
+            entidade_id=fabrica.id, data_inicio=datetime.date(2026, 2, 15),
+            data_fim=datetime.date(2026, 6, 15),
+        )
+        safra = {'unidade': 'FÁBRICA TESTE', 'data_inicio': datetime.date(2026, 2, 15),
+                 'data_fim': datetime.date(2026, 6, 15)}
+
+        relatorio = analisar(montar_pasta(safras=[safra]), self.cenario)
+
+        resumo = relatorio.resumo(ABA_SAFRAS)
+        self.assertEqual(resumo.criar, 0)
+        self.assertEqual(resumo.atualizar, 1)
