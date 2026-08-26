@@ -418,6 +418,14 @@ def simulacao_tab(request, cenario_id):
 def simulacao_executar(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
 
+    data_inicio = request.POST.get('data_inicio', '')
+    data_fim = request.POST.get('data_fim', '')
+    estrategia = request.POST.get('estrategia', '')
+    if not data_inicio or not data_fim:
+        return HttpResponseBadRequest('Informe o período da simulação.')
+    if estrategia not in ESTRATEGIAS:
+        return HttpResponseBadRequest('Estratégia inválida.')
+
     em_andamento = (
         LogExecucao.objects.filter(cenario_id=cenario.id, status='em_andamento')
         .order_by('-id').first()
@@ -430,14 +438,6 @@ def simulacao_executar(request, cenario_id):
         em_andamento.status = 'erro'
         em_andamento.mensagem = 'Execução interrompida — worker inativo.'
         em_andamento.save(update_fields=['status', 'mensagem'])
-
-    data_inicio = request.POST.get('data_inicio', '')
-    data_fim = request.POST.get('data_fim', '')
-    estrategia = request.POST.get('estrategia', '')
-    if not data_inicio or not data_fim:
-        return HttpResponseBadRequest('Informe o período da simulação.')
-    if estrategia not in ESTRATEGIAS:
-        return HttpResponseBadRequest('Estratégia inválida.')
 
     log = LogExecucao.objects.create(
         cooperativa_id=cenario.cooperativa_id, cenario_id=cenario.id, status='em_andamento',

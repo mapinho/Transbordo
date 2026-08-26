@@ -31,6 +31,9 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-slate-50 text-slate-900">
+    <div id="htmx-error-toast" class="alert alert-error fixed top-4 right-4 w-auto max-w-md z-50 hidden">
+        <span id="htmx-error-toast-text"></span>
+    </div>
     <nav class="border-b border-[var(--cor-borda)] bg-[var(--cor-superficie)] px-6 py-3 flex items-center justify-between">
         <span class="font-semibold text-[var(--cor-primaria)]">Comigo — Transbordo</span>
         {% if request.user.is_authenticated %}
@@ -51,6 +54,18 @@
         {% block content %}{% endblock %}
     </main>
     <script src="{% static 'simulacao/js/modal.js' %}"></script>
+    <script>
+        document.body.addEventListener('htmx:responseError', function (evt) {
+            var toast = document.getElementById('htmx-error-toast');
+            var text = document.getElementById('htmx-error-toast-text');
+            text.textContent = (evt.detail.xhr && evt.detail.xhr.responseText) || 'Ocorreu um erro ao processar a solicitação.';
+            toast.classList.remove('hidden');
+            clearTimeout(toast._hideTimeout);
+            toast._hideTimeout = setTimeout(function () {
+                toast.classList.add('hidden');
+            }, 5000);
+        });
+    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

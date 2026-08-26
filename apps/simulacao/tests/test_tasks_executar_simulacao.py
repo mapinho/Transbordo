@@ -26,6 +26,10 @@ def _montar_cenario_zerado(cooperativa, cenario):
     return fabrica, armazem, rota
 
 
+# TransactionTestCase, not TestCase: run_worker() executes the task via Django's sync_to_async
+# thread-pool machinery, which opens its own DB connection — one that can't see data held in
+# TestCase's uncommitted per-test transaction. TransactionTestCase really commits, so the worker
+# thread can see it.
 class ExecutarSimulacaoTaskTests(TransactionTestCase):
     def setUp(self):
         self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')

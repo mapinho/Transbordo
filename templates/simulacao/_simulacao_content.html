@@ -7,12 +7,12 @@
     <div class="flex flex-wrap gap-4 items-end">
         <label class="flex flex-col">
             <span class="text-sm">Data início</span>
-            <input type="date" name="data_inicio"
+            <input type="date" name="data_inicio" required
                    value="{{ inicio_sugerido|date:'Y-m-d' }}" class="input input-bordered">
         </label>
         <label class="flex flex-col">
             <span class="text-sm">Data fim</span>
-            <input type="date" name="data_fim"
+            <input type="date" name="data_fim" required
                    value="{{ fim_sugerido|date:'Y-m-d' }}" class="input input-bordered">
         </label>
         <label class="flex flex-col">

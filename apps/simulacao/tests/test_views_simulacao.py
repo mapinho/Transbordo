@@ -13,6 +13,10 @@ from apps.simulacao.models import Cenario, LogExecucao
 User = get_user_model()
 
 
+# TransactionTestCase, not TestCase: run_worker() executes the task via Django's sync_to_async
+# thread-pool machinery, which opens its own DB connection — one that can't see data held in
+# TestCase's uncommitted per-test transaction. TransactionTestCase really commits, so the worker
+# thread can see it.
 class SimulacaoViewsTests(TransactionTestCase):
     def setUp(self):
         self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
@@ -45,6 +49,18 @@ class SimulacaoViewsTests(TransactionTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<html')
+
+    def test_pagina_completa_expoe_validacao_e_toast_de_erro_4xx(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.url_tab)
+
+        self.assertEqual(response.status_code, 200)
+        conteudo = response.content.decode()
+        self.assertEqual(conteudo.count(' required'), 2)
+        self.assertIn('id="htmx-error-toast"', conteudo)
+        self.assertIn('id="htmx-error-toast-text"', conteudo)
+        self.assertIn('htmx:responseError', conteudo)
 
     def test_partial_com_htmx(self):
         self.client.force_login(self.user)
