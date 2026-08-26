@@ -72,6 +72,12 @@ task escreve o ciclo de vida diretamente no `LogExecucao` que o domínio já usa
 A view de polling só faz `LogExecucao.objects.filter(cenario_id=...).latest('data_execucao')` e
 renderiza o fragmento correspondente ao `status` — nenhum acoplamento ao schema interno do Procrastinate.
 
+> **Nota (pós-implementação):** o comportamento final de sucesso, tal como implementado, difere do
+> passo 2 acima — a task *apaga* o marcador em vez de atualizá-lo para `concluido`, porque
+> `engine.simular_periodo` já cria seu próprio `LogExecucao(status='sucesso')` de forma autônoma. Ver
+> [ADR 0007](../../decisions/0007-procrastinate-integracao-django-e-status-por-logexecucao.md) pela
+> decisão final.
+
 ### 4. Concorrência: dois cadeados com propósitos diferentes
 
 `simular_periodo` apaga e reescreve `MovimentacaoDiaria`/`ResumoMensal*` do cenário inteiro; duas
@@ -124,7 +130,8 @@ Casos a cobrir:
 - POST é permitido quando o `em_andamento` existente é órfão (mais velho que o timeout), e o antigo é
   marcado como `erro`.
 - Task de sucesso atualiza `LogExecucao` com `status='concluido'`, `dias_simulados`,
-  `duracao_segundos`.
+  `duracao_segundos` (ver nota pós-implementação na seção 3 — o comportamento final apaga o marcador
+  em vez de atualizá-lo).
 - Task com exceção atualiza `LogExecucao` para `erro` com a mensagem truncada, e relança.
 - View de polling renderiza o fragmento certo para cada `status`, e omite `hx-trigger` nos estados
   terminais.
