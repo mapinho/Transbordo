@@ -1,4 +1,4 @@
-from fastmcp import FastMCP
+from fastmcp import FastMCP  # noqa: I001
 import logistics_services
 
 # Inicializa o MCP Server

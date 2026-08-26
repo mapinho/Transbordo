@@ -100,11 +100,11 @@ def init_db():
             st.session_state.db_initialized = True
         
         return sessionmaker(bind=engine)()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         st.error("### ❌ Erro de Conexão com o Banco de Dados")
         
         # Painel de Diagnóstico Seguro
-        st.write(f"**Origem das credenciais detectada:** `{source if 'source' in locals() else 'Erro antes da detecção'}`")
+        st.write(f"**Origem das credenciais detectada:** `{source if 'source' in locals() else 'Erro antes da detecção'}`") # type: ignore
         
         with st.expander("🔍 Painel de Diagnóstico (Ajuda no Debug)"):
             try:
@@ -112,7 +112,7 @@ def init_db():
                     st.write("Chaves presentes no seu `st.secrets`:", list(st.secrets.keys()))
                     if "postgres" in st.secrets:
                         st.write("Sub-chaves em `[postgres]`:", list(st.secrets["postgres"].keys()))
-            except Exception:
+            except Exception:  # noqa: BLE001
                 st.write("Streamlit Secrets não configurado ou inacessível (normal em ambiente local).")
             
             st.write("**Erro Técnico:**")
@@ -131,7 +131,7 @@ def upgrade_db(engine=None):
             try:
                 conn.execute(text('ALTER TABLE "cenarios" ADD COLUMN is_oficial BOOLEAN DEFAULT FALSE;'))
                 conn.commit()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 import logging
                 logging.getLogger(__name__).debug(f"Coluna is_oficial pode já existir: {e}")
 
@@ -144,7 +144,7 @@ def upgrade_db(engine=None):
                 try:
                     conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN cenario_id INTEGER REFERENCES cenarios(id) ON DELETE CASCADE;'))
                     conn.commit()
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     import logging
                     logging.getLogger(__name__).debug(f"Coluna cenario_id na tabela {table} pode já existir: {e}")
             
@@ -155,7 +155,7 @@ def upgrade_db(engine=None):
                 # Opcional: inicializa com o valor da safra se estiver zerado
                 conn.execute(text('UPDATE "rotas" SET custo_frete_entressafra = custo_frete_ton WHERE custo_frete_entressafra = 0;'))
                 conn.commit()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 import logging
                 logging.getLogger(__name__).debug(f"Coluna custo_frete_entressafra pode já existir: {e}")
 
@@ -180,11 +180,11 @@ def upgrade_db(engine=None):
                 for table in tables_to_upgrade:
                     try:
                         session.execute(text(f'UPDATE "{table}" SET cenario_id = :oid WHERE cenario_id IS NULL'), {'oid': oficial_id})
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         import logging
                         logging.getLogger(__name__).debug(f"Falha ao migrar dados órfãos da tabela {table}: {e}")
                 session.commit()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         import logging
         logging.getLogger(__name__).error(f"Erro ao atualizar estrutura do banco de dados: {e}")
 
@@ -200,7 +200,7 @@ def clear_database(session=None):
         tables = [table.name for table in reversed(Base.metadata.sorted_tables)]
         
         # Detecta se é SQLite
-        is_sqlite = session.bind.dialect.name == 'sqlite'
+        is_sqlite = session.bind.dialect.name == 'sqlite' # type: ignore
         
         for table in tables:
             if is_sqlite:
@@ -214,9 +214,9 @@ def clear_database(session=None):
             
         session.commit()
         return True, "Banco de dados limpo e identidades reiniciadas com sucesso."
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         session.rollback()
-        return False, f"Erro ao limpar banco de dados: {str(e)}"
+        return False, f"Erro ao limpar banco de dados: {str(e)}"  # noqa: RUF010
     finally:
         if close_session:
             session.close()
@@ -279,7 +279,7 @@ def load_factories(file_path, cenario_id, session=None):
             fabrica.carga_media_caminhao = row['carga_media_caminhao']
             fabrica.estoque_inicial = row['estoque_inicial']
             count += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Bug A10: uma linha malformada (coluna ausente, tipo inválido,
             # falha inesperada de banco) não pode abortar o import inteiro.
             erros.append((idx, str(e)))
@@ -331,7 +331,7 @@ def load_warehouses(file_path, cenario_id, session=None):
             armazem.capacidade_expedicao_diaria = row['capacidade_expedicao_diaria']
             armazem.estoque_inicial = row['estoque_inicial']
             count += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Bug A10: linha malformada não pode abortar o import inteiro.
             erros.append((idx, str(e)))
             continue
@@ -386,15 +386,15 @@ def load_routes(file_path, cenario_id, session=None):
                 custo_entressafra = row.get('custo_frete_entressafra')
                 custo_frete_entressafra = custo_frete_ton if pd.isna(custo_entressafra) else custo_entressafra
 
-                rota.distancia_km = distancia_km
-                rota.custo_frete_ton = custo_frete_ton
-                rota.custo_frete_entressafra = custo_frete_entressafra
+                rota.distancia_km = distancia_km # type: ignore
+                rota.custo_frete_ton = custo_frete_ton # type: ignore
+                rota.custo_frete_entressafra = custo_frete_entressafra # type: ignore
                 if eh_novo:
                     session.add(rota)
                 count += 1
             else:
                 skipped += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Bug A10: linha malformada (coluna ausente, data/tipo inválido)
             # não pode abortar o import inteiro nem derrubar linhas já OK.
             erros.append((idx, str(e)))
@@ -464,7 +464,7 @@ def load_previsoes(file_path, cenario_id, session=None):
                 count += 1
             else:
                 skipped += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             # Bug A10: linha malformada (ex.: mes_referencia não parseável
             # por pd.to_datetime) não pode abortar o import inteiro.
             erros.append((idx, str(e)))

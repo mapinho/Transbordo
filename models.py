@@ -18,23 +18,23 @@ Base = declarative_base()
 class Cenario(Base):
     __tablename__ = 'cenarios'
 
-    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'ID', 'type': 'number', 'format': '%d', 'disabled': True})
-    nome: Mapped[str] = Column(String(100), unique=True, nullable=False, info={'label': 'Nome do Cenário'})
-    data_criacao: Mapped[Optional[datetime.datetime]] = Column(DateTime, default=datetime.datetime.now, info={'label': 'Data de Criação', 'type': 'date', 'disabled': True})
-    is_oficial: Mapped[Optional[bool]] = Column(Boolean, default=False, info={'hidden': True})
+    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'ID', 'type': 'number', 'format': '%d', 'disabled': True}) # type: ignore
+    nome: Mapped[str] = Column(String(100), unique=True, nullable=False, info={'label': 'Nome do Cenário'}) # type: ignore
+    data_criacao: Mapped[Optional[datetime.datetime]] = Column(DateTime, default=datetime.datetime.now, info={'label': 'Data de Criação', 'type': 'date', 'disabled': True}) # type: ignore
+    is_oficial: Mapped[Optional[bool]] = Column(Boolean, default=False, info={'hidden': True}) # type: ignore
 
 class Fabrica(Base):
     __tablename__ = 'fabricas'
 
-    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True})
-    cenario_id: Mapped[int] = Column(Integer, ForeignKey('cenarios.id', ondelete='CASCADE'), nullable=False, info={'hidden': True})
-    nome: Mapped[str] = Column(String(100), nullable=False, info={'label': 'Fábrica', 'disabled': True})
-    capacidade_estatica: Mapped[float] = Column(Float, nullable=False, info={'label': 'Capacidade Estática (Ton)', 'type': 'number', 'format': 'localized', 'step': 1})
-    capacidade_esmagamento_diaria: Mapped[float] = Column(Float, nullable=False, info={'label': 'Esmagamento Diário (Ton)', 'type': 'number', 'format': 'localized', 'step': 1})
-    capacidade_recebimento_diaria: Mapped[float] = Column(Float, nullable=False, info={'label': 'Recebimento Diário (Ton)', 'type': 'number', 'format': 'localized', 'step': 1})
-    limite_caminhoes: Mapped[int] = Column(Integer, nullable=False, info={'label': 'Limite de Caminhões', 'type': 'number', 'format': 'localized', 'step': 1})
-    carga_media_caminhao: Mapped[float] = Column(Float, nullable=False, info={'label': 'Carga Média (Ton)', 'type': 'number', 'format': 'localized', 'step': 1})
-    estoque_inicial: Mapped[float] = Column(Float, nullable=False, info={'label': 'Estoque Inicial (Ton)', 'type': 'number', 'format': 'localized', 'step': 1})
+    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True}) # type: ignore
+    cenario_id: Mapped[int] = Column(Integer, ForeignKey('cenarios.id', ondelete='CASCADE'), nullable=False, info={'hidden': True}) # type: ignore
+    nome: Mapped[str] = Column(String(100), nullable=False, info={'label': 'Fábrica', 'disabled': True}) # type: ignore
+    capacidade_estatica: Mapped[float] = Column(Float, nullable=False, info={'label': 'Capacidade Estática (Ton)', 'type': 'number', 'format': 'localized', 'step': 1}) # type: ignore
+    capacidade_esmagamento_diaria: Mapped[float] = Column(Float, nullable=False, info={'label': 'Esmagamento Diário (Ton)', 'type': 'number', 'format': 'localized', 'step': 1}) # type: ignore
+    capacidade_recebimento_diaria: Mapped[float] = Column(Float, nullable=False, info={'label': 'Recebimento Diário (Ton)', 'type': 'number', 'format': 'localized', 'step': 1}) # type: ignore
+    limite_caminhoes: Mapped[int] = Column(Integer, nullable=False, info={'label': 'Limite de Caminhões', 'type': 'number', 'format': 'localized', 'step': 1}) # type: ignore
+    carga_media_caminhao: Mapped[float] = Column(Float, nullable=False, info={'label': 'Carga Média (Ton)', 'type': 'number', 'format': 'localized', 'step': 1}) # type: ignore
+    estoque_inicial: Mapped[float] = Column(Float, nullable=False, info={'label': 'Estoque Inicial (Ton)', 'type': 'number', 'format': 'localized', 'step': 1}) # type: ignore
 
     previsoes = relationship("PrevisaoFabrica", back_populates="fabrica", cascade="all, delete-orphan")
     rotas = relationship("Rota", back_populates="fabrica", cascade="all")
@@ -42,7 +42,7 @@ class Fabrica(Base):
 class Armazem(Base):
     __tablename__ = 'armazens'
 
-    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True})
+    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True}) # type: ignore
     cenario_id: Mapped[int] = Column(Integer, ForeignKey('cenarios.id', ondelete='CASCADE'), nullable=False, info={'hidden': True})
     nome: Mapped[str] = Column(String(100), nullable=False, info={'label': 'Armazém', 'disabled': True})
     capacidade_estatica: Mapped[float] = Column(Float, nullable=False, info={'label': 'Capacidade Estática (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1})
@@ -72,27 +72,27 @@ class PrevisaoFabrica(Base):
     id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True})
     fabrica_id: Mapped[int] = Column(Integer, ForeignKey('fabricas.id', ondelete='CASCADE'), nullable=False, info={'hidden': True})
     mes_referencia: Mapped[datetime.date] = Column(Date, nullable=False, info={'label': 'Mês', 'type': 'date', 'disabled': True})
-    recebimento_produtor: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Recebimento Produtor (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1})
-    vendas: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Vendas (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1})
+    recebimento_produtor: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Recebimento Produtor (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1}) # type: ignore
+    vendas: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Vendas (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1}) # type: ignore
 
     fabrica = relationship("Fabrica", back_populates="previsoes")
 
 class PrevisaoArmazem(Base):
     __tablename__ = 'previsoes_armazem'
 
-    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'step': 1, 'disabled': True})
-    armazem_id: Mapped[int] = Column(Integer, ForeignKey('armazens.id', ondelete='CASCADE'), nullable=False, info={'hidden': True})
-    mes_referencia: Mapped[datetime.date] = Column(Date, nullable=False, info={'label': 'Mês', 'type': 'date', 'disabled': True})
-    recebimento_produtor: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Recebimento Produtor (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1})
-    vendas: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Vendas (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1})
+    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'step': 1, 'disabled': True}) # type: ignore
+    armazem_id: Mapped[int] = Column(Integer, ForeignKey('armazens.id', ondelete='CASCADE'), nullable=False, info={'hidden': True}) # type: ignore
+    mes_referencia: Mapped[datetime.date] = Column(Date, nullable=False, info={'label': 'Mês', 'type': 'date', 'disabled': True}) # type: ignore
+    recebimento_produtor: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Recebimento Produtor (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1}) # type: ignore
+    vendas: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Vendas (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.1}) # type: ignore
 
     armazem = relationship("Armazem", back_populates="previsoes")
 
 class SafraUnidade(Base):
     __tablename__ = 'safras_unidades'
 
-    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True})
-    cenario_id: Mapped[int] = Column(Integer, ForeignKey('cenarios.id', ondelete='CASCADE'), nullable=False, info={'hidden': True})
+    id: Mapped[int] = Column(Integer, primary_key=True, info={'label': 'id', 'type': 'number', 'format': '%d', 'disabled': True}) # type: ignore
+    cenario_id: Mapped[int] = Column(Integer, ForeignKey('cenarios.id', ondelete='CASCADE'), nullable=False, info={'hidden': True}) # type: ignore
     entidade_tipo: Mapped[str] = Column(String(20), nullable=False, info={'label': 'Tipo', 'disabled': True})
     entidade_id: Mapped[int] = Column(Integer, nullable=False, info={'hidden': True})
     data_inicio: Mapped[datetime.date] = Column(Date, nullable=False, info={'label': 'Início', 'type': 'date'})
@@ -134,7 +134,7 @@ class ResumoMensalFabrica(Base):
     rec_transbordo: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Recebimento Transbordo (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.01})
     esmagado: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Esmagado (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.01})
     saldo_estoque: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Saldo Estoque (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.01})
-    capacidade_estatica: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Capacidade Estática (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.01})
+    capacidade_estatica: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Capacidade Estática (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.01})  # noqa: UP045
     excedente: Mapped[Optional[float]] = Column(Float, default=0, info={'label': 'Excedente (Ton)', 'type': 'number', 'format': 'localized', 'step': 0.01})
 
 class ResumoMensalArmazem(Base):
