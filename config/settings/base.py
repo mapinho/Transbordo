@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'django_cotton',
     'crispy_forms',
     'crispy_tailwind',
+    'procrastinate.contrib.django',
     'apps.core',
     'apps.simulacao',
     'apps.integracoes',
