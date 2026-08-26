@@ -81,6 +81,40 @@ class SimulacaoViewsTests(TransactionTestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_executar_de_cenario_de_outra_cooperativa_404(self):
+        outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        cenario_b = Cenario.all_cooperativas.create(cooperativa=outra_cooperativa, nome='Cenário B')
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('simulacao:simulacao_executar', kwargs={'cenario_id': cenario_b.id}),
+            {'data_inicio': '2026-01-01', 'data_fim': '2026-01-05', 'estrategia': 'Econômico'},
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(len(self.app.connector.jobs), 0)
+
+    def test_status_de_cenario_de_outra_cooperativa_404(self):
+        outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
+        cenario_b = Cenario.all_cooperativas.create(cooperativa=outra_cooperativa, nome='Cenário B')
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse('simulacao:simulacao_status', kwargs={'cenario_id': cenario_b.id})
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_status_em_andamento_inclui_hx_trigger_para_continuar_o_polling(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url_executar, {
+            'data_inicio': '2026-01-01', 'data_fim': '2026-01-05', 'estrategia': 'Econômico',
+        })
+
+        self.assertContains(response, 'hx-trigger')
+        self.assertContains(response, 'Simulação em andamento')
+
     def test_executar_dispara_a_task_e_cria_log_em_andamento(self):
         self.client.force_login(self.user)
 
@@ -147,6 +181,13 @@ class SimulacaoViewsTests(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Nenhuma simulação')
 
+    def test_status_tem_aria_live_para_leitores_de_tela(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.url_status)
+
+        self.assertContains(response, 'aria-live="polite"')
+
     def test_status_apos_execucao_completa_mostra_sucesso_e_para_o_polling(self):
         self.client.force_login(self.user)
         self.client.post(self.url_executar, {
@@ -159,3 +200,5 @@ class SimulacaoViewsTests(TransactionTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Concluída')
         self.assertNotContains(response, 'hx-trigger')
+        log = LogExecucao.all_cooperativas.filter(cenario_id=self.cenario.id, status=LogExecucao.Status.SUCESSO).latest('id')
+        self.assertContains(response, timezone.localtime(log.data_execucao).strftime('%d/%m/%Y %H:%M'))
