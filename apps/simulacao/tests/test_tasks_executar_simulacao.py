@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TransactionTestCase
 from procrastinate import testing
 from procrastinate.contrib.django import procrastinate_app
 
@@ -26,7 +26,7 @@ def _montar_cenario_zerado(cooperativa, cenario):
     return fabrica, armazem, rota
 
 
-class ExecutarSimulacaoTaskTests(TestCase):
+class ExecutarSimulacaoTaskTests(TransactionTestCase):
     def setUp(self):
         self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
         self.cenario = Cenario.all_cooperativas.create(
