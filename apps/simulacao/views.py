@@ -8,8 +8,11 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from procrastinate.exceptions import AlreadyEnqueued
 
-from apps.simulacao import services
+from apps.simulacao import engine, services, tasks
 from apps.simulacao.columns import (
     ARMAZEM_COLUMNS,
     FABRICA_COLUMNS,
@@ -22,6 +25,7 @@ from apps.simulacao.models import (
     Armazem,
     Cenario,
     Fabrica,
+    LogExecucao,
     PrevisaoArmazem,
     PrevisaoFabrica,
     Rota,
@@ -30,6 +34,8 @@ from apps.simulacao.models import (
 from apps.simulacao.planilha import ABAS_NA_ORDEM, analisar, aplicar, gerar_template
 
 XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+ESTRATEGIAS = ['Econômico', 'Expedição', 'Segurança']
+STALENESS_TIMEOUT = datetime.timedelta(minutes=30)
 
 
 @login_required
@@ -391,3 +397,67 @@ def carga_preview(request, token):
         else 'simulacao/carga_preview.html'
     )
     return render(request, template, context)
+
+
+@login_required
+def simulacao_tab(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    inicio_sugerido, fim_sugerido = engine.obter_range_previsoes(cenario_id=cenario.id)
+    log_atual = LogExecucao.objects.filter(cenario_id=cenario.id).order_by('-id').first()
+    context = {
+        "cenario": cenario, "active": "simulacao",
+        "inicio_sugerido": inicio_sugerido, "fim_sugerido": fim_sugerido,
+        "estrategias": ESTRATEGIAS, "log_atual": log_atual,
+    }
+    template = 'simulacao/_simulacao_content.html' if request.htmx else 'simulacao/simulacao.html'
+    return render(request, template, context)
+
+
+@login_required
+@require_POST
+def simulacao_executar(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+
+    em_andamento = (
+        LogExecucao.objects.filter(cenario_id=cenario.id, status='em_andamento')
+        .order_by('-id').first()
+    )
+    if em_andamento is not None:
+        if timezone.now() - em_andamento.data_execucao < STALENESS_TIMEOUT:
+            return HttpResponseBadRequest(
+                'Já existe uma simulação em andamento para este cenário.'
+            )
+        em_andamento.status = 'erro'
+        em_andamento.mensagem = 'Execução interrompida — worker inativo.'
+        em_andamento.save(update_fields=['status', 'mensagem'])
+
+    data_inicio = request.POST.get('data_inicio', '')
+    data_fim = request.POST.get('data_fim', '')
+    estrategia = request.POST.get('estrategia', '')
+    if not data_inicio or not data_fim:
+        return HttpResponseBadRequest('Informe o período da simulação.')
+    if estrategia not in ESTRATEGIAS:
+        return HttpResponseBadRequest('Estratégia inválida.')
+
+    log = LogExecucao.objects.create(
+        cooperativa_id=cenario.cooperativa_id, cenario_id=cenario.id, status='em_andamento',
+    )
+    lock = f'simulacao-cenario-{cenario.id}'
+    try:
+        tasks.executar_simulacao.configure(lock=lock, queueing_lock=lock).defer(
+            log_id=log.id, cenario_id=cenario.id,
+            data_inicio=data_inicio, data_fim=data_fim, estrategia=estrategia,
+        )
+    except AlreadyEnqueued:
+        log.delete()
+        return HttpResponseBadRequest('Já existe uma simulação em andamento para este cenário.')
+
+    return simulacao_status(request, cenario_id)
+
+
+@login_required
+def simulacao_status(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    log_atual = LogExecucao.objects.filter(cenario_id=cenario.id).order_by('-id').first()
+    context = {"cenario": cenario, "log_atual": log_atual}
+    return render(request, 'simulacao/_simulacao_status.html', context)

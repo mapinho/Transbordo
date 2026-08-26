@@ -19,4 +19,8 @@
        hx-get="{% url 'simulacao:safras_grid' cenario_id=cenario.id %}"
        hx-target="#cenario-content" hx-push-url="true"
        class="tab {% if active == 'safras' %}tab-active{% endif %}">Datas de Safra</a>
+    <a href="{% url 'simulacao:simulacao_tab' cenario_id=cenario.id %}"
+       hx-get="{% url 'simulacao:simulacao_tab' cenario_id=cenario.id %}"
+       hx-target="#cenario-content" hx-push-url="true"
+       class="tab {% if active == 'simulacao' %}tab-active{% endif %}">Simulação</a>
 </div>

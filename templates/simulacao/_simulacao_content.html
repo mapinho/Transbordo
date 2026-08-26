@@ -1,0 +1,33 @@
+{% include "simulacao/_subnav.html" %}
+
+<form hx-post="{% url 'simulacao:simulacao_executar' cenario_id=cenario.id %}"
+      hx-target="#simulacao-status" hx-swap="outerHTML"
+      class="mb-4">
+    {% csrf_token %}
+    <div class="flex flex-wrap gap-4 items-end">
+        <label class="flex flex-col">
+            <span class="text-sm">Data início</span>
+            <input type="date" name="data_inicio"
+                   value="{{ inicio_sugerido|date:'Y-m-d' }}" class="input input-bordered">
+        </label>
+        <label class="flex flex-col">
+            <span class="text-sm">Data fim</span>
+            <input type="date" name="data_fim"
+                   value="{{ fim_sugerido|date:'Y-m-d' }}" class="input input-bordered">
+        </label>
+        <label class="flex flex-col">
+            <span class="text-sm">Estratégia</span>
+            <select name="estrategia" class="select select-bordered">
+                {% for e in estrategias %}
+                <option value="{{ e }}">{{ e }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit"
+                class="rounded bg-[var(--cor-primaria)] hover:bg-[var(--cor-primaria-hover)] text-white px-4 py-2">
+            Executar
+        </button>
+    </div>
+</form>
+
+{% include "simulacao/_simulacao_status.html" %}

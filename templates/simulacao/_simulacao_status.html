@@ -1,0 +1,21 @@
+<div id="simulacao-status"
+     {% if log_atual.status == 'em_andamento' %}
+     hx-get="{% url 'simulacao:simulacao_status' cenario_id=cenario.id %}"
+     hx-trigger="every 2s" hx-swap="outerHTML"
+     {% endif %}>
+    {% if not log_atual %}
+        <p>Nenhuma simulação executada ainda para este cenário.</p>
+    {% elif log_atual.status == 'em_andamento' %}
+        <p class="flex items-center gap-2">
+            <span class="loading loading-spinner"></span>
+            Simulação em andamento…
+        </p>
+    {% elif log_atual.status == 'sucesso' %}
+        <p class="text-success">
+            Concluída: {{ log_atual.dias_simulados }} dia(s) simulado(s) em
+            {{ log_atual.duracao_segundos|floatformat:1 }}s.
+        </p>
+    {% elif log_atual.status == 'erro' %}
+        <p class="text-error">Erro: {{ log_atual.mensagem }}</p>
+    {% endif %}
+</div>
