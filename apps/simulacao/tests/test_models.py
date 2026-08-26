@@ -257,6 +257,13 @@ class LogExecucaoTests(TestCase):
         with self.assertRaises(ValidationError):
             log.full_clean()
 
+    def test_status_choices_expoe_os_tres_valores_validos(self):
+        self.assertEqual(
+            [choice for choice, _ in LogExecucao.Status.choices],
+            ['em_andamento', 'sucesso', 'erro'],
+        )
+        self.assertEqual(LogExecucao._meta.get_field('status').choices, LogExecucao.Status.choices)
+
 
 class ResumoMensalFabricaTests(TestCase):
     def setUp(self):

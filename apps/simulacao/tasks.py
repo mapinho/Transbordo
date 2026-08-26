@@ -17,7 +17,7 @@ def executar_simulacao(log_id, cenario_id, data_inicio, data_fim, estrategia):
         engine.simular_periodo(data_inicio, data_fim, cenario_id=cenario_id, estrategia=estrategia)
     except Exception as exc:
         LogExecucao.all_cooperativas.filter(id=log_id).update(
-            status='erro', mensagem=str(exc)[:500],
+            status=LogExecucao.Status.ERRO, mensagem=str(exc)[:500],
         )
         raise
     else:

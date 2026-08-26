@@ -170,9 +170,14 @@ class LogExecucao(CooperativaScopedModel):
     (não herda dele). NULL representa uma execução rodada contra o cenário
     oficial. Ver ADR 0005."""
 
+    class Status(models.TextChoices):
+        EM_ANDAMENTO = 'em_andamento', 'Em andamento'
+        SUCESSO = 'sucesso', 'Sucesso'
+        ERRO = 'erro', 'Erro'
+
     cenario = models.ForeignKey(Cenario, on_delete=models.CASCADE, null=True, blank=True)
     data_execucao = models.DateTimeField(default=timezone.now)
-    status = models.CharField(max_length=50, blank=True, default='')
+    status = models.CharField(max_length=50, blank=True, default='', choices=Status.choices)
     mensagem = models.CharField(max_length=500, blank=True, default='')
     duracao_segundos = models.FloatField(null=True, blank=True)
     dias_simulados = models.IntegerField(null=True, blank=True)

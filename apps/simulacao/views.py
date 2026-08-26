@@ -427,7 +427,7 @@ def simulacao_executar(request, cenario_id):
         return HttpResponseBadRequest('Estratégia inválida.')
 
     em_andamento = (
-        LogExecucao.objects.filter(cenario_id=cenario.id, status='em_andamento')
+        LogExecucao.objects.filter(cenario_id=cenario.id, status=LogExecucao.Status.EM_ANDAMENTO)
         .order_by('-id').first()
     )
     if em_andamento is not None:
@@ -435,12 +435,13 @@ def simulacao_executar(request, cenario_id):
             return HttpResponseBadRequest(
                 'Já existe uma simulação em andamento para este cenário.'
             )
-        em_andamento.status = 'erro'
+        em_andamento.status = LogExecucao.Status.ERRO
         em_andamento.mensagem = 'Execução interrompida — worker inativo.'
         em_andamento.save(update_fields=['status', 'mensagem'])
 
     log = LogExecucao.objects.create(
-        cooperativa_id=cenario.cooperativa_id, cenario_id=cenario.id, status='em_andamento',
+        cooperativa_id=cenario.cooperativa_id, cenario_id=cenario.id,
+        status=LogExecucao.Status.EM_ANDAMENTO,
     )
     lock = f'simulacao-cenario-{cenario.id}'
     try:
@@ -452,12 +453,16 @@ def simulacao_executar(request, cenario_id):
         log.delete()
         return HttpResponseBadRequest('Já existe uma simulação em andamento para este cenário.')
 
-    return simulacao_status(request, cenario_id)
+    return _render_simulacao_status(request, cenario)
 
 
 @login_required
 def simulacao_status(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
+    return _render_simulacao_status(request, cenario)
+
+
+def _render_simulacao_status(request, cenario):
     log_atual = LogExecucao.objects.filter(cenario_id=cenario.id).order_by('-id').first()
     context = {"cenario": cenario, "log_atual": log_atual}
     return render(request, 'simulacao/_simulacao_status.html', context)

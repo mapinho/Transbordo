@@ -375,7 +375,7 @@ def simular_periodo(data_inicio, data_fim_previsao, cenario_id=None, estrategia=
         LogExecucao.all_cooperativas.create(
             cooperativa_id=cooperativa_id,
             cenario_id=c_id,
-            status='sucesso',
+            status=LogExecucao.Status.SUCESSO,
             mensagem=f"Simulação concluída para cenario_id={c_id} em {dias_simulados} dia(s).",
             duracao_segundos=duracao_segundos,
             dias_simulados=dias_simulados,
