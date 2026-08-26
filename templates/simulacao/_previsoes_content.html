@@ -1,6 +1,6 @@
 {% include "simulacao/_subnav.html" %}
 
-<form hx-post="{% url 'simulacao:previsoes_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" hx-swap="outerHTML" id="form-previsoes">
+<form hx-post="{% url 'simulacao:previsoes_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" id="form-previsoes">
     {% csrf_token %}
 
     <h3 class="font-medium mb-2">Fábricas</h3>

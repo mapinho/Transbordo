@@ -47,7 +47,7 @@ function construirColunasTabulator(colunas) {
         if (col.type === "date" && col.editable) {
             return {
                 title: col.label, field: col.field, editor: "date",
-                editorParams: { format: "dd/MM/yyyy" },
+                editorParams: { format: "yyyy-MM-dd" },
                 formatter: "datetime",
                 formatterParams: { inputFormat: "yyyy-MM-dd", outputFormat: "dd/MM/yyyy", invalidPlaceholder: "(data inválida)" },
             };
@@ -56,14 +56,42 @@ function construirColunasTabulator(colunas) {
     });
 }
 
+const _tabulatorInstances = new Map();
+
 function initGridEditor(tableElementId, colunasElementId, linhasElementId, formId, paramName) {
     paramName = paramName || "linhas_json";
+
+    // Durante o "settle" do htmx (após trocar #cenario-content ao salvar
+    // ou trocar de aba), o conteúdo antigo e o novo coexistem por
+    // instantes com os mesmos ids, enquanto o htmx anima/remove o antigo.
+    // Este <script> roda nesse meio-tempo, então document.getElementById
+    // pode resolver para o elemento ANTIGO (prestes a ser removido) em
+    // vez do novo -- o Tabulator é então construído sobre um nó que o
+    // htmx remove logo em seguida, e o header perde a classe "tabulator"
+    // (vira texto solto sem estilo). Detectamos essa duplicação e
+    // reagendamos a inicialização para depois que o htmx terminar de
+    // assentar o DOM, quando resta um único elemento com cada id.
+    if (document.querySelectorAll("#" + tableElementId).length > 1) {
+        document.body.addEventListener("htmx:afterSettle", function () {
+            initGridEditor(tableElementId, colunasElementId, linhasElementId, formId, paramName);
+        }, { once: true });
+        return;
+    }
+
     const colunas = JSON.parse(document.getElementById(colunasElementId).textContent);
     const linhas = JSON.parse(document.getElementById(linhasElementId).textContent);
+
+    // Sem destruir a instância anterior, seus callbacks/timers internos
+    // ficam órfãos na memória.
+    const instanciaAnterior = _tabulatorInstances.get(tableElementId);
+    if (instanciaAnterior) {
+        instanciaAnterior.destroy();
+    }
 
     const table = new Tabulator("#" + tableElementId, {
         data: linhas, layout: "fitColumns", columns: construirColunasTabulator(colunas),
     });
+    _tabulatorInstances.set(tableElementId, table);
 
     document.getElementById(formId).addEventListener("htmx:configRequest", function (evt) {
         evt.detail.parameters[paramName] = JSON.stringify(table.getData());
