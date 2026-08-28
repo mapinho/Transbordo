@@ -17,6 +17,7 @@ The long-term direction (see `Relatorio_Revisao_Codigo_Fase1.md` and the "Roteir
 - Google OR-Tools — MILP solver (SCIP/GLOP) for the daily transbordo optimization
 - Pandas / Plotly — data processing & charts
 - FastMCP — MCP server exposing read-only logistics reports to LLM clients
+- Django Ninja — Face JSON (Fase 6): read-only REST API over `apps/simulacao/services.py`, mounted at `/api/v1/`
 - google-genai (Gemini) — native in-app AI assistant via function calling, over the same report layer as the MCP server
 
 ## Commands
@@ -58,6 +59,18 @@ Streamlit/SQLAlchemy existente, os dois stacks vivem no mesmo repositório:
 - `python manage.py procrastinate worker` — worker assíncrono (Procrastinate); precisa estar rodando,
   junto com `runserver`, para a aba "Simulação" executar de fato (ver ADR 0007).
 
+## Fase 6 — Face JSON (concluída)
+
+`apps/integracoes/` expõe `apps/simulacao/services.py` como 9 endpoints GET Django Ninja sob `/api/v1/`,
+espelhando 1:1 os 9 tools de `mcp_server.py`. Autenticação por header `X-API-Key` → `ApiKey` model (uma
+ou mais por cooperativa, revogável via admin), que também define a cooperativa corrente do request
+(mesmo mecanismo de tenancy das views HTMX — contextvar de `apps.core.tenancy`). OpenAPI/Swagger em
+`/api/v1/docs`. Ver `docs/superpowers/specs/2026-08-26-fase6-face-json-design.md` e
+`docs/decisions/0008-face-json-django-ninja.md`, mais `apps/integracoes/CLAUDE.md` para o file map.
+
+Ainda **não** feito: `mcp_server.py`/`ai_assistant.py` continuam consultando o ORM legado em processo —
+migrá-los para consumir esta API é uma etapa seguinte, deliberadamente separada.
+
 ## Environment
 
 A `.env` file at the project root is **required** — there is no hardcoded credential fallback (removed in the Fase 1 review; see `data_loader.py:get_engine()`):
@@ -89,6 +102,7 @@ On Streamlit Cloud, credentials are read from `st.secrets` instead of `.env`.
 - `tests/` — pytest suite; `conftest.py` provides an in-memory SQLite `session` fixture plus minimal valid `cenario`/`fabrica`/`armazem`/`rota` fixtures.
 - `config/`, `apps/core|simulacao|integracoes/`, `manage.py` — novo projeto Django (Fase 5, em progresso); ver a seção Fase 5 acima.
 - `apps/simulacao/` — Django port do domínio (models, engine, services), Carga de Dados e espelhamento de dados legado. Ver `apps/simulacao/CLAUDE.md` para o detalhe por arquivo.
+- `apps/integracoes/` — Face JSON (Fase 6): Django Ninja somente-leitura sobre `apps/simulacao/services.py`, montada em `/api/v1/`, autenticada por `X-API-Key` (`ApiKey` model, uma ou mais por cooperativa). 9 endpoints GET espelhando os 9 tools de `mcp_server.py`. OpenAPI em `/api/v1/docs`. Ver `apps/integracoes/CLAUDE.md`.
 
 ## Key Business Rules
 
