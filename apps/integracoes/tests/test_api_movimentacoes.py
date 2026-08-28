@@ -60,6 +60,10 @@ class MovimentacoesEndpointTests(TestCase):
         response = self._get(self.cenario.id, limit='abc')
         self.assertEqual(response.status_code, 422)
 
+    def test_limit_negativo_retorna_422(self):
+        response = self._get(self.cenario.id, limit=-1)
+        self.assertEqual(response.status_code, 422)
+
     def test_cenario_de_outra_cooperativa_retorna_404(self):
         coop_b = Cooperativa.objects.create(nome='Coop B', slug='coop-b')
         cenario_b = Cenario.all_cooperativas.create(cooperativa=coop_b, nome='Cenário B')

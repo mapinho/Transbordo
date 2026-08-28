@@ -4,13 +4,17 @@ Endpoints somente-leitura espelhando 1:1 os 9 tools de `mcp_server.py`.
 Autenticação e escopo de tenant: ver `apps/integracoes/auth.py` e
 `docs/decisions/0008-face-json-django-ninja.md`.
 """
+import logging
+
 from django.shortcuts import get_object_or_404
-from ninja import Field, NinjaAPI, Schema
+from ninja import Field, NinjaAPI, Query, Schema
 from pydantic import ConfigDict
 
 from apps.integracoes.auth import ApiKeyAuth
 from apps.simulacao import services
 from apps.simulacao.models import Cenario
+
+logger = logging.getLogger(__name__)
 
 api = NinjaAPI(
     title='Comigo — Face JSON',
@@ -23,7 +27,9 @@ api = NinjaAPI(
 @api.exception_handler(ValueError)
 def on_value_error(request, exc):
     """`services._parse_date` levanta ValueError em datas malformadas —
-    devolve 400 com a mensagem, em vez de vazar um 500."""
+    devolve 400 com a mensagem, em vez de vazar um 500. Loga sempre: como o
+    Ninja trata a exceção, ela nunca chega ao logger `django.request`."""
+    logger.warning('ValueError em %s: %s', request.path, exc, exc_info=True)
     return api.create_response(request, {'detail': str(exc)}, status=400)
 
 
@@ -34,8 +40,10 @@ def _get_cenario(scenario_id: int) -> Cenario:
 
 
 def _nativos(registros: list[dict]) -> list[dict]:
-    """Converte escalares numpy (vindos de `DataFrame.to_dict`) para tipos
-    nativos, que o Pydantic v2 valida sem tropeçar."""
+    """Belt-and-braces: converte escalares numpy para tipos nativos antes do
+    schema. Hoje é no-op (pandas 2.3.3 já devolve nativos em `to_dict`, e o
+    Pydantic v2 aceitaria numpy de qualquer forma) — mantido como defesa caso
+    uma versão futura do pandas volte a devolver `numpy.*` de `to_dict`."""
     return [
         {k: (v.item() if hasattr(v, 'item') else v) for k, v in registro.items()}
         for registro in registros
@@ -80,7 +88,7 @@ def listar_movimentacoes(
     end_date: str | None = None,
     origin_id: int | None = None,
     destination_id: int | None = None,
-    limit: int = 150,
+    limit: int = Query(150, ge=1, le=1000),
 ):
     _get_cenario(scenario_id)
     return services.get_daily_movements(
