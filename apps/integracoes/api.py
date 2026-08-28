@@ -128,3 +128,39 @@ def resumo_mensal(request, scenario_id: int, start_date: str | None = None, end_
         'resumo_mensal': _nativos(resultado['resumo_mensal']),
         'detalhe_rotas': _nativos(resultado['detalhe_rotas']),
     }
+
+
+class FabricaResumoSchema(Schema):
+    mes: str
+    fabrica_id: int
+    fabrica: str
+    recebimento_produtor_ton: float
+    recebimento_transbordo_ton: float
+    esmagado_ton: float
+    saldo_estoque_ton: float
+    capacidade_estatica_ton: float
+    excedente_estoque_ton: float
+
+
+class ArmazemResumoSchema(Schema):
+    mes: str
+    armazem_id: int
+    armazem: str
+    recebimento_produtor_ton: float
+    envio_transbordo_ton: float
+    vendas_ton: float
+    saldo_estoque_ton: float
+    capacidade_estatica_ton: float
+    excedente_estoque_ton: float
+
+
+@api.get('/cenarios/{scenario_id}/fabricas/resumo/', response=list[FabricaResumoSchema])
+def fabricas_resumo(request, scenario_id: int):
+    _get_cenario(scenario_id)
+    return services.get_factories_summary(scenario_id=scenario_id)
+
+
+@api.get('/cenarios/{scenario_id}/armazens/resumo/', response=list[ArmazemResumoSchema])
+def armazens_resumo(request, scenario_id: int):
+    _get_cenario(scenario_id)
+    return services.get_warehouses_summary(scenario_id=scenario_id)
