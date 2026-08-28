@@ -164,3 +164,35 @@ def fabricas_resumo(request, scenario_id: int):
 def armazens_resumo(request, scenario_id: int):
     _get_cenario(scenario_id)
     return services.get_warehouses_summary(scenario_id=scenario_id)
+
+
+class FabricaComparacaoSchema(Schema):
+    fabrica_id: int
+    fabrica: str
+    recebimento_produtor_total_ton: float
+    recebimento_transbordo_total_ton: float
+    esmagado_total_ton: float
+    pico_estoque_mensal_ton: float
+    excedente_total_acumulado_ton: float
+
+
+class ArmazemComparacaoSchema(Schema):
+    armazem_id: int
+    armazem: str
+    recebimento_produtor_total_ton: float
+    envio_transbordo_total_ton: float
+    vendas_total_ton: float
+    pico_estoque_mensal_ton: float
+    excedente_total_acumulado_ton: float
+
+
+@api.get('/cenarios/{scenario_id}/fabricas/comparacao/', response=list[FabricaComparacaoSchema])
+def fabricas_comparacao(request, scenario_id: int):
+    _get_cenario(scenario_id)
+    return _nativos(services.compare_factories(scenario_id=scenario_id))
+
+
+@api.get('/cenarios/{scenario_id}/armazens/comparacao/', response=list[ArmazemComparacaoSchema])
+def armazens_comparacao(request, scenario_id: int):
+    _get_cenario(scenario_id)
+    return _nativos(services.compare_warehouses(scenario_id=scenario_id))
