@@ -137,7 +137,9 @@ specs/           # spec por módulo de negócio
 6. **Face JSON** ✅ — Django Ninja (`apps/integracoes/`) sobre `services.py`, 9 endpoints GET sob `/api/v1/`, auth `X-API-Key`. Ver `docs/superpowers/specs/2026-08-26-fase6-face-json-design.md` e ADR 0008. A *migração* dos consumidores (`mcp_server.py`/`ai_assistant.py`) ficou deliberadamente para a Fase 9.
 7. **Auth** — allauth (Google + Microsoft + local), papéis, sem auto-cadastro.
 8. **Versionamento + limpeza** — esquema SemVer (arquivo `VERSION` + tag git por fase, `v1.0.0` no cutover), `CHANGELOG.md`, e remoção do lixo acumulado (docs/skills/análises one-off obsoletos). **Não** toca no stack Streamlit/SQLAlchemy — esse é a Fase 11. Ver `docs/superpowers/specs/2026-08-28-fase8-versionamento-limpeza-design.md`.
-9. **Migração MCP/IA** — `mcp_server.py` vira cliente HTTP de `/api/v1/` (`X-API-Key` via env); `ai_assistant.py` é portado para uma aba "Assistente de IA" por cenário no app Django, chamando `services.py` em processo com a cooperativa do usuário logado. Ver `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0009. Depende da Fase 7.
+9. **Migração MCP/IA** — ver `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0009. Dividida em dois planos independentes:
+   - **9a** — `mcp_server.py` vira cliente HTTP de `/api/v1/` (`X-API-Key` via env `TRANSBORDO_API_URL`/`TRANSBORDO_API_KEY`). Não depende da Fase 7.
+   - **9b** — `ai_assistant.py` portado para uma aba "Assistente de IA" por cenário no app Django (`ConversaIA` model, loop Gemini in-process com a cooperativa do usuário logado). Depende da Fase 7.
 10. **Deploy** — Dockerfile/compose adaptado, Apache re-roteado, `/healthz/` (expõe a versão).
 11. **Cutover** — segunda cooperativa piloto valida isolamento e desempenho sob carga concorrente; Streamlit desligado; **remoção final do stack legado** (`app.py`, `models.py`, `calculations.py`, `scenarios.py`, `data_loader.py`, `logistics_services.py`, `utils.py`, `app_logic.py`, `generate_templates.py`, `ai_assistant.py`, `tests/` SQLAlchemy). `Comigo.git` permanece congelado. Tag `v1.0.0`.
 

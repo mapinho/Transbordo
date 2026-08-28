@@ -150,13 +150,20 @@ chamado pela aba "Assistente de IA" do Streamlit (`app.py`), que mantém o hist�
   - histórico persiste: nova request GET na aba mostra as mensagens anteriores;
   - "Nova conversa" arquiva a ativa (`ativa=False`) e cria outra.
 
-### 4. Ordem dentro da fase
+### 4. Dois planos independentes
 
-1. `mcp_server.py` → cliente HTTP + testes com `httpx` mockado + docs. Independente do resto.
-2. Model `ConversaIA` + migration + testes de isolamento.
-3. `apps/simulacao/assistente.py` (loop Gemini portado) + testes com Gemini mockado.
-4. Views + URLs + templates + aba na navegação + testes de view.
-5. ADR 0009.
+O passo do `mcp_server.py` não depende em nada da aba de IA. Esta fase vira **dois planos de
+implementação separados**:
+
+- **Plano 9a — `mcp_server.py` → cliente HTTP.** Não depende da Fase 7. Passos:
+  1. `mcp_server.py` reescrito como cliente `httpx` de `/api/v1/` + `_get` helper + tratamento de erro.
+  2. Testes com `httpx` mockado (URL/params/header por tool) + `ToolError` nos casos 401/404/4xx.
+  3. Docstring de setup + seção `## MCP` no `README.md`; `httpx` em `requirements.txt`.
+  4. ADR 0009.
+- **Plano 9b — aba "Assistente de IA".** Depende da Fase 7 (login + `request.user.cooperativa_id`). Passos:
+  1. Model `ConversaIA` + migration + testes de isolamento de tenant.
+  2. `apps/simulacao/assistente.py` (loop Gemini portado, `services.py` in-process) + testes com Gemini mockado.
+  3. Views + URLs + templates + aba na navegação do cenário + testes de view.
 
 ## Verificação
 
