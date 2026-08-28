@@ -129,18 +129,20 @@ specs/           # spec por módulo de negócio
 
 ## Fases de migração
 
-1. **Fundação** — projeto Django 6 no diretório local (já apontando para `origin`/Transbordo), apps `core`/`simulacao`/`integracoes`, settings `base/dev/prod`, CI (GitHub Actions) desde o commit zero, models `Cooperativa`+`User`+`TenantManager`.
-2. **Port do domínio** — `engine.py`, `services.py`, os 9 models com `cooperativa_id`, testes de isolamento de tenant.
-3. **UI** — views HTMX+Tailwind+daisyUI+cotton para cenários/fábricas/armazéns/rotas/previsões, Tabulator+IMask.js nas telas de edição em massa.
-4. **Carga de Dados** — importação de planilha .xlsx (upload, pré-visualização, confirmação) — a otimização não tem o que otimizar sem dados carregados.
-5. **Procrastinate** — task assíncrona de simulação + polling HTMX de progresso.
-6. **Face JSON** — Django Ninja para MCP server e Assistente de IA.
+1. **Fundação** ✅ — projeto Django 6 no diretório local (já apontando para `origin`/Transbordo), apps `core`/`simulacao`/`integracoes`, settings `base/dev/prod`, CI (GitHub Actions) desde o commit zero, models `Cooperativa`+`User`+`TenantManager`.
+2. **Port do domínio** ✅ — `engine.py`, `services.py`, os 9 models com `cooperativa_id`, testes de isolamento de tenant.
+3. **UI** ✅ — views HTMX+Tailwind+daisyUI+cotton para cenários/fábricas/armazéns/rotas/previsões, Tabulator+IMask.js nas telas de edição em massa.
+4. **Carga de Dados** ✅ — importação de planilha .xlsx (upload, pré-visualização, confirmação) — a otimização não tem o que otimizar sem dados carregados.
+5. **Procrastinate** ✅ — task assíncrona de simulação + polling HTMX de progresso.
+6. **Face JSON** ✅ — Django Ninja (`apps/integracoes/`) sobre `services.py`, 9 endpoints GET sob `/api/v1/`, auth `X-API-Key`. Ver `docs/superpowers/specs/2026-08-26-fase6-face-json-design.md` e ADR 0008. A *migração* dos consumidores (`mcp_server.py`/`ai_assistant.py`) ficou deliberadamente para a Fase 9.
 7. **Auth** — allauth (Google + Microsoft + local), papéis, sem auto-cadastro.
-8. **Deploy** — Dockerfile/compose adaptado, Apache re-roteado, `/healthz/`.
-9. **Cutover** — segunda cooperativa piloto valida isolamento e desempenho sob carga concorrente, Streamlit desligado. `Comigo.git` permanece congelado.
+8. **Versionamento + limpeza** — esquema SemVer (arquivo `VERSION` + tag git por fase, `v1.0.0` no cutover), `CHANGELOG.md`, e remoção do lixo acumulado (docs/skills/análises one-off obsoletos). **Não** toca no stack Streamlit/SQLAlchemy — esse é a Fase 11. Ver `docs/superpowers/specs/2026-08-28-fase8-versionamento-limpeza-design.md`.
+9. **Migração MCP/IA** — `mcp_server.py` vira cliente HTTP de `/api/v1/` (`X-API-Key` via env); `ai_assistant.py` é portado para uma aba "Assistente de IA" por cenário no app Django, chamando `services.py` em processo com a cooperativa do usuário logado. Ver `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0009. Depende da Fase 7.
+10. **Deploy** — Dockerfile/compose adaptado, Apache re-roteado, `/healthz/` (expõe a versão).
+11. **Cutover** — segunda cooperativa piloto valida isolamento e desempenho sob carga concorrente; Streamlit desligado; **remoção final do stack legado** (`app.py`, `models.py`, `calculations.py`, `scenarios.py`, `data_loader.py`, `logistics_services.py`, `utils.py`, `app_logic.py`, `generate_templates.py`, `ai_assistant.py`, `tests/` SQLAlchemy). `Comigo.git` permanece congelado. Tag `v1.0.0`.
 
 ## Decisões em aberto / riscos
 
 - **Nenhuma decisão de arquitetura ficou em aberto** ao final deste brainstorm — todas as questões centrais (tenancy, camada de domínio, UI, auth, fila de jobs, CI, repositórios, escopo do rename) foram resolvidas e aprovadas nesta sessão.
-- **Risco operacional, não arquitetural**: rename do diretório local pendente (bloqueado por VSCode) — não bloqueia o início da Fase 5 em si, mas precisa acontecer antes ou durante a Fase 1 de migração (Fundação) para evitar confusão de caminho.
+- ~~**Risco operacional**: rename do diretório local pendente (bloqueado por VSCode).~~ **Resolvido** (2026-08): a pasta local já se chama `Transbordo`.
 - **Risco a monitorar durante a implementação**: `Tailwind v4`/`daisyUI 5` via CDN (sem build step) foi uma decisão explícita do APP_Vector com nota própria de "reavaliar perto de produção real" (ADR 0007 de lá) — vale reavaliar também aqui antes do cutover final, não assumir que CDN-only escala indefinidamente.
