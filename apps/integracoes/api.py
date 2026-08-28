@@ -33,6 +33,15 @@ def _get_cenario(scenario_id: int) -> Cenario:
     return get_object_or_404(Cenario, id=scenario_id)
 
 
+def _nativos(registros: list[dict]) -> list[dict]:
+    """Converte escalares numpy (vindos de `DataFrame.to_dict`) para tipos
+    nativos, que o Pydantic v2 valida sem tropeçar."""
+    return [
+        {k: (v.item() if hasattr(v, 'item') else v) for k, v in registro.items()}
+        for registro in registros
+    ]
+
+
 class CenarioSchema(Schema):
     id: int
     nome: str
@@ -82,3 +91,40 @@ def listar_movimentacoes(
         destination_id=destination_id,
         limit=limit,
     )
+
+
+class MesResumoSchema(Schema):
+    mes: str
+    quantidade_ton: float
+    quantidade_sc: float
+    custo_total: float
+
+
+class RotaResumoSchema(Schema):
+    mes: str
+    origem: str
+    destino: str
+    quantidade_ton: float
+    quantidade_sc: float
+    custo_total: float
+
+
+class ResumoMensalSchema(Schema):
+    resumo_mensal: list[MesResumoSchema]
+    detalhe_rotas: list[RotaResumoSchema]
+
+
+@api.get('/cenarios/{scenario_id}/resumo-mensal/', response=ResumoMensalSchema)
+def resumo_mensal(request, scenario_id: int, start_date: str | None = None, end_date: str | None = None):
+    _get_cenario(scenario_id)
+    resultado = services.get_monthly_summary(
+        scenario_id=scenario_id, start_date=start_date, end_date=end_date,
+    )
+    # Achado da spec: `get_monthly_summary` devolve {"meses": [], "rotas": []}
+    # quando não há movimentações. Normaliza para o contrato tipado.
+    if 'resumo_mensal' not in resultado:
+        return {'resumo_mensal': [], 'detalhe_rotas': []}
+    return {
+        'resumo_mensal': _nativos(resultado['resumo_mensal']),
+        'detalhe_rotas': _nativos(resultado['detalhe_rotas']),
+    }
