@@ -9,5 +9,6 @@ exportacao/
 .remember/
 .worktrees/
 .superpowers/
+.claude/
 staticfiles/
 media/
