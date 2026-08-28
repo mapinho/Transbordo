@@ -196,3 +196,35 @@ def fabricas_comparacao(request, scenario_id: int):
 def armazens_comparacao(request, scenario_id: int):
     _get_cenario(scenario_id)
     return _nativos(services.compare_warehouses(scenario_id=scenario_id))
+
+
+class AlertaExcedenteSchema(Schema):
+    mes: str
+    entidade_tipo: str
+    entidade_id: int
+    entidade_nome: str
+    estoque_final_ton: float
+    capacidade_estatica_ton: float
+    excedente_estouro_ton: float
+
+
+class AlertaRupturaSchema(Schema):
+    mes: str
+    entidade_tipo: str
+    entidade_id: int
+    entidade_nome: str
+    estoque_final_ton: float
+    capacidade_estatica_ton: float
+    deficit_ton: float
+
+
+@api.get('/cenarios/{scenario_id}/alertas/excedentes/', response=list[AlertaExcedenteSchema])
+def alertas_excedentes(request, scenario_id: int):
+    _get_cenario(scenario_id)
+    return services.get_stock_excesses_report(scenario_id=scenario_id)
+
+
+@api.get('/cenarios/{scenario_id}/alertas/rupturas/', response=list[AlertaRupturaSchema])
+def alertas_rupturas(request, scenario_id: int):
+    _get_cenario(scenario_id)
+    return services.get_stock_ruptures_report(scenario_id=scenario_id)
