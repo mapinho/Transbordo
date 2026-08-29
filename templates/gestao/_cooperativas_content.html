@@ -1,0 +1,14 @@
+<table class="table w-full">
+  <thead><tr><th>Nome</th><th>Slug</th><th>Ativa</th><th></th></tr></thead>
+  <tbody>
+    {% for c in cooperativas %}
+      <tr>
+        <td>{{ c.nome }}</td><td>{{ c.slug }}</td>
+        <td>{% if c.ativo %}Sim{% else %}Não{% endif %}</td>
+        <td><a href="{% url 'gestao:cooperativa_editar' c.id %}" class="link">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-slate-500">Nenhuma cooperativa.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

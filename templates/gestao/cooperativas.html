@@ -1,0 +1,9 @@
+{% extends "gestao/base_gestao.html" %}
+{% block title %}Cooperativas — Transbordo{% endblock %}
+{% block gestao_content %}
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-lg font-semibold text-[var(--cor-primaria)]">Cooperativas</h1>
+    <a href="{% url 'gestao:cooperativa_nova' %}" class="btn btn-primary btn-sm">Nova</a>
+  </div>
+  {% include "gestao/_cooperativas_content.html" %}
+{% endblock %}

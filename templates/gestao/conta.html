@@ -1,0 +1,15 @@
+{% extends "gestao/base_gestao.html" %}
+{% block title %}Minha conta — Transbordo{% endblock %}
+{% block gestao_content %}
+  <h1 class="text-lg font-semibold text-[var(--cor-primaria)] mb-4">Minha conta</h1>
+  <dl class="mb-6 text-sm">
+    <dt class="text-slate-500">Usuário</dt><dd>{{ request.user.username }}</dd>
+    <dt class="text-slate-500 mt-2">E-mail</dt><dd>{{ request.user.email }}</dd>
+    <dt class="text-slate-500 mt-2">Papel</dt><dd>{{ request.user.get_papel_display }}</dd>
+  </dl>
+  <ul class="space-y-2">
+    <li><a class="link" href="{% url 'account_change_password' %}">Trocar senha</a></li>
+    <li><a class="link" href="{% url 'account_email' %}">Endereços de e-mail</a></li>
+    <li><a class="link" href="{% url 'socialaccount_connections' %}">Contas Google / Microsoft vinculadas</a></li>
+  </ul>
+{% endblock %}

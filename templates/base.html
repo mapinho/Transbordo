@@ -37,10 +37,22 @@
     <nav class="border-b border-[var(--cor-borda)] bg-[var(--cor-superficie)] px-6 py-3 flex items-center justify-between">
         <span class="font-semibold text-[var(--cor-primaria)]">Comigo — Transbordo</span>
         {% if request.user.is_authenticated %}
-        <form method="post" action="{% url 'account_logout' %}">
+        <div class="flex items-center gap-4 text-sm">
+          {% if menu_membro_cooperativa %}
+            <a href="{% url 'simulacao:cenarios_list' %}" class="hover:underline">Cenários</a>
+          {% endif %}
+          {% if menu_admin_vector %}
+            <a href="{% url 'gestao:cooperativas' %}" class="hover:underline">Cooperativas</a>
+          {% endif %}
+          <a href="{% url 'gestao:conta' %}" class="hover:underline">Conta</a>
+          {% if request.user.is_staff %}
+            <a href="/admin/" class="hover:underline">Admin</a>
+          {% endif %}
+          <form method="post" action="{% url 'account_logout' %}" class="inline">
             {% csrf_token %}
-            <button type="submit" class="text-sm text-slate-600 hover:underline">Sair ({{ request.user.username }})</button>
-        </form>
+            <button type="submit" class="text-slate-600 hover:underline">Sair ({{ request.user.username }})</button>
+          </form>
+        </div>
         {% endif %}
     </nav>
     <main class="p-6">
