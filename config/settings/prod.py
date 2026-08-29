@@ -7,9 +7,10 @@ DEBUG = False
 # sempre volta False atrás do proxy.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
-# O healthcheck do container bate em http://localhost:8000/healthz/ por HTTP puro
-# (sem o X-Forwarded-Proto que o Apache injeta). Sem esta isenção, o SECURE_SSL_REDIRECT
-# devolveria 301 e o `curl` nunca chegaria a validar 200 + "db": "ok".
+# O healthcheck do container (localhost:8000) e o poll do deploy.sh (127.0.0.1:8060)
+# batem em /healthz/ por HTTP puro (sem o X-Forwarded-Proto que o Apache injeta). Sem
+# esta isenção, o SECURE_SSL_REDIRECT devolveria 301 e o `curl` nunca chegaria a validar
+# 200 + "db": "ok".
 SECURE_REDIRECT_EXEMPT = [r"^healthz/?$"]
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

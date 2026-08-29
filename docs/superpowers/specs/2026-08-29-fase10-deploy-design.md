@@ -44,7 +44,7 @@ atrás do Apache num **subdomínio novo** (`transbordo.vectorconsulting.com.br`)
 
 ### 1. Subdomínio novo para o Django
 
-`transbordo.vectorconsulting.com.br` → Django (`gunicorn` em `127.0.0.1:8000`).
+`transbordo.vectorconsulting.com.br` → Django (`gunicorn`, publicado em `127.0.0.1:8060`; `8000` interno do container).
 `comigo.vectorconsulting.com.br` → Streamlit (`8501`), inalterado.
 
 Separação limpa: os dois apps totalmente usáveis em paralelo, sem reescrita de path, sem
@@ -63,7 +63,7 @@ apenas apaga os serviços `comigo` legados.
 
 | serviço | command | portas | restart | notas |
 |---|---|---|---|---|
-| `web` | `gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60 --access-logfile - --error-logfile -` | `127.0.0.1:8000:8000` | `unless-stopped` | `healthcheck` via `curl -f localhost:8000/healthz/` |
+| `web` | `gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60 --access-logfile - --error-logfile -` | `127.0.0.1:8060:8000` | `unless-stopped` | `healthcheck` via `curl -f localhost:8000/healthz/` (dentro do container) |
 | `worker` | `python manage.py procrastinate worker` | — | `unless-stopped` | `depends_on: [web]` só p/ ordem |
 | `migrate` | `python manage.py migrate --noinput` | — | `"no"` | `profiles: ["tools"]` — nunca sobe com `up`; roda via `docker compose run --rm migrate` |
 
@@ -132,7 +132,7 @@ e pelo poll do `deploy.sh`.
 Espelham o par `comigo`:
 - **:80** — `ServerName transbordo.vectorconsulting.com.br`, redireciona tudo p/ HTTPS.
 - **:443** — `ProxyPreserveHost On`, `RequestHeader set X-Forwarded-Proto "https"` (alimenta
-  `SECURE_PROXY_SSL_HEADER` do Django), `ProxyPass / http://127.0.0.1:8000/` + `ProxyPassReverse`.
+  `SECURE_PROXY_SSL_HEADER` do Django), `ProxyPass / http://127.0.0.1:8060/` + `ProxyPassReverse`.
   **Sem** blocos `/sse`, `/messages` ou WebSocket (HTMX é HTTP puro). `SSLCertificate*` apontando p/ um
   path Let's Encrypt novo — `certbot --apache -d transbordo.vectorconsulting.com.br` no primeiro deploy.
 
@@ -145,7 +145,7 @@ docker compose build web worker
 docker compose run --rm migrate
 docker compose run --rm web python manage.py check --deploy
 docker compose up -d web worker
-# poll: curl -fsS http://127.0.0.1:8000/healthz/ até "db":"ok" (timeout ~60s, exit≠0 em falha)
+# poll: curl -fsS http://127.0.0.1:8060/healthz/ até "db":"ok" (timeout ~60s, exit≠0 em falha)
 docker compose ps
 ```
 As linhas do Streamlit (`comigo`) ficam num bloco marcado `# legado — Fase 11 remove`.
@@ -167,7 +167,7 @@ As linhas do Streamlit (`comigo`) ficam num bloco marcado `# legado — Fase 11 
 | `worker` (compose) | roda a fila Procrastinate | `docker compose up -d worker` | imagem, `.env`, Postgres do host |
 | `migrate` (compose) | aplica migrações (manual) | `docker compose run --rm migrate` | imagem, `.env`, Postgres do host |
 | `healthz` view | version + `SELECT 1` | `GET /healthz/` | `django.db.connection`, `settings.APP_VERSION` |
-| `transbordo*.conf` | TLS + reverse proxy | `a2ensite` + reload | cert Let's Encrypt, `web` em `:8000` |
+| `transbordo*.conf` | TLS + reverse proxy | `a2ensite` + reload | cert Let's Encrypt, `web` em `127.0.0.1:8060` |
 | `deploy.sh` | orquestra o deploy no host | `./deploy.sh` | docker compose, `curl` |
 
 ## Tratamento de erro
@@ -189,8 +189,8 @@ As linhas do Streamlit (`comigo`) ficam num bloco marcado `# legado — Fase 11 
   1. `docker compose build web` OK (collectstatic rodou no build).
   2. `docker compose run --rm migrate` → "No migrations to apply".
   3. `docker compose up -d web worker` → `web` health = `healthy`.
-  4. `curl 127.0.0.1:8000/healthz/` → `200 {"version":"0.10.0","db":"ok"}`.
-  5. `curl -H "Host: transbordo.vectorconsulting.com.br" 127.0.0.1:8000/accounts/login/` → `200`; asset
+  4. `curl 127.0.0.1:8060/healthz/` → `200 {"version":"0.10.0","db":"ok"}`.
+  5. `curl -H "Host: transbordo.vectorconsulting.com.br" 127.0.0.1:8060/accounts/login/` → `200`; asset
      hasheado do admin resolve `200`.
   6. log do `worker` mostra conexão com o Procrastinate e polling.
   7. `docker compose down`.

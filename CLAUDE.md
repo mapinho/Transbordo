@@ -104,7 +104,7 @@ o Cutover (Fase 11); o loop Gemini fica brevemente duplicado. Ver
 ## Fase 10 — Deploy (concluída)
 
 Django em produção ao lado do Streamlit. Imagem `python:3.13-slim` + gunicorn + WhiteNoise
-(`Dockerfile`); serviços do `docker-compose.yml`: `web` (gunicorn, bind `127.0.0.1:8000`), `worker`
+(`Dockerfile`); serviços do `docker-compose.yml`: `web` (gunicorn, publicado em `127.0.0.1:8060`), `worker`
 (Procrastinate) e `migrate` (one-shot). Apache serve `transbordo.vectorconsulting.com.br`
 (`transbordo.conf` / `transbordo-le-ssl.conf`) como único ingress externo. `/healthz/` faz `SELECT 1`
 e é o healthcheck do container. `deploy.sh` é o runbook recorrente (git pull condicional → build →

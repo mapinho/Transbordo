@@ -25,7 +25,7 @@ docker compose up -d web worker
 
 echo "--- poll /healthz/ ---"
 for i in $(seq 1 20); do
-  if curl -fsS http://127.0.0.1:8000/healthz/ | grep -q '"db": *"ok"'; then
+  if curl -fsS http://127.0.0.1:8060/healthz/ | grep -q '"db": *"ok"'; then
     echo "healthz OK"
     docker compose ps
     exit 0

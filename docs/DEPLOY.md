@@ -11,10 +11,11 @@ PostgreSQL é externo/bare-metal no host. Deploy é manual, em `/opt/comigo`.
    está no grupo `docker`: `groups | grep -q docker || sudo usermod -aG docker $USER` (e faça logout/login
    para valer). Alternativa: rodar `./deploy.sh` com `sudo`.
 3. **Container órfão `comigo_mcp`** — o serviço `mcp` saiu do `docker-compose.yml`, mas o container
-   `comigo_mcp` que estava rodando continua publicando `0.0.0.0:8000` (compose antigo usava `"8000:8000"`);
-   o novo `web` quer `127.0.0.1:8000:8000` e falha com `bind: address already in use`. Remover um serviço do
-   compose **não** para o container dele. Antes de qualquer `docker compose up`, rode uma vez:
-   `docker compose down --remove-orphans` (para `comigo_mcp` e outros órfãos; o `comigo` é recriado pelo `up` adiante).
+   `comigo_mcp` que estava rodando continua publicando `0.0.0.0:8000`. Remover um serviço do compose
+   **não** para o container dele. O `web` agora publica em `127.0.0.1:8060` (não `:8000`), então não há mais
+   colisão de porta — mas o órfão continua sendo peso morto e expondo `0.0.0.0:8000`. Antes de qualquer
+   `docker compose up`, rode uma vez: `docker compose down --remove-orphans` (para `comigo_mcp` e outros
+   órfãos; o `comigo` é recriado pelo `up` adiante).
 4. **`.env`** (em `/opt/comigo/.env`) — acrescentar as chaves do stack Django, **uma `KEY=VALUE` por linha**:
    ```
    DJANGO_SECRET_KEY=<gerar: python -c "import secrets; print(secrets.token_urlsafe(64))">
@@ -38,10 +39,10 @@ PostgreSQL é externo/bare-metal no host. Deploy é manual, em `/opt/comigo`.
    DJANGO_DEFAULT_FROM_EMAIL=nao-responda@transbordo.vectorconsulting.com.br
    ```
    > **Aviso:** as entradas `localhost,127.0.0.1` em `DJANGO_ALLOWED_HOSTS` são exigidas pelo healthcheck
-   > de loopback do container e pelo poll do `deploy.sh` (`Host: localhost:8000` → com `DEBUG=False`,
-   > `CommonMiddleware` levanta `DisallowedHost`/HTTP 400 sem elas, e o `web` nunca fica `healthy`). O `web`
-   > só faz bind em `127.0.0.1:8000` (o Apache é o único ingress externo), então essas entradas **não** são
-   > alcançáveis de fora — nunca reduza esta linha só para o domínio.
+   > de loopback do container (`Host: localhost`) e pelo poll do `deploy.sh` (`Host: 127.0.0.1`) → com
+   > `DEBUG=False`, `CommonMiddleware` levanta `DisallowedHost`/HTTP 400 sem elas, e o `web` nunca fica
+   > `healthy`. O `web` só publica em `127.0.0.1:8060` (o Apache é o único ingress externo), então essas
+   > entradas **não** são alcançáveis de fora — nunca reduza esta linha só para o domínio.
    >
    > `GOOGLE_*`, `MICROSOFT_*` e `DJANGO_EMAIL_*` são opcionais (só quando o provedor/recurso é usado).
    > Deixe cada chave opcional não usada **vazia e em sua própria linha** — `python-dotenv` / `env_file`
@@ -89,6 +90,6 @@ raro — reverter a migração específica com `docker compose run --rm web pyth
 Sem mudança. Continua em `comigo.vectorconsulting.com.br` via o serviço `comigo` e as confs
 `comigo*.conf`. Reinício isolado: `docker compose up -d --build comigo`. Sai na Fase 11.
 
-`comigo-le-ssl.conf` ainda faz proxy de `/sse` e `/messages` para `127.0.0.1:8000`, que agora é o Django —
-essas rotas em `comigo.vectorconsulting.com.br` ficam mortas (404/400) até a Fase 11 remover `comigo*.conf`
-(o MCP server virou cliente stdio local — ADR 0010).
+`comigo-le-ssl.conf` ainda faz proxy de `/sse` e `/messages` para `127.0.0.1:8000` — nada escuta nessa
+porta (o `web` está em `:8060`), então essas rotas em `comigo.vectorconsulting.com.br` respondem 502 até a
+Fase 11 remover `comigo*.conf` (o MCP server virou cliente stdio local — ADR 0010).
