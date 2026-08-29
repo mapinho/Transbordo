@@ -36,6 +36,14 @@ class LoginTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.wsgi_request.user.is_authenticated)
 
+    def test_clique_no_sso_vai_direto_ao_provedor(self):
+        # SOCIALACCOUNT_LOGIN_ON_GET=True: o GET no link do provedor redireciona
+        # direto para o OAuth, sem a tela intermediária de confirmação do allauth.
+        for provider in ('google', 'microsoft'):
+            response = self.client.get(f'/accounts/{provider}/login/')
+            self.assertEqual(response.status_code, 302, provider)
+            self.assertNotIn('/accounts/login/', response.url, provider)
+
     def test_signup_fechado(self):
         response = self.client.get(reverse('account_signup'))
         self.assertIn(response.status_code, (403, 302, 200))

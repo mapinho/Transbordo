@@ -19,6 +19,9 @@ o campo `core.User.papel` existia (Fase 5) mas nada o consultava no ciclo de req
   (Azure AD multi-tenant, `tenant='common'`) configurados via
   `SOCIALACCOUNT_PROVIDERS[...]['APPS']` em settings — **sem linhas `SocialApp` no banco**. Credenciais
   vêm do ambiente (`GOOGLE_CLIENT_ID`/`SECRET`, `MICROSOFT_CLIENT_ID`/`SECRET`/`TENANT`).
+- **`SOCIALACCOUNT_LOGIN_ON_GET = True`** — clicar em "Entrar com Google/Microsoft" vai direto ao
+  provedor, sem a tela intermediária de confirmação do allauth. Abre mão da proteção do allauth contra
+  login-CSRF (o `state` do OAuth continua protegendo o callback) em troca da UX esperada.
 - **Sem cadastro, nunca.** `SOCIALACCOUNT_AUTO_SIGNUP = False` e dois adapters em
   `apps/core/adapters.py`:
   - `NoSignupAccountAdapter.is_open_for_signup` → `False` (cadastro local fechado).

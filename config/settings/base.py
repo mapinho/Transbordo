@@ -53,6 +53,11 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_UNIQUE_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = False
+# Clicar em "Entrar com Google/Microsoft" redireciona direto ao provedor, sem a
+# tela intermediária de confirmação do allauth. Troca a proteção contra
+# login-CSRF do allauth pela UX esperada; o parâmetro `state` do OAuth continua
+# protegendo o callback.
+SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APPS': [{
