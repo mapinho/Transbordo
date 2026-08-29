@@ -20,6 +20,15 @@ urlpatterns = [
         'cenarios/<int:cenario_id>/simulacao/status/',
         views.simulacao_status, name='simulacao_status',
     ),
+    path('cenarios/<int:cenario_id>/assistente/', views.assistente_tab, name='assistente_tab'),
+    path(
+        'cenarios/<int:cenario_id>/assistente/enviar/',
+        views.assistente_enviar, name='assistente_enviar',
+    ),
+    path(
+        'cenarios/<int:cenario_id>/assistente/nova/',
+        views.assistente_nova, name='assistente_nova',
+    ),
     path('carga/', views.carga_upload, name='carga'),
     path('carga/template/', views.carga_template, name='carga_template'),
     path('carga/<str:token>/', views.carga_preview, name='carga_preview'),

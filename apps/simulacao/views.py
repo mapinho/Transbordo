@@ -2,6 +2,7 @@ import datetime
 import json
 import secrets
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
@@ -18,7 +19,7 @@ from apps.core.permissions import (
     requer_edicao_armazens,
     requer_edicao_fabricas,
 )
-from apps.simulacao import engine, services, tasks
+from apps.simulacao import assistente, engine, services, tasks
 from apps.simulacao.columns import (
     ARMAZEM_COLUMNS,
     FABRICA_COLUMNS,
@@ -30,6 +31,7 @@ from apps.simulacao.columns import (
 from apps.simulacao.models import (
     Armazem,
     Cenario,
+    ConversaIA,
     Fabrica,
     LogExecucao,
     PrevisaoArmazem,
@@ -484,3 +486,59 @@ def _render_simulacao_status(request, cenario):
     log_atual = LogExecucao.objects.filter(cenario_id=cenario.id).order_by('-id').first()
     context = {"cenario": cenario, "log_atual": log_atual}
     return render(request, 'simulacao/_simulacao_status.html', context)
+
+
+def _conversa_ativa(cenario, usuario):
+    conversa = (
+        ConversaIA.objects.filter(cenario=cenario, usuario=usuario, ativa=True)
+        .order_by('-updated_at').first()
+    )
+    if conversa is None:
+        conversa = ConversaIA.objects.create(
+            cooperativa_id=cenario.cooperativa_id, cenario=cenario, usuario=usuario,
+        )
+    return conversa
+
+
+def _assistente_context(request, cenario):
+    return {
+        'cenario': cenario,
+        'active': 'assistente',
+        'conversa': _conversa_ativa(cenario, request.user),
+        'conversas': ConversaIA.objects.filter(
+            cenario=cenario, usuario=request.user, ativa=False,
+        ).order_by('-updated_at')[:20],
+        'assistente_disponivel': bool(settings.GEMINI_API_KEY),
+    }
+
+
+@login_required
+@papel_required(*MEMBROS_COOPERATIVA)
+def assistente_tab(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    context = _assistente_context(request, cenario)
+    template = 'simulacao/_assistente_content.html' if request.htmx else 'simulacao/assistente.html'
+    return render(request, template, context)
+
+
+@login_required
+@papel_required(*MEMBROS_COOPERATIVA)
+@require_POST
+def assistente_enviar(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    mensagem = request.POST.get('mensagem', '').strip()
+    conversa = _conversa_ativa(cenario, request.user)
+    if mensagem:
+        assistente.responder(conversa, mensagem)
+    return render(request, 'simulacao/_assistente_transcript.html',
+                  {'conversa': conversa, 'cenario': cenario})
+
+
+@login_required
+@papel_required(*MEMBROS_COOPERATIVA)
+@require_POST
+def assistente_nova(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    ConversaIA.objects.filter(cenario=cenario, usuario=request.user, ativa=True).update(ativa=False)
+    return render(request, 'simulacao/_assistente_content.html',
+                  _assistente_context(request, cenario))

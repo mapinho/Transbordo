@@ -1,0 +1,38 @@
+{% include "simulacao/_subnav.html" %}
+
+{% if not assistente_disponivel %}
+<p class="rounded border border-[var(--cor-borda)] bg-amber-50 px-4 py-2 mb-4">
+    O Assistente de IA está <strong>indisponível</strong> — a chave <code>GEMINI_API_KEY</code> não está configurada.
+</p>
+{% endif %}
+
+<div class="flex gap-6">
+    <div class="flex-1">
+        <div id="assistente-transcript">
+            {% include "simulacao/_assistente_transcript.html" %}
+        </div>
+        <form hx-post="{% url 'simulacao:assistente_enviar' cenario_id=cenario.id %}"
+              hx-target="#assistente-transcript" hx-swap="innerHTML"
+              hx-on::after-request="this.reset()"
+              class="mt-4 flex gap-2">
+            {% csrf_token %}
+            <input type="text" name="mensagem" required autocomplete="off"
+                   placeholder="Pergunte sobre este cenário…"
+                   class="input input-bordered flex-1" {% if not assistente_disponivel %}disabled{% endif %}>
+            <button type="submit" class="rounded bg-[var(--cor-primaria)] hover:bg-[var(--cor-primaria-hover)] text-white px-4 py-2"
+                    {% if not assistente_disponivel %}disabled{% endif %}>Enviar</button>
+        </form>
+    </div>
+    <aside class="w-56 shrink-0">
+        <form hx-post="{% url 'simulacao:assistente_nova' cenario_id=cenario.id %}"
+              hx-target="#cenario-content" hx-swap="innerHTML" class="mb-3">
+            {% csrf_token %}
+            <button type="submit" class="text-sm text-[var(--cor-primaria)] hover:underline">+ Nova conversa</button>
+        </form>
+        <ul class="text-sm space-y-1">
+            {% for c in conversas %}
+            <li class="truncate text-slate-500">{{ c.titulo|default:"(sem título)" }}</li>
+            {% endfor %}
+        </ul>
+    </aside>
+</div>

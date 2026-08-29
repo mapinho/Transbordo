@@ -1,0 +1,9 @@
+<div class="space-y-3">
+    {% for m in conversa.mensagens %}
+    <div class="{% if m.papel == 'user' %}text-right{% endif %}">
+        <span class="inline-block rounded px-3 py-2 {% if m.papel == 'user' %}bg-[var(--cor-primaria)] text-white{% else %}bg-white border border-[var(--cor-borda)]{% endif %}">{{ m.conteudo|linebreaksbr }}</span>
+    </div>
+    {% empty %}
+    <p class="text-slate-400 text-sm">Nenhuma mensagem ainda.</p>
+    {% endfor %}
+</div>
