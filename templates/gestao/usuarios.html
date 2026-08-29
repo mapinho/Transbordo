@@ -1,0 +1,9 @@
+{% extends "gestao/base_gestao.html" %}
+{% block title %}Usuários — Transbordo{% endblock %}
+{% block gestao_content %}
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-lg font-semibold text-[var(--cor-primaria)]">Usuários</h1>
+    <a href="{% url 'gestao:usuario_novo' %}" class="btn btn-primary btn-sm">Novo</a>
+  </div>
+  {% include "gestao/_usuarios_content.html" %}
+{% endblock %}

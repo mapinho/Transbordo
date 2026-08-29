@@ -41,6 +41,12 @@
           {% if menu_membro_cooperativa %}
             <a href="{% url 'simulacao:cenarios_list' %}" class="hover:underline">Cenários</a>
           {% endif %}
+          {% if menu_admin_cooperativa %}
+            <a href="{% url 'gestao:minha_cooperativa' %}" class="hover:underline">Minha cooperativa</a>
+          {% endif %}
+          {% if menu_gerir_usuarios %}
+            <a href="{% url 'gestao:usuarios' %}" class="hover:underline">Usuários</a>
+          {% endif %}
           {% if menu_admin_vector %}
             <a href="{% url 'gestao:cooperativas' %}" class="hover:underline">Cooperativas</a>
           {% endif %}

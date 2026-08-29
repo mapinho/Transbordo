@@ -1,0 +1,15 @@
+<table class="table w-full">
+  <thead><tr><th>Usuário</th><th>E-mail</th><th>Papel</th><th>Cooperativa</th><th>Ativo</th><th></th></tr></thead>
+  <tbody>
+    {% for u in usuarios %}
+      <tr>
+        <td>{{ u.username }}</td><td>{{ u.email }}</td>
+        <td>{{ u.get_papel_display }}</td><td>{{ u.cooperativa|default:"—" }}</td>
+        <td>{% if u.is_active %}Sim{% else %}Não{% endif %}</td>
+        <td><a href="{% url 'gestao:usuario_editar' u.id %}" class="link">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-slate-500">Nenhum usuário.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

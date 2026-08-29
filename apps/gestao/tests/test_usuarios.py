@@ -29,7 +29,10 @@ class UsuariosCrudTests(TestCase):
     def test_admin_cooperativa_ve_so_os_seus(self):
         self.client.force_login(self.admin_a)
         response = self.client.get(reverse('gestao:usuarios'))
-        self.assertNotContains(response, 'ub')
+        self.assertNotContains(response, 'ub@t.test')
+        self.assertNotContains(
+            response, reverse('gestao:usuario_editar', args=[self.user_b.id])
+        )
 
     def test_usuario_fabrica_recebe_403(self):
         self.client.force_login(self.user_b)

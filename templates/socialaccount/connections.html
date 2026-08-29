@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n allauth %}
+{% block title %}Contas vinculadas — Transbordo{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto mt-10 space-y-4">
+    {% element h1 %}
+        Contas vinculadas
+    {% endelement %}
+    {% if form.accounts %}
+        {% element p %}
+            Você pode entrar na sua conta usando qualquer uma destas contas de terceiros:
+        {% endelement %}
+        {% url 'socialaccount_connections' as action_url %}
+        {% element form form=form method="post" action=action_url %}
+            {% slot body %}
+                {% csrf_token %}
+                {% for acc in form.fields.account.choices %}
+                    {% with account=acc.0.instance.get_provider_account %}
+                        {% setvar radio_id %}
+                            id_account_{{ account.account.pk }}
+                        {% endsetvar %}
+                        {% setvar tags %}
+                            socialaccount,{{ account.account.provider }}
+                        {% endsetvar %}
+                        {% element field id=radio_id type="radio" name="account" value=account.account.pk %}
+                            {% slot label %}
+                                {{ account }}
+                                {% element badge tags=tags %}
+                                    {{ account.get_brand.name }}
+                                {% endelement %}
+                            {% endslot %}
+                        {% endelement %}
+                    {% endwith %}
+                {% endfor %}
+            {% endslot %}
+            {% slot actions %}
+                {% element button tags="delete,danger" type="submit" %}
+                    Remover
+                {% endelement %}
+            {% endslot %}
+        {% endelement %}
+    {% else %}
+        {% element p %}
+            Nenhuma conta de terceiros vinculada no momento.
+        {% endelement %}
+    {% endif %}
+    {% element h2 %}
+        Vincular uma conta de terceiros
+    {% endelement %}
+    {% include "socialaccount/snippets/provider_list.html" with process="connect" %}
+    {% include "socialaccount/snippets/login_extra.html" %}
+</div>
+{% endblock content %}

@@ -1,9 +1,11 @@
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.core.models import Cooperativa
+from apps.core import permissions
+from apps.core.models import Cooperativa, User
 from apps.core.permissions import requer_admin_vector
-from apps.gestao.forms import CooperativaForm
+from apps.gestao.forms import CooperativaForm, MinhaCooperativaForm, UsuarioForm
 
 
 @login_required
@@ -33,6 +35,61 @@ def cooperativa_editar(request, cooperativa_id):
         form.save()
         return redirect('gestao:cooperativas')
     return render(request, 'gestao/cooperativa_form.html', {'form': form, 'titulo': obj.nome})
+
+
+def usuarios_visiveis(gestor):
+    if permissions.e_admin_vector(gestor):
+        return User.objects.all().order_by('username')
+    return User.objects.filter(
+        cooperativa=gestor.cooperativa,
+        papel__in=(User.PAPEL_USUARIO_FABRICA, User.PAPEL_USUARIO_ARMAZEM),
+    ).order_by('username')
+
+
+def _requer_gestor(request):
+    if not permissions.pode_gerir_usuarios(request.user):
+        raise PermissionDenied
+
+
+@login_required
+def usuarios(request):
+    _requer_gestor(request)
+    itens = usuarios_visiveis(request.user)
+    template = 'gestao/_usuarios_content.html' if request.htmx else 'gestao/usuarios.html'
+    return render(request, template, {'usuarios': itens})
+
+
+@login_required
+def usuario_novo(request):
+    _requer_gestor(request)
+    form = UsuarioForm(request.POST or None, gestor=request.user)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('gestao:usuarios')
+    return render(request, 'gestao/usuario_form.html', {'form': form, 'titulo': 'Novo usuário'})
+
+
+@login_required
+def usuario_editar(request, usuario_id):
+    _requer_gestor(request)
+    obj = get_object_or_404(usuarios_visiveis(request.user), id=usuario_id)
+    form = UsuarioForm(request.POST or None, gestor=request.user, instance=obj)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('gestao:usuarios')
+    return render(request, 'gestao/usuario_form.html', {'form': form, 'titulo': obj.username})
+
+
+@login_required
+def minha_cooperativa(request):
+    if not permissions.e_admin_cooperativa(request.user):
+        raise PermissionDenied
+    obj = request.user.cooperativa
+    form = MinhaCooperativaForm(request.POST or None, instance=obj)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('gestao:minha_cooperativa')
+    return render(request, 'gestao/minha_cooperativa.html', {'form': form, 'cooperativa': obj})
 
 
 @login_required

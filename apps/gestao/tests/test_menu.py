@@ -20,3 +20,12 @@ class MenuTests(TestCase):
         html = self.client.get(reverse('gestao:cooperativas')).content.decode()
         self.assertIn('Cooperativas', html)
         self.assertNotIn('/simulacao/cenarios/', html)
+
+    def test_admin_cooperativa_ve_todos_os_seus_links(self):
+        self._login(User.PAPEL_ADMIN_COOPERATIVA)
+        from apps.simulacao.models import Cenario
+        Cenario.all_cooperativas.create(cooperativa=self.coop, nome='C')
+        html = self.client.get(reverse('simulacao:cenarios_list')).content.decode()
+        self.assertIn(reverse('gestao:usuarios'), html)
+        self.assertIn(reverse('gestao:minha_cooperativa'), html)
+        self.assertIn(reverse('gestao:conta'), html)
