@@ -20,7 +20,7 @@ cooperativa do usuário logado.
 - `ai_assistant.py` **portado para o app Django** como uma aba "Assistente de IA" **por cenário**,
   chamando `apps/simulacao/services.py` em processo com a cooperativa do usuário logado. Histórico de
   conversa **persistido** num model novo `ConversaIA`.
-- ADR 0009 registrando a decisão de split (MCP=HTTP, IA=in-process).
+- ADR 0010 registrando a decisão de split (MCP=HTTP, IA=in-process).
 - Documentação de setup do MCP nova (docstring de `mcp_server.py` + seção `## MCP` no `README.md`),
   substituindo o `INSTRUCOES_MCP.md` removido na Fase 8.
 - `httpx` adicionado a `requirements.txt`.
@@ -61,7 +61,7 @@ chamado pela aba "Assistente de IA" do Streamlit (`app.py`), que mantém o hist�
 
 ### 1. Split por natureza do consumidor: MCP=HTTP, IA=in-process
 
-*Ver ADR 0009.*
+*Ver ADR 0010.*
 
 - **`mcp_server.py` é uma ferramenta remota.** Roda como subprocesso stdio na máquina de um analista,
   disparado pelo cliente LLM (Claude Desktop / Cursor / Gemini CLI). O modelo `ApiKey` da Fase 6 (uma
@@ -159,7 +159,7 @@ implementação separados**:
   1. `mcp_server.py` reescrito como cliente `httpx` de `/api/v1/` + `_get` helper + tratamento de erro.
   2. Testes com `httpx` mockado (URL/params/header por tool) + `ToolError` nos casos 401/404/4xx.
   3. Docstring de setup + seção `## MCP` no `README.md`; `httpx` em `requirements.txt`.
-  4. ADR 0009.
+  4. ADR 0010.
 - **Plano 9b — aba "Assistente de IA".** Depende da Fase 7 (login + `request.user.cooperativa_id`). Passos:
   1. Model `ConversaIA` + migration + testes de isolamento de tenant.
   2. `apps/simulacao/assistente.py` (loop Gemini portado, `services.py` in-process) + testes com Gemini mockado.

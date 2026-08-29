@@ -71,12 +71,14 @@ specs/           # spec por módulo de negócio
 - `django-allauth` com providers **Google** e **Microsoft (Azure AD)**, mais backend local Django (usuário/senha) para cooperativas sem SSO corporativo.
 - **Sem auto-cadastro**: `SOCIALACCOUNT_AUTO_SIGNUP = False`. Uma conta SSO só autentica se já existir um `User` pré-cadastrado com aquele e-mail — associação por e-mail, nunca criação automática.
 - `User` (`AbstractUser` + `cooperativa` FK nullable + `papel`):
-  - **Admin Vector** (`cooperativa=None`, cross-tenant) — cadastra cooperativas, usuários e parâmetros iniciais. Único papel que cria usuários.
-  - **Admin Cooperativa** — parametriza a própria cooperativa (janelas de safra, capacidades padrão), não cadastra usuários.
+  - **Admin Vector** (`cooperativa=None`, cross-tenant) — cadastra cooperativas e usuários **de qualquer cooperativa**, e os parâmetros iniciais.
+  - **Admin Cooperativa** — parametriza a própria cooperativa (janelas de safra, capacidades padrão) e cadastra/edita os usuários (`usuario_fabrica` / `usuario_armazem`) da própria cooperativa.
   - **Usuário Fábrica** — CRUD e edição em massa restritos a fábricas, dentro da cooperativa.
   - **Usuário Armazém** — idem, restrito a armazéns.
   - `is_staff`/`is_superuser` padrão do Django reservados à equipe Vector (acesso ao `/admin/`).
 - Checagem de papel via funções puras em `apps/<app>/permissions.py` (`papel_required('usuario_fabrica')`), replicando o padrão do APP_Vector (`pode_editar_projeto`) — nunca escondendo botão na UI como única proteção.
+
+*(Atualizado na Fase 7 — ver `docs/superpowers/specs/2026-08-29-fase7-auth-design.md` e ADR 0009.)*
 
 ### 6. Fila de jobs assíncrona: Procrastinate
 
@@ -135,9 +137,9 @@ specs/           # spec por módulo de negócio
 4. **Carga de Dados** ✅ — importação de planilha .xlsx (upload, pré-visualização, confirmação) — a otimização não tem o que otimizar sem dados carregados.
 5. **Procrastinate** ✅ — task assíncrona de simulação + polling HTMX de progresso.
 6. **Face JSON** ✅ — Django Ninja (`apps/integracoes/`) sobre `services.py`, 9 endpoints GET sob `/api/v1/`, auth `X-API-Key`. Ver `docs/superpowers/specs/2026-08-26-fase6-face-json-design.md` e ADR 0008. A *migração* dos consumidores (`mcp_server.py`/`ai_assistant.py`) ficou deliberadamente para a Fase 9.
-7. **Auth** — allauth (Google + Microsoft + local), papéis, sem auto-cadastro.
+7. **Auth** ✅ — allauth (Google + Microsoft + local), papéis, sem auto-cadastro. Ver `docs/superpowers/specs/2026-08-29-fase7-auth-design.md` e ADR 0009.
 8. **Versionamento + limpeza** — esquema SemVer (arquivo `VERSION` + tag git por fase, `v1.0.0` no cutover), `CHANGELOG.md`, e remoção do lixo acumulado (docs/skills/análises one-off obsoletos). **Não** toca no stack Streamlit/SQLAlchemy — esse é a Fase 11. Ver `docs/superpowers/specs/2026-08-28-fase8-versionamento-limpeza-design.md`.
-9. **Migração MCP/IA** — ver `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0009. Dividida em dois planos independentes:
+9. **Migração MCP/IA** — ver `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0010. Dividida em dois planos independentes:
    - **9a** — `mcp_server.py` vira cliente HTTP de `/api/v1/` (`X-API-Key` via env `TRANSBORDO_API_URL`/`TRANSBORDO_API_KEY`). Não depende da Fase 7.
    - **9b** — `ai_assistant.py` portado para uma aba "Assistente de IA" por cenário no app Django (`ConversaIA` model, loop Gemini in-process com a cooperativa do usuário logado). Depende da Fase 7.
 10. **Deploy** — Dockerfile/compose adaptado, Apache re-roteado, `/healthz/` (expõe a versão).

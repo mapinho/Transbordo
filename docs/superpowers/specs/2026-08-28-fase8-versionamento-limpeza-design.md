@@ -85,7 +85,7 @@ O `git` preserva tudo; "remover" aqui é tirar do estado atual do repositório, 
 **Mantidos** (decisão explícita, não são lixo):
 - `docs/superpowers/specs/*` — capturam decisões, referenciados por ADRs e `CLAUDE.md`; o roteiro da
   migração vive aqui.
-- `docs/decisions/*` (ADRs 0001–0009).
+- `docs/decisions/*` (ADRs 0001–0010).
 - `Especificacao_Sistema_Transbordo_Atualizada.md` — único spec funcional consolidado; a Fase 5 previu
   que ele "vira a base para o `specs/` por módulo", processo incremental ainda em curso.
 - Todo o stack Streamlit/SQLAlchemy (Fase 11).

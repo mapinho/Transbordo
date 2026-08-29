@@ -71,6 +71,22 @@ ou mais por cooperativa, revogável via admin), que também define a cooperativa
 Ainda **não** feito: `mcp_server.py`/`ai_assistant.py` continuam consultando o ORM legado em processo —
 migrá-los para consumir esta API é uma etapa seguinte, deliberadamente separada.
 
+## Fase 7 — Auth (concluída)
+
+`django-allauth` sob `/accounts/` (Google + Microsoft/Azure AD multi-tenant + usuário/senha local),
+configurado via `SOCIALACCOUNT_PROVIDERS[...]['APPS']` em settings. **Sem auto-cadastro**:
+`apps/core/adapters.py` bloqueia signup e só autentica conta social casada por e-mail a um `User`
+pré-criado. `core.User.email` é obrigatório e único.
+
+Autorização por papel em `apps/core/permissions.py` (funções puras + decorators
+`@papel_required` / `@requer_edicao_fabricas` / `@requer_edicao_armazens` / `@requer_admin_vector`),
+aplicada em todas as views de `apps/simulacao/`. `apps/gestao/` (sem models) tem as telas de
+Cooperativas (Admin Vector), Usuários (Admin Vector cross-tenant; Admin Cooperativa na própria coop),
+"Minha cooperativa" e "Conta". Ver `docs/superpowers/specs/2026-08-29-fase7-auth-design.md`,
+`docs/decisions/0009-autenticacao-allauth-papeis.md` e `apps/gestao/CLAUDE.md`.
+
+Bootstrap do primeiro Admin Vector: `python manage.py criar_admin_vector <username> --email <email>`.
+
 ## Environment
 
 A `.env` file at the project root is **required** — there is no hardcoded credential fallback (removed in the Fase 1 review; see `data_loader.py:get_engine()`):
@@ -86,6 +102,11 @@ GEMINI_API_KEY=...   # optional — only needed for the "Assistente de IA" tab
 
 On Streamlit Cloud, credentials are read from `st.secrets` instead of `.env`.
 
+Fase 7 (stack Django) adiciona, todas opcionais salvo se o provedor/recurso for usado:
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`,
+`MICROSOFT_TENANT` (default `common`), `DJANGO_EMAIL_*` (SMTP transacional), `DJANGO_DEFAULT_FROM_EMAIL`,
+e `ADMIN_VECTOR_PASSWORD` (só para `criar_admin_vector --password-from-env`).
+
 ## Architecture / File Map
 
 - `app.py` — Streamlit entrypoint and all UI pages (Dashboard, Carga de Dados, Cenários, Assistente de IA). Wraps the DB session in `app_logic.db_session_scope()` so it's always closed, even on error.
@@ -100,7 +121,9 @@ On Streamlit Cloud, credentials are read from `st.secrets` instead of `.env`.
 - `utils.py` — `format_dataframe` (pt-BR display formatting), `get_model_column_config`, `build_df_from_model`, `append_totals_row`, `export_to_excel`.
 - `templates/` — pre-generated Excel templates for data upload.
 - `tests/` — pytest suite; `conftest.py` provides an in-memory SQLite `session` fixture plus minimal valid `cenario`/`fabrica`/`armazem`/`rota` fixtures.
-- `config/`, `apps/core|simulacao|integracoes/`, `manage.py` — novo projeto Django (Fase 5, em progresso); ver a seção Fase 5 acima.
+- `config/`, `apps/core|simulacao|integracoes|gestao/`, `manage.py` — novo projeto Django (Fase 5, em progresso); ver a seção Fase 5 acima.
+- `apps/core/` — identidade e tenancy: `models.py` (`Cooperativa`, `User` com `papel`), `tenancy.py`/`middleware.py` (escopo por cooperativa), `adapters.py` (allauth, sem signup), `permissions.py` (autorização por papel), comando `criar_admin_vector` (Fase 7).
+- `apps/gestao/` — Fase 7: telas HTMX de gestão (Cooperativas, Usuários, Minha cooperativa, Conta). **Sem models** — opera sobre `core.Cooperativa`/`core.User` via forms que aplicam as regras por papel. Ver `apps/gestao/CLAUDE.md`.
 - `apps/simulacao/` — Django port do domínio (models, engine, services), Carga de Dados e espelhamento de dados legado. Ver `apps/simulacao/CLAUDE.md` para o detalhe por arquivo.
 - `apps/integracoes/` — Face JSON (Fase 6): Django Ninja somente-leitura sobre `apps/simulacao/services.py`, montada em `/api/v1/`, autenticada por `X-API-Key` (`ApiKey` model, uma ou mais por cooperativa). 9 endpoints GET espelhando os 9 tools de `mcp_server.py`. OpenAPI em `/api/v1/docs`. Ver `apps/integracoes/CLAUDE.md`.
 

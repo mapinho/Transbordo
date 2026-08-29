@@ -58,3 +58,17 @@ Os campos no `models.py` utilizam o parâmetro `info` para guiar a UI:
 O sistema possui suporte nativo ao protocolo **Model Context Protocol (MCP)** para permitir que LLMs conectem-se e analisem de forma autônoma a nossa base de dados logística.
 - **Servidor:** `mcp_server.py` (desenvolvido usando o framework `fastmcp`).
 - **Como Utilizar:** Consulte o guia detalhado em `INSTRUCOES_MCP.md` para integrar com o **Claude Desktop** e com o **Gemini** (via Cursor, Cline ou pontes SSE).
+
+## 8. Stack Django (Fases 5–7)
+A migração para **Django 6 + HTMX** (SaaS multi-cooperativa) convive no mesmo repositório com o app
+Streamlit. O detalhe canônico está em `CLAUDE.md` (seções "Fase 5/6/7"); resumo:
+- `apps/core` (identidade, tenancy, papéis), `apps/simulacao` (port do domínio + Carga de Dados),
+  `apps/integracoes` (Face JSON Django Ninja em `/api/v1/`), `apps/gestao` (telas de gestão, Fase 7).
+- **Fase 7 — Auth:** `django-allauth` sob `/accounts/` (Google + Microsoft + usuário/senha), **sem
+  auto-cadastro** (`apps/core/adapters.py` — login social só associa por e-mail a `User` pré-criado).
+  `core.User.email` obrigatório e único. Autorização por papel em `apps/core/permissions.py`, aplicada
+  em todas as views. Primeiro admin: `python manage.py criar_admin_vector <username> --email <email>`.
+  Ver `docs/superpowers/specs/2026-08-29-fase7-auth-design.md` e ADR 0009.
+- `.env` do stack Django: `DJANGO_DB_*`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`; Fase 7 acrescenta
+  `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_CLIENT_ID/SECRET/TENANT`, `DJANGO_EMAIL_*`,
+  `DJANGO_DEFAULT_FROM_EMAIL`, `ADMIN_VECTOR_PASSWORD` (todas opcionais salvo se o recurso for usado).

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Django 6, HTMX, `google-genai` (already a dependency), `pytest`/`pytest-django`.
 
-**Spec:** `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` (Plano 9b section). Split rationale: ADR 0009 (written in Plano 9a).
+**Spec:** `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` (Plano 9b section). Split rationale: ADR 0010 (written in Plano 9a).
 
 ## Global Constraints
 
@@ -310,7 +310,7 @@ Create `apps/simulacao/assistente.py`:
 
 Port da lógica de `ai_assistant.py` (raiz, usada pelo Streamlit) para o app
 Django: as ferramentas chamam `services.py` em processo, com a cooperativa e o
-cenário fixados pelo contexto da aba. Ver Fase 9b e ADR 0009.
+cenário fixados pelo contexto da aba. Ver Fase 9b e ADR 0010.
 """
 from django.conf import settings
 from google import genai

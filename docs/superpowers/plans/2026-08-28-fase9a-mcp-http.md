@@ -33,7 +33,7 @@
 
 **New:**
 - `tests/test_mcp_server.py` — pytest, patches `httpx.get`.
-- `docs/decisions/0009-mcp-http-ia-in-process.md` — ADR (covers both 9a and 9b).
+- `docs/decisions/0010-mcp-http-ia-in-process.md` — ADR (covers both 9a and 9b).
 
 **Endpoint map** (from Fase 6, `apps/integracoes/api.py`):
 
@@ -388,11 +388,11 @@ git commit -m "feat(mcp): 9 tools chamam /api/v1/ por HTTP, sem logistics_servic
 
 ---
 
-## Task 3: `## MCP` section in the README + ADR 0009
+## Task 3: `## MCP` section in the README + ADR 0010
 
 **Files:**
 - Modify: `README.md`
-- Create: `docs/decisions/0009-mcp-http-ia-in-process.md`
+- Create: `docs/decisions/0010-mcp-http-ia-in-process.md`
 
 **Interfaces:** none (docs).
 
@@ -430,12 +430,12 @@ Bloco `mcp.json` do cliente:
     }
 ```
 
-- [ ] **Step 2: Write ADR 0009**
+- [ ] **Step 2: Write ADR 0010**
 
-Create `docs/decisions/0009-mcp-http-ia-in-process.md`:
+Create `docs/decisions/0010-mcp-http-ia-in-process.md`:
 
 ```markdown
-# ADR 0009 — MCP consome /api/v1/ por HTTP; Assistente de IA roda in-process no Django
+# ADR 0010 — MCP consome /api/v1/ por HTTP; Assistente de IA roda in-process no Django
 
 - Status: Aceito
 - Data: 2026-XX-XX
@@ -473,8 +473,8 @@ dois consumidores têm naturezas diferentes.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add README.md docs/decisions/0009-mcp-http-ia-in-process.md
-git commit -m "docs: seção MCP no README + ADR 0009 (split MCP HTTP / IA in-process)"
+git add README.md docs/decisions/0010-mcp-http-ia-in-process.md
+git commit -m "docs: seção MCP no README + ADR 0010 (split MCP HTTP / IA in-process)"
 ```
 
 ---
@@ -517,7 +517,7 @@ Expected: green (Django + SQLAlchemy + `tests/test_mcp_server.py`). `python -m p
 | Testes com `httpx` mockado (URL/params/header por tool) + `ToolError` 401/404/4xx | Tasks 1–2 |
 | Docstring de setup + seção `## MCP` no README | Tasks 1 (docstring) + 3 (README) |
 | `httpx` em `requirements.txt` | Task 1 |
-| ADR 0009 | Task 3 |
+| ADR 0010 | Task 3 |
 | Verificação campo-a-campo contra `/api/v1/` | Task 4 |
 | Não importa Django/`logistics_services`/SQLAlchemy | Global Constraints + Task 2 Step 3 (delete the import) |
 | Não depende da Fase 7 | Global Constraints |
