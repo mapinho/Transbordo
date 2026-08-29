@@ -22,13 +22,19 @@ exception pattern used for the Mapped[] typing fix in models.py (A11/L4):
    non-None value) after the annotation change.
 """
 import inspect
+import os
 import types
 import typing
 
 import pytest
 
 import ai_assistant
-import mcp_server
+
+# mcp_server agora falha-alto no import se as vars da face JSON faltam (Fase 9a).
+# Este teste só inspeciona assinaturas, não faz HTTP — basta um valor qualquer.
+os.environ.setdefault("TRANSBORDO_API_URL", "http://localhost:8000/api/v1")
+os.environ.setdefault("TRANSBORDO_API_KEY", "test-key")
+import mcp_server  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +68,10 @@ UNCHANGED_DEFAULTS = [
     (ai_assistant, "get_daily_movements", "limit", 150),
     (mcp_server, "get_daily_movements", "limit", 150),
 ]
+
+# Desde a Fase 9a, mcp_server é cliente HTTP puro (não importa logistics_services).
+# As checagens de comportamento com fake de logistics_services só valem para
+# ai_assistant; a cobertura de mcp_server está em tests/test_mcp_server.py.
 
 
 # ---------------------------------------------------------------------------
@@ -128,13 +138,11 @@ def fake_logistics(monkeypatch):
 
     monkeypatch.setattr(ai_assistant.logistics_services, "get_daily_movements", fake_get_daily_movements)
     monkeypatch.setattr(ai_assistant.logistics_services, "get_monthly_summary", fake_get_monthly_summary)
-    monkeypatch.setattr(mcp_server.logistics_services, "get_daily_movements", fake_get_daily_movements)
-    monkeypatch.setattr(mcp_server.logistics_services, "get_monthly_summary", fake_get_monthly_summary)
 
     return calls
 
 
-@pytest.mark.parametrize("module", [ai_assistant, mcp_server])
+@pytest.mark.parametrize("module", [ai_assistant])
 def test_get_daily_movements_works_with_omitted_optional_params(module, fake_logistics):
     result = module.get_daily_movements(scenario_id=1)
 
@@ -148,7 +156,7 @@ def test_get_daily_movements_works_with_omitted_optional_params(module, fake_log
     }}]
 
 
-@pytest.mark.parametrize("module", [ai_assistant, mcp_server])
+@pytest.mark.parametrize("module", [ai_assistant])
 def test_get_daily_movements_works_with_explicit_values(module, fake_logistics):
     result = module.get_daily_movements(
         scenario_id=1,
@@ -169,7 +177,7 @@ def test_get_daily_movements_works_with_explicit_values(module, fake_logistics):
     }}]
 
 
-@pytest.mark.parametrize("module", [ai_assistant, mcp_server])
+@pytest.mark.parametrize("module", [ai_assistant])
 def test_get_monthly_summary_works_with_omitted_optional_params(module, fake_logistics):
     result = module.get_monthly_summary(scenario_id=1)
 
@@ -180,7 +188,7 @@ def test_get_monthly_summary_works_with_omitted_optional_params(module, fake_log
     }}
 
 
-@pytest.mark.parametrize("module", [ai_assistant, mcp_server])
+@pytest.mark.parametrize("module", [ai_assistant])
 def test_get_monthly_summary_works_with_explicit_values(module, fake_logistics):
     result = module.get_monthly_summary(
         scenario_id=1,
