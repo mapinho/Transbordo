@@ -1,4 +1,62 @@
 services:
+  # --- Stack Django (Fase 10) ---
+  web:
+    build: .
+    image: transbordo:latest
+    container_name: transbordo_web
+    restart: unless-stopped
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000 --workers 3 --timeout 60
+      --access-logfile - --error-logfile -
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+      - DJANGO_SETTINGS_MODULE=config.settings.prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    build: .
+    image: transbordo:latest
+    container_name: transbordo_worker
+    restart: unless-stopped
+    command: python manage.py procrastinate worker
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+      - DJANGO_SETTINGS_MODULE=config.settings.prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - web
+
+  migrate:
+    build: .
+    image: transbordo:latest
+    container_name: transbordo_migrate
+    restart: "no"
+    profiles: ["tools"]
+    command: python manage.py migrate --noinput
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Sao_Paulo
+      - DJANGO_SETTINGS_MODULE=config.settings.prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --- Stack Streamlit (legado — Fase 11 remove) ---
   comigo:
     build: .
     container_name: comigo_app
@@ -9,19 +67,5 @@ services:
       - "8501:8501"
     env_file:
       - .env
-    environment:
-      - TZ=America/Sao_Paulo
-
-  mcp:
-    build: .
-    container_name: comigo_mcp
-    restart: unless-stopped
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    command: fastmcp run mcp_server.py --transport sse --host 0.0.0.0 --port 8000
     environment:
       - TZ=America/Sao_Paulo
