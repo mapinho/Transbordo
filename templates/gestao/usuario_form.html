@@ -8,4 +8,10 @@
     <button type="submit" class="btn btn-primary">Salvar</button>
     <a href="{% url 'gestao:usuarios' %}" class="btn">Cancelar</a>
   </form>
+  {% if form.instance.pk and pode_enviar_link %}
+    <form method="post" action="{% url 'gestao:usuario_enviar_link' form.instance.pk %}" class="mt-4">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm">Enviar link de definição de senha</button>
+    </form>
+  {% endif %}
 {% endblock %}

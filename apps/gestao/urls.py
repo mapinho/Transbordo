@@ -11,6 +11,7 @@ urlpatterns = [
     path('usuarios/', views.usuarios, name='usuarios'),
     path('usuarios/novo/', views.usuario_novo, name='usuario_novo'),
     path('usuarios/<int:usuario_id>/', views.usuario_editar, name='usuario_editar'),
+    path('usuarios/<int:usuario_id>/enviar-link/', views.usuario_enviar_link, name='usuario_enviar_link'),
     path('minha-cooperativa/', views.minha_cooperativa, name='minha_cooperativa'),
     path('conta/', views.conta, name='conta'),
 ]

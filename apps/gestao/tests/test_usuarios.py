@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.core.models import Cooperativa, User
@@ -71,3 +71,30 @@ class UsuariosCrudTests(TestCase):
             self.client.get(reverse('gestao:usuario_editar', args=[self.user_b.id])).status_code,
             404,
         )
+
+
+class DefinirSenhaLinkTests(TestCase):
+    def setUp(self):
+        self.coop = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
+        self.vector = User.objects.create_user(
+            username='vector', email='vector@t.test', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+        self.alvo = User.objects.create_user(
+            username='alvo', email='alvo@coop-a.test',
+            papel=User.PAPEL_USUARIO_FABRICA, cooperativa=self.coop,
+        )
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
+    def test_sem_email_configurado_botao_ausente(self):
+        self.client.force_login(self.vector)
+        html = self.client.get(reverse('gestao:usuario_editar', args=[self.alvo.id])).content.decode()
+        self.assertNotIn('definição de senha', html)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_com_email_configurado_envia(self):
+        from django.core import mail
+        self.client.force_login(self.vector)
+        response = self.client.post(reverse('gestao:usuario_enviar_link', args=[self.alvo.id]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('alvo@coop-a.test', mail.outbox[0].to)

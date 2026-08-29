@@ -1,6 +1,10 @@
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from apps.core import permissions
 from apps.core.models import Cooperativa, User
@@ -51,6 +55,13 @@ def _requer_gestor(request):
         raise PermissionDenied
 
 
+def email_configurado():
+    return settings.EMAIL_BACKEND not in (
+        'django.core.mail.backends.console.EmailBackend',
+        'django.core.mail.backends.dummy.EmailBackend',
+    )
+
+
 @login_required
 def usuarios(request):
     _requer_gestor(request)
@@ -77,7 +88,24 @@ def usuario_editar(request, usuario_id):
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('gestao:usuarios')
-    return render(request, 'gestao/usuario_form.html', {'form': form, 'titulo': obj.username})
+    return render(request, 'gestao/usuario_form.html', {
+        'form': form, 'titulo': obj.username, 'pode_enviar_link': email_configurado(),
+    })
+
+
+@login_required
+@require_POST
+def usuario_enviar_link(request, usuario_id):
+    _requer_gestor(request)
+    if not email_configurado():
+        raise Http404
+    alvo = get_object_or_404(usuarios_visiveis(request.user), id=usuario_id)
+    from allauth.account.forms import ResetPasswordForm
+    form = ResetPasswordForm({'email': alvo.email})
+    if form.is_valid():
+        form.save(request)
+        messages.success(request, f'Link de definição de senha enviado para {alvo.email}.')
+    return redirect('gestao:usuario_editar', usuario_id=alvo.id)
 
 
 @login_required
