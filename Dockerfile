@@ -18,9 +18,14 @@ COPY . .
 
 ENV TZ=America/Sao_Paulo
 
-# Estáticos coletados no build (não toca o banco). Settings `base` + uma
-# SECRET_KEY descartável só para este passo; o runtime usa `config.settings.prod`.
-RUN DJANGO_SETTINGS_MODULE=config.settings.base DJANGO_SECRET_KEY=build-only \
+# Estáticos coletados no build (não toca o banco). Roda sob `config.settings.prod`
+# — o mesmo settings do runtime — para o storage WhiteNoise
+# (CompressedManifestStaticFilesStorage) gerar o manifesto `staticfiles.json` e
+# as variantes comprimidas dentro da imagem. `prod` lê SECRET_KEY e ALLOWED_HOSTS
+# no import; valores descartáveis só para este passo (não vão para o runtime).
+RUN DJANGO_SETTINGS_MODULE=config.settings.prod \
+    DJANGO_SECRET_KEY=build-only-not-a-real-secret-key-000000000000 \
+    DJANGO_ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
 EXPOSE 8501
