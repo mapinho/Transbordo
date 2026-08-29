@@ -101,6 +101,16 @@ O `ai_assistant.py` / `logistics_services.py` da raiz **continuam** existindo �
 o Cutover (Fase 11); o loop Gemini fica brevemente duplicado. Ver
 `docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0010.
 
+## Fase 10 — Deploy (concluída)
+
+Django em produção ao lado do Streamlit. Imagem `python:3.13-slim` + gunicorn + WhiteNoise
+(`Dockerfile`); serviços do `docker-compose.yml`: `web` (gunicorn, bind `127.0.0.1:8000`), `worker`
+(Procrastinate) e `migrate` (one-shot). Apache serve `transbordo.vectorconsulting.com.br`
+(`transbordo.conf` / `transbordo-le-ssl.conf`) como único ingress externo. `/healthz/` faz `SELECT 1`
+e é o healthcheck do container. `deploy.sh` é o runbook recorrente (git pull condicional → build →
+migrate → check --deploy → up → poll `/healthz/`); `docs/DEPLOY.md` cobre primeira vez, rollback e o
+legado. Ver `docs/superpowers/specs/2026-08-29-fase10-deploy-design.md`.
+
 ## Environment
 
 A `.env` file at the project root is **required** — there is no hardcoded credential fallback (removed in the Fase 1 review; see `data_loader.py:get_engine()`):
@@ -162,9 +172,9 @@ This codebase follows strict TDD (red → green) for all behavior changes: write
 
 ## Roadmap Status
 
-Fases 1–9 concluídas (revisão de código; docs; performance/N+1; otimização; Fundação Django + Port do
+Fases 1–10 concluídas (revisão de código; docs; performance/N+1; otimização; Fundação Django + Port do
 domínio + UI + Carga de Dados + Simulação assíncrona; Face JSON; Auth; versionamento/limpeza; migração
-MCP/IA). Versão corrente em `VERSION` / `CHANGELOG.md`. Próximas: **Fase 10** (Deploy) e **Fase 11**
+MCP/IA; Deploy). Versão corrente em `VERSION` / `CHANGELOG.md`. Próxima: **Fase 11**
 (Cutover — desligar o stack Streamlit/SQLAlchemy). Confirme a fase corrente com o dono do projeto antes
 de começar trabalho novo.
 

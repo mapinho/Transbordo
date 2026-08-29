@@ -4,8 +4,12 @@
 set -euo pipefail
 cd /opt/comigo
 
-echo "--- git pull ---"
-git pull origin main
+if git symbolic-ref -q HEAD >/dev/null; then
+  echo "--- git pull ---"
+  git pull origin main
+else
+  echo "--- HEAD destacado (rollback) — pulando git pull ---"
+fi
 
 echo "--- build (web, worker) ---"
 docker compose build web worker
