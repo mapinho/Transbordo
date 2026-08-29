@@ -63,3 +63,26 @@ class ArmazensGridViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Armazem.all_cooperativas.filter(cenario_id=self.cenario.id).count(), 1)
+
+    def test_usuario_fabrica_recebe_403(self):
+        fabril = User.objects.create_user(
+            username='fab', email='fab@coop-a.test', password='x',
+            cooperativa=self.cooperativa, papel=User.PAPEL_USUARIO_FABRICA,
+        )
+        self.client.force_login(fabril)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_usuario_armazem_edita(self):
+        armazenista = User.objects.create_user(
+            username='arm', email='arm@coop-a.test', password='x',
+            cooperativa=self.cooperativa, papel=User.PAPEL_USUARIO_ARMAZEM,
+        )
+        self.client.force_login(armazenista)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_admin_vector_recebe_403(self):
+        vector = User.objects.create_user(
+            username='vec', email='vec@t.test', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+        self.client.force_login(vector)
+        self.assertEqual(self.client.get(self.url).status_code, 403)

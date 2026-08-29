@@ -52,3 +52,10 @@ class CenariosListViewTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Cenario.all_cooperativas.filter(cooperativa=self.cooperativa, nome='Simulação Nova').exists())
+
+    def test_admin_vector_recebe_403(self):
+        vector = User.objects.create_user(
+            username='vec', email='vec@t.test', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+        self.client.force_login(vector)
+        self.assertEqual(self.client.get(reverse('simulacao:cenarios_list')).status_code, 403)

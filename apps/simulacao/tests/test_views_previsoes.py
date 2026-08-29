@@ -79,3 +79,10 @@ class PrevisoesGridViewTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertNotContains(response, 'F\\u00e1brica B')
+
+    def test_admin_vector_recebe_403(self):
+        vector = User.objects.create_user(
+            username='vec', email='vec@t.test', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+        self.client.force_login(vector)
+        self.assertEqual(self.client.get(self.url).status_code, 403)

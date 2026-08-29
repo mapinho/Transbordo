@@ -179,3 +179,10 @@ class CargaTests(TestCase):
 
         self.assertEqual(resposta.status_code, 400)
         self.assertFalse(self.client.session.get('carga'))
+
+    def test_admin_vector_recebe_403(self):
+        vector = User.objects.create_user(
+            username='vec', email='vec@t.test', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+        self.client.force_login(vector)
+        self.assertEqual(self.client.get(reverse('simulacao:carga')).status_code, 403)

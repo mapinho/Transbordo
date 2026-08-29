@@ -42,6 +42,13 @@ class SimulacaoViewsTests(TransactionTestCase):
         response = self.client.get(self.url_tab)
         self.assertEqual(response.status_code, 302)
 
+    def test_admin_vector_recebe_403(self):
+        vector = User.objects.create_user(
+            username='vec', email='vec@t.test', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+        )
+        self.client.force_login(vector)
+        self.assertEqual(self.client.get(self.url_tab).status_code, 403)
+
     def test_pagina_completa_sem_htmx(self):
         self.client.force_login(self.user)
 
