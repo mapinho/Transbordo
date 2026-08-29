@@ -30,8 +30,8 @@ pip install -r requirements-dev.txt   # adds pytest, for local dev only
 # Run the app
 streamlit run app.py
 
-# Run the MCP server standalone (stdio transport)
-python mcp_server.py
+# Run the MCP server standalone (stdio transport) — cliente HTTP de /api/v1/ (Fase 9)
+TRANSBORDO_API_URL=http://localhost:8000/api/v1 TRANSBORDO_API_KEY=<ApiKey> python mcp_server.py
 
 # Tests (SQLite in-memory, no external DB needed)
 pytest tests/ -v
@@ -68,9 +68,6 @@ ou mais por cooperativa, revogável via admin), que também define a cooperativa
 `/api/v1/docs`. Ver `docs/superpowers/specs/2026-08-26-fase6-face-json-design.md` e
 `docs/decisions/0008-face-json-django-ninja.md`, mais `apps/integracoes/CLAUDE.md` para o file map.
 
-Ainda **não** feito: `mcp_server.py`/`ai_assistant.py` continuam consultando o ORM legado em processo —
-migrá-los para consumir esta API é uma etapa seguinte, deliberadamente separada.
-
 ## Fase 7 — Auth (concluída)
 
 `django-allauth` sob `/accounts/` (Google + Microsoft/Azure AD multi-tenant + usuário/senha local),
@@ -86,6 +83,23 @@ Cooperativas (Admin Vector), Usuários (Admin Vector cross-tenant; Admin Coopera
 `docs/decisions/0009-autenticacao-allauth-papeis.md` e `apps/gestao/CLAUDE.md`.
 
 Bootstrap do primeiro Admin Vector: `python manage.py criar_admin_vector <username> --email <email>`.
+
+## Fase 9 — Migração MCP / IA (concluída)
+
+Os dois consumidores de `logistics_services.py` deixaram de tocar o ORM legado (ADR 0010):
+
+- **`mcp_server.py`** virou **cliente HTTP puro** de `/api/v1/`. Sem `import logistics_services`, sem
+  banco: config por `TRANSBORDO_API_URL` + `TRANSBORDO_API_KEY` (fail-loud no import). As 9 tools são
+  wrappers finos de `_get(path, **params)`. Setup na seção `## MCP` do `README.md`.
+- **`ai_assistant.py`** foi portado para o app Django como a aba **"Assistente de IA"** por cenário:
+  `apps/simulacao/assistente.py` roda o loop Gemini em processo (`responder(conversa, mensagem)`),
+  chamando `apps/simulacao/services.py` com a cooperativa do usuário logado. Histórico persistido no
+  model `ConversaIA` (`CooperativaScopedModel`, uma conversa ativa por cenário+usuário). Sem
+  `GEMINI_API_KEY` (`settings.GEMINI_API_KEY`), a aba mostra aviso e desabilita o input.
+
+O `ai_assistant.py` / `logistics_services.py` da raiz **continuam** existindo — o Streamlit os usa até
+o Cutover (Fase 11); o loop Gemini fica brevemente duplicado. Ver
+`docs/superpowers/specs/2026-08-28-fase9-migracao-mcp-ia-design.md` e ADR 0010.
 
 ## Environment
 
@@ -115,8 +129,8 @@ e `ADMIN_VECTOR_PASSWORD` (só para `criar_admin_vector --password-from-env`).
 - `calculations.py` — OR-Tools daily optimization engine (`otimizar_dia`); shared safra-window lookup `obter_janela_safra`.
 - `scenarios.py` — scenario deep-clone (`clone_scenario`); fully transactional, rolls back on any failure.
 - `data_loader.py` — `get_engine()` / `init_db()` (connection + credential resolution) and the four Excel importers (fábricas, armazéns, rotas, previsões). Loaders are row-tolerant: bad rows are collected and reported, not fatal.
-- `logistics_services.py` — read-only report layer shared by `mcp_server.py` and `ai_assistant.py` (DRY). Bulk-query only, no N+1 lookups.
-- `mcp_server.py` — FastMCP server; thin `@mcp.tool()` wrappers over `logistics_services.py`.
+- `logistics_services.py` — read-only report layer usado pelo `ai_assistant.py` da raiz (Streamlit). Bulk-query only, no N+1 lookups. (Desde a Fase 9, `mcp_server.py` não o usa mais.)
+- `mcp_server.py` — FastMCP server; desde a Fase 9 é cliente HTTP de `/api/v1/` (ADR 0010), sem acesso a banco. Config `TRANSBORDO_API_URL`/`TRANSBORDO_API_KEY`.
 - `ai_assistant.py` — Gemini function-calling wrapper over the same `logistics_services.py` functions, used by the in-app chat tab.
 - `utils.py` — `format_dataframe` (pt-BR display formatting), `get_model_column_config`, `build_df_from_model`, `append_totals_row`, `export_to_excel`.
 - `templates/` — pre-generated Excel templates for data upload.
@@ -148,6 +162,10 @@ This codebase follows strict TDD (red → green) for all behavior changes: write
 
 ## Roadmap Status
 
-Fase 1 (revisão de código) is complete. The full 5-phase roadmap (documentação, performance/simplificação, otimização, migração para SaaS multi-cooperativa com Django 6 + HTMX) is tracked in the "Roteiro Comigo" artifact and in conversation history — check with the project owner for the current phase before starting new work.
+Fases 1–9 concluídas (revisão de código; docs; performance/N+1; otimização; Fundação Django + Port do
+domínio + UI + Carga de Dados + Simulação assíncrona; Face JSON; Auth; versionamento/limpeza; migração
+MCP/IA). Versão corrente em `VERSION` / `CHANGELOG.md`. Próximas: **Fase 10** (Deploy) e **Fase 11**
+(Cutover — desligar o stack Streamlit/SQLAlchemy). Confirme a fase corrente com o dono do projeto antes
+de começar trabalho novo.
 
 One outstanding **manual, production-only** task from Fase 1: before relying on the new `NOT NULL` constraint on `cenario_id` (7 tables), confirm there are zero `cenario_id IS NULL` rows in the real production database, then run the corresponding `ALTER TABLE ... ALTER COLUMN cenario_id SET NOT NULL` migrations (see finding A11). **Update 2026-08-24:** the zero-NULL check was verified during the Fase 5 espelhamento work across **all 7 tables** — `fabricas` (0/14), `armazens` (0/119), `rotas` (0/238), `safras_unidades` (0/133), `movimentacoes_diarias` (0/13299), `resumo_mensal_fabrica` (0/188), `resumo_mensal_armazem` (0/1598) — zero nulls in every one (see `docs/superpowers/specs/2026-08-24-espelhamento-dados-legado-design.md`). Two caveats before acting on this: the `ALTER TABLE ... SET NOT NULL` itself has **not** been run — applying it to production is the project owner's call — and the check ran against the local `comigo` database, which is not necessarily the production instance this task refers to. Re-run the same check against production before migrating.

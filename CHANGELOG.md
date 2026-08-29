@@ -3,6 +3,14 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` marca o cutover (Streamlit desligado).
 
+## [0.9.0] - 2026-08-29
+
+### Changed
+- Fase 9 — Migração MCP/IA (ADR 0010). `mcp_server.py` virou cliente HTTP puro de `/api/v1/` (config `TRANSBORDO_API_URL`/`TRANSBORDO_API_KEY`, sem acesso a banco). `ai_assistant.py` foi portado para a aba "Assistente de IA" por cenário no app Django (`apps/simulacao/assistente.py` + model `ConversaIA`), chamando `services.py` em processo com a cooperativa do usuário logado.
+
+### Added
+- Dependência `httpx`. `GEMINI_API_KEY` em `settings`. Seção `## MCP` no `README.md`.
+
 ## [0.8.0] - 2026-08-29
 
 ### Added
