@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Sair — Transbordo{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto mt-10 space-y-4">
+  <p>Deseja mesmo sair?</p>
+  <form method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    {% if redirect_field_value %}
+      <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Sair</button>
+  </form>
+</div>
+{% endblock %}

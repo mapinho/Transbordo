@@ -16,3 +16,4 @@ django-crispy-forms>=2.7,<3.0
 crispy-tailwind>=1.0,<2.0
 procrastinate>=3.9,<4.0
 django-ninja>=1.4,<2.0
+django-allauth[socialaccount]>=65.0,<66.0

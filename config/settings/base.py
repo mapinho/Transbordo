@@ -20,6 +20,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.microsoft',
     'django_htmx',
     'django_cotton',
     'crispy_forms',
@@ -28,9 +34,45 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.simulacao',
     'apps.integracoes',
+    'apps.gestao',
 ]
 
 AUTH_USER_MODEL = 'core.User'
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+ACCOUNT_ADAPTER = 'apps.core.adapters.NoSignupAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'apps.core.adapters.AssociateByEmailSocialAdapter'
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_UNIQUE_EMAIL = True
+SOCIALACCOUNT_AUTO_SIGNUP = False
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APPS': [{
+            'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+            'key': '',
+        }],
+        'SCOPE': ['profile', 'email'],
+    },
+    'microsoft': {
+        'APPS': [{
+            'client_id': os.getenv('MICROSOFT_CLIENT_ID', ''),
+            'secret': os.getenv('MICROSOFT_CLIENT_SECRET', ''),
+            'settings': {'tenant': os.getenv('MICROSOFT_TENANT', 'common')},
+        }],
+    },
+}
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'nao-responda@transbordo.local')
 
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/simulacao/cenarios/'
@@ -42,6 +84,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

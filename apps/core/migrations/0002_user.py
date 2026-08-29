@@ -14,12 +14,15 @@ class Migration(migrations.Migration):
         ('core', '0001_initial'),
     ]
 
-    # Hand-added (não gerado pelo makemigrations): admin.0001_initial depende de
-    # AUTH_USER_MODEL via swappable_dependency, que resolve para ('core', '__first__')
-    # = core.0001_initial — não core.0002_user, onde User é realmente criado. Sem isto,
-    # admin.LogEntry pode ser criado antes da tabela de User existir.
+    # Hand-added (não gerado pelo makemigrations): migrações que dependem de
+    # AUTH_USER_MODEL via swappable_dependency resolvem para ('core', '__first__')
+    # = core.0001_initial — não core.0002_user, onde User é realmente criado. Sem
+    # isto, tabelas com FK para User (admin.LogEntry, allauth EmailAddress/
+    # SocialAccount) podem ser criadas antes da tabela de User existir.
     run_before = [
         ('admin', '0001_initial'),
+        ('account', '0001_initial'),
+        ('socialaccount', '0001_initial'),
     ]
 
     operations = [

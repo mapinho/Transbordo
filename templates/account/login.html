@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+{% block title %}Entrar — Transbordo{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto mt-10 space-y-6">
+  <h1 class="text-xl font-semibold text-[var(--cor-primaria)]">Entrar</h1>
+  {% if form.non_field_errors %}
+    <div class="alert alert-error text-sm">{{ form.non_field_errors }}</div>
+  {% endif %}
+  <form method="post" action="{% url 'account_login' %}" class="space-y-3">
+    {% csrf_token %}
+    {{ form.as_p }}
+    {% if redirect_field_value %}
+      <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+    {% endif %}
+    <button type="submit" class="btn btn-primary w-full">Entrar</button>
+    <a href="{% url 'account_reset_password' %}" class="text-sm text-slate-600 hover:underline">Esqueci minha senha</a>
+  </form>
+  <div class="divider text-slate-400">ou</div>
+  <div class="space-y-2">
+    <a href="{% provider_login_url 'google' %}" class="btn w-full">Entrar com Google</a>
+    <a href="{% provider_login_url 'microsoft' %}" class="btn w-full">Entrar com Microsoft</a>
+  </div>
+</div>
+{% endblock %}
