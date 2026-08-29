@@ -2,16 +2,31 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = False
 
-# TLS termina no reverse proxy existente na frente da aplicação (Apache,
-# já configurado em comigo.conf/comigo-le-ssl.conf) — o Django nunca fala
-# HTTPS diretamente. Sem isso, request.is_secure() sempre volta False
-# atrás do proxy. Serviço/whitenoise real ficam para a Fase 10 (Deploy).
+# TLS termina no Apache (proxy reverso) na frente da aplicação — o Django nunca
+# fala HTTPS diretamente. Sem SECURE_PROXY_SSL_HEADER, request.is_secure()
+# sempre volta False atrás do proxy.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
 CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS if host]  # noqa: F405
+
+# gunicorn serve os estáticos (comprimidos, hasheados) via WhiteNoise — sem
+# Alias no Apache, sem volume. `collectstatic` roda no build do Docker.
+MIDDLEWARE = (  # noqa: F405
+    MIDDLEWARE[:1]  # noqa: F405
+    + ['whitenoise.middleware.WhiteNoiseMiddleware']
+    + MIDDLEWARE[1:]  # noqa: F405
+)
+STORAGES = {  # noqa: F405
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 
 import os  # noqa: E402
 
