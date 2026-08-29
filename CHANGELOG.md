@@ -3,7 +3,7 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` marca o cutover (Streamlit desligado).
 
-## [0.8.0] - 2026-XX-XX
+## [0.8.0] - 2026-08-29
 
 ### Added
 - Esquema de versionamento SemVer: arquivo `VERSION`, `APP_VERSION` nas settings, `/healthz/` (stub) e rodapé expondo a versão. Este `CHANGELOG.md`.
