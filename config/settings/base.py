@@ -6,6 +6,14 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / '.env')
 
+_version_file = BASE_DIR / 'VERSION'
+if not _version_file.exists():
+    raise RuntimeError(
+        f"Arquivo VERSION ausente em {_version_file}. É a fonte de verdade da versão da aplicação "
+        f"(ver docs/superpowers/specs/2026-08-28-fase8-versionamento-limpeza-design.md)."
+    )
+APP_VERSION = _version_file.read_text().strip()
+
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'change-me')
 ALLOWED_HOSTS = [
     host.strip()
