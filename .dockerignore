@@ -1,0 +1,36 @@
+# Controle de versão / metadados
+.git
+.gitignore
+
+# Ambientes virtuais e segredos — NUNCA devem entrar na imagem
+.venv
+.env
+.env.*
+!.env.example
+
+# Ferramental de agentes / caches locais
+.claude
+.superpowers
+.remember
+.worktrees
+*.skill
+exportacao
+
+# Caches Python / testes / lint
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+
+# Estáticos coletados (gerados no build via collectstatic) e uploads
+staticfiles
+media
+
+# Bancos locais
+transbordo_db
+*.db
+
+# Node / docs de planejamento
+node_modules
+docs/superpowers/sdd
