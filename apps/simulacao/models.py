@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
@@ -230,3 +231,35 @@ class ResumoMensalArmazem(CenarioScopedModel):
 
     def __str__(self):
         return f'{self.armazem} — {self.mes}'
+
+
+class ConversaIA(CooperativaScopedModel):
+    """Histórico persistido de uma conversa com o Assistente de IA, por
+    cenário e por usuário. Ver Fase 9b."""
+
+    cenario = models.ForeignKey(
+        'simulacao.Cenario', on_delete=models.CASCADE, related_name='conversas_ia',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversas_ia',
+    )
+    titulo = models.CharField(max_length=120, blank=True)
+    mensagens = models.JSONField(default=list)
+    ativa = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Conversa IA'
+        verbose_name_plural = 'Conversas IA'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.titulo or f'Conversa {self.pk}'
+
+    def adicionar(self, papel: str, conteudo: str) -> None:
+        self.mensagens.append({
+            'papel': papel,
+            'conteudo': conteudo,
+            'ts': timezone.now().isoformat(),
+        })
