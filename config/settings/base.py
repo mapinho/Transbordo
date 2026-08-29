@@ -14,6 +14,8 @@ if not _version_file.exists():
     )
 APP_VERSION = _version_file.read_text().strip()
 
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'change-me')
 ALLOWED_HOSTS = [
     host.strip()
