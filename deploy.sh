@@ -36,6 +36,5 @@ echo "ERRO: /healthz/ não respondeu db:ok em 60s" >&2
 docker compose logs --tail=50 web >&2
 exit 1
 
-# --- legado (Streamlit) — Fase 11 remove ---
-# O serviço `comigo` continua no docker-compose.yml e é reiniciado à parte:
-#   docker compose up -d --build comigo
+# O Streamlit (comigo.vectorconsulting.com.br) roda num container próprio a partir
+# do repo Comigo.git — não é gerenciado por este compose nem por este script.

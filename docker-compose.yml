@@ -1,14 +1,10 @@
 services:
-  # --- Stack Django (Fase 10) ---
   web:
     build: .
     image: transbordo:latest
     container_name: transbordo_web
     restart: unless-stopped
-    command: >
-      gunicorn config.wsgi:application
-      --bind 0.0.0.0:8000 --workers 3 --timeout 60
-      --access-logfile - --error-logfile -
+    # command herdado do CMD do Dockerfile (gunicorn config.wsgi:application ...)
     ports:
       # 8060 publicado no host (Apache faz proxy p/ cá); 8000 é interno do container.
       - "127.0.0.1:8060:8000"
@@ -56,17 +52,3 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings.prod
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
-  # --- Stack Streamlit (legado — Fase 11 remove) ---
-  comigo:
-    build: .
-    container_name: comigo_app
-    restart: unless-stopped
-    volumes:
-      - .:/app
-    ports:
-      - "8501:8501"
-    env_file:
-      - .env
-    environment:
-      - TZ=America/Sao_Paulo

@@ -28,12 +28,11 @@ RUN DJANGO_SETTINGS_MODULE=config.settings.prod \
     DJANGO_ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
-EXPOSE 8501
+EXPOSE 8000
 
-# CMD default continua Streamlit (serviço `comigo`); os serviços Django
-# (`web`/`worker`/`migrate`) sobrescrevem `command` no docker-compose.yml.
-CMD ["streamlit", "run", "app.py", \
-     "--server.port=8501", \
-     "--server.address=0.0.0.0", \
-     "--server.enableCORS=false", \
-     "--server.enableXSRF=false"]
+# Esta imagem serve só o stack Django. O Streamlit (`comigo.vectorconsulting.com.br`)
+# roda num container próprio a partir do repo Comigo.git. `worker` e `migrate`
+# sobrescrevem `command` no docker-compose.yml; `web` herda este CMD.
+CMD ["gunicorn", "config.wsgi:application", \
+     "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60", \
+     "--access-logfile", "-", "--error-logfile", "-"]

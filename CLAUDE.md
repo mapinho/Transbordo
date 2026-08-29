@@ -111,6 +111,11 @@ e é o healthcheck do container. `deploy.sh` é o runbook recorrente (git pull c
 migrate → check --deploy → up → poll `/healthz/`); `docs/DEPLOY.md` cobre primeira vez, rollback e o
 legado. Ver `docs/superpowers/specs/2026-08-29-fase10-deploy-design.md`.
 
+O `docker-compose.yml` serve **só** o stack Django (o `CMD` do `Dockerfile` é `gunicorn`). O Streamlit
+(`comigo.vectorconsulting.com.br`) roda num container próprio a partir do repo **Comigo.git** — os
+serviços `comigo`/`mcp` saíram deste compose (o `comigo` logo após o 0.10.0; ver `## [Não lançado]` no
+CHANGELOG). As confs Apache `comigo*.conf` seguem no ar até a Fase 11.
+
 ## Environment
 
 A `.env` file at the project root is **required** — there is no hardcoded credential fallback (removed in the Fase 1 review; see `data_loader.py:get_engine()`):

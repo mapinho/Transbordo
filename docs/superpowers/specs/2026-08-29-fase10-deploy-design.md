@@ -30,9 +30,12 @@ atrás do Apache num **subdomínio novo** (`transbordo.vectorconsulting.com.br`)
 - `VERSION` → `0.10.0`, `CHANGELOG.md`, tag `v0.10.0` (não pushed automaticamente).
 
 **Fora:**
-- Remover o stack Streamlit (`comigo`/`mcp` services, `comigo*.conf`, `app.py` etc.) — é a Fase 11.
-  Os serviços `comigo` e as confs `comigo*.conf` ficam **intocados**; o serviço `mcp` (SSE) é
-  **removido** agora porque nada mais o usa desde a Fase 9a (ADR 0010).
+- Remover o stack Streamlit (`comigo*.conf`, `app.py` etc.) — é a Fase 11. As confs `comigo*.conf`
+  ficam **intocadas** até lá.
+- Os serviços `mcp` (SSE) e `comigo` (Streamlit) são **removidos** do `docker-compose.yml`: o `mcp`
+  porque nada mais o usa desde a Fase 9a (ADR 0010); o `comigo` porque o Streamlit de produção roda num
+  container próprio a partir do repo **Comigo.git** — este compose nunca precisou dele. (O `comigo` foi
+  removido logo depois do release 0.10.0, não no design original — ver `## [Não lançado]` no CHANGELOG.)
 - Servidor MCP hospedado — analistas rodam `mcp_server.py` (stdio) na própria máquina contra
   `https://transbordo.vectorconsulting.com.br/api/v1/` com uma `ApiKey` (modelo da Fase 9a).
 - CI/CD automatizado, blue-green, orquestração — deploy é manual (`./deploy.sh` no host), mesmo padrão
@@ -52,14 +55,18 @@ Separação limpa: os dois apps totalmente usáveis em paralelo, sem reescrita d
 Rejeitado: trocar o domínio principal para o Django agora (quebra bookmarks dos usuários do Streamlit
 antes da hora) e split por path no mesmo vhost (Django sob prefixo é frágil).
 
-### 2. Uma imagem, três comandos, um compose
+### 2. Uma imagem, três serviços, um compose
 
-O `Dockerfile` produz uma imagem que serve os dois stacks; o `CMD` continua `streamlit run` e os
-serviços Django sobrescrevem `command` no compose.
+O `Dockerfile` produz a imagem do stack Django; o `CMD` é `gunicorn` (o `web` herda, `worker` e
+`migrate` sobrescrevem `command`). O Streamlit não vem desta imagem — roda num container próprio a
+partir do repo Comigo.git.
 
-Serviços novos no **mesmo** `docker-compose.yml` (não um arquivo separado): o `deploy.sh` já faz
-`docker compose down && up -d --build` do stack inteiro; um arquivo só casa com esse fluxo, e a Fase 11
-apenas apaga os serviços `comigo` legados.
+> No design original o `CMD` era `streamlit run` e o `docker-compose.yml` tinha um serviço `comigo`;
+> ambos foram removidos logo depois do release 0.10.0 (o `comigo` de produção nunca usou este compose).
+
+Serviços no **mesmo** `docker-compose.yml` (não um arquivo separado): o `deploy.sh` faz
+`docker compose build / up -d web worker`; a Fase 11 remove só o que sobra do Streamlit (`comigo*.conf`,
+`app.py` etc.).
 
 | serviço | command | portas | restart | notas |
 |---|---|---|---|---|
@@ -76,10 +83,10 @@ Migração continua passo manual deliberado (convenção do projeto — ver CLAU
 
 ### 3. Config e banco
 
-O container Django usa o **mesmo** `/opt/comigo/.env` (via `env_file`). As chaves `DB_*` (Streamlit) e
-`DJANGO_DB_*` (Django) já são distintas. `DJANGO_SETTINGS_MODULE=config.settings.prod` vai no
-`environment:` de cada serviço Django no compose (não no `.env`, que é compartilhado). Chaves a
-acrescentar no `.env` do servidor:
+O container Django lê `/opt/comigo/.env` (via `env_file`). As chaves `DB_*` (legado Streamlit, ignoradas
+pelo Django) e `DJANGO_DB_*` (Django) são distintas de propósito.
+`DJANGO_SETTINGS_MODULE=config.settings.prod` vai no `environment:` de cada serviço Django no compose
+(não no `.env`). Chaves a acrescentar no `.env` do servidor:
 
 ```
 DJANGO_SECRET_KEY=<forte, gerado>
@@ -148,7 +155,8 @@ docker compose up -d web worker
 # poll: curl -fsS http://127.0.0.1:8060/healthz/ até "db":"ok" (timeout ~60s, exit≠0 em falha)
 docker compose ps
 ```
-As linhas do Streamlit (`comigo`) ficam num bloco marcado `# legado — Fase 11 remove`.
+Sem linhas de Streamlit — `comigo.vectorconsulting.com.br` roda num container próprio (repo Comigo.git),
+fora deste script.
 
 `docs/DEPLOY.md`:
 - **Primeira vez:** registro A no DNS (`transbordo` → IP do host), chaves `DJANGO_*` no `.env`,

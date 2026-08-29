@@ -10,12 +10,12 @@ PostgreSQL é externo/bare-metal no host. Deploy é manual, em `/opt/comigo`.
 2. **Grupo `docker`** — o `deploy.sh` roda `docker compose` sem `sudo`. Garanta que o usuário de deploy
    está no grupo `docker`: `groups | grep -q docker || sudo usermod -aG docker $USER` (e faça logout/login
    para valer). Alternativa: rodar `./deploy.sh` com `sudo`.
-3. **Container órfão `comigo_mcp`** — o serviço `mcp` saiu do `docker-compose.yml`, mas o container
-   `comigo_mcp` que estava rodando continua publicando `0.0.0.0:8000`. Remover um serviço do compose
-   **não** para o container dele. O `web` agora publica em `127.0.0.1:8060` (não `:8000`), então não há mais
-   colisão de porta — mas o órfão continua sendo peso morto e expondo `0.0.0.0:8000`. Antes de qualquer
-   `docker compose up`, rode uma vez: `docker compose down --remove-orphans` (para `comigo_mcp` e outros
-   órfãos; o `comigo` é recriado pelo `up` adiante).
+3. **Containers órfãos (`comigo_mcp`, `comigo_app`)** — os serviços `mcp` e `comigo` saíram do
+   `docker-compose.yml`, mas os containers que estavam rodando não param sozinhos (remover um serviço do
+   compose **não** para o container dele). O `comigo_mcp` ainda publica `0.0.0.0:8000` (peso morto — o
+   `web` agora usa `127.0.0.1:8060`, sem colisão); o `comigo_app` daqui é um resíduo do compose antigo (o
+   Streamlit de produção roda num container próprio, vindo do repo **Comigo.git**, e não é afetado). Antes
+   de qualquer `docker compose up`, rode uma vez: `docker compose down --remove-orphans`.
 4. **`.env`** (em `/opt/comigo/.env`) — acrescentar as chaves do stack Django, **uma `KEY=VALUE` por linha**:
    ```
    DJANGO_SECRET_KEY=<gerar: python -c "import secrets; print(secrets.token_urlsafe(64))">
@@ -87,8 +87,9 @@ raro — reverter a migração específica com `docker compose run --rm web pyth
 
 ## Streamlit (legado)
 
-Sem mudança. Continua em `comigo.vectorconsulting.com.br` via o serviço `comigo` e as confs
-`comigo*.conf`. Reinício isolado: `docker compose up -d --build comigo`. Sai na Fase 11.
+`comigo.vectorconsulting.com.br` roda num container próprio, buildado a partir do repo **Comigo.git** —
+este `docker-compose.yml` não tem mais o serviço `comigo` (removido antecipadamente; a Fase 11 remove o
+resto: `comigo*.conf`, `app.py` etc.). As confs `comigo*.conf` do Apache continuam no ar até lá.
 
 `comigo-le-ssl.conf` ainda faz proxy de `/sse` e `/messages` para `127.0.0.1:8000` — nada escuta nessa
 porta (o `web` está em `:8060`), então essas rotas em `comigo.vectorconsulting.com.br` respondem 502 até a

@@ -3,6 +3,18 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` marca o cutover (Streamlit desligado).
 
+## [Não lançado]
+
+### Changed
+- `web` publica em `127.0.0.1:8060` no host (era `:8000`) — evita colidir com o container órfão
+  `comigo_mcp`. Porta interna do container e o healthcheck seguem em `8000`; Apache faz proxy p/ `:8060`.
+
+### Removed
+- Serviço `comigo` (Streamlit) do `docker-compose.yml` e `CMD streamlit run` do `Dockerfile` — o
+  Streamlit de produção roda num container próprio a partir do repo Comigo.git; este compose só serve o
+  stack Django (`CMD` do `Dockerfile` agora é `gunicorn`). As confs `comigo*.conf` do Apache continuam
+  até a Fase 11.
+
 ## [0.10.0] - 2026-08-29
 
 ### Added
