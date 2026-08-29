@@ -3,6 +3,14 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` marca o cutover (Streamlit desligado).
 
+## [0.10.0] - 2026-08-29
+
+### Added
+- Fase 10 — Deploy: stack Django em produção ao lado do Streamlit. Imagem `python:3.13-slim` com `gunicorn` + WhiteNoise (`collectstatic` no build); serviços compose `web` / `worker` (Procrastinate) / `migrate`; vhosts Apache para `transbordo.vectorconsulting.com.br`; `/healthz/` faz `SELECT 1` real (503 se o banco cair); `deploy.sh` como runbook + `docs/DEPLOY.md`.
+
+### Removed
+- Serviço `mcp` (SSE) do `docker-compose.yml` — sem uso desde a Fase 9a (ADR 0010).
+
 ## [0.9.0] - 2026-08-29
 
 ### Changed
