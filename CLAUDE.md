@@ -6,7 +6,7 @@ Project memory for Claude Code. Keep this file accurate as the codebase changes 
 
 **Comigo** is a logistics planning & optimization system for soy "transbordo" (transshipment) at a single agricultural cooperative. It plans daily movement of soy between Armazéns (warehouses, origins) and Fábricas (crushing plants, destinations) to minimize freight cost while guaranteeing plants never run out of raw material. It also supports "what-if" scenario simulation (deep-cloned from the official baseline) and exposes the same data through an MCP server and an in-app Gemini-powered chat assistant.
 
-The long-term direction (see `Relatorio_Revisao_Codigo_Fase1.md` and the "Roteiro Comigo" roadmap) is evolving this from a single-cooperative Streamlit app into a multi-cooperative SaaS product (Django 6 + HTMX), so avoid decisions that make that migration harder without a documented reason.
+The long-term direction (see `docs/superpowers/specs/2026-08-22-fase5-arquitetura-saas-django.md`) is evolving this from a single-cooperative Streamlit app into a multi-cooperative SaaS product (Django 6 + HTMX), so avoid decisions that make that migration harder without a documented reason.
 
 ## Tech Stack
 
@@ -138,15 +138,13 @@ e `ADMIN_VECTOR_PASSWORD` (só para `criar_admin_vector --password-from-env`).
 
 ## Testing / TDD
 
-This codebase follows strict TDD (red → green) for all behavior changes: write a failing test in `tests/` first, confirm it fails for the right reason, implement the minimal fix, confirm it passes. See `Relatorio_Revisao_Codigo_Fase1.md` for the full audit trail of the Fase 1 code review (38 findings; all fixed or consciously deferred with documented rationale) — it's a good reference for the level of rigor expected on this project.
+This codebase follows strict TDD (red → green) for all behavior changes: write a failing test in `tests/` first, confirm it fails for the right reason, implement the minimal fix, confirm it passes. The Fase 1 code review (38 findings; all fixed or consciously deferred with documented rationale) set the rigor bar for this project.
 
 ## Related Docs
 
 - `Especificacao_Sistema_Transbordo_Atualizada.md` — full functional/business spec (data model, optimization math, UI requirements).
-- `INSTRUCOES_MCP.md` — how to wire the MCP server into Claude Desktop, Gemini CLI, Cursor/Cline, and Vertex AI.
-- `Relatorio_Revisao_Codigo_Fase1.md` — Fase 1 code review findings and fix log.
-- `GEMINI.md` — equivalent project-memory file for Gemini CLI; content overlaps this file and should be kept roughly in sync when architecture changes.
-- `conductor/` — historical implementation plans (MCP server, AI assistant). Already implemented; kept for design-rationale context.
+- `docs/superpowers/specs/` — design specs por fase da migração Django; `docs/decisions/` — ADRs.
+- `CHANGELOG.md` — histórico de versões (SemVer); `VERSION` — versão corrente.
 
 ## Roadmap Status
 

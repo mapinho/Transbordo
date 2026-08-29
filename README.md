@@ -50,7 +50,7 @@ pytest tests/ -v                      # suíte roda em SQLite em memória, sem p
 - `scenarios.py`: Clonagem de cenários (simulações).
 - `data_loader.py`: Conexão com o banco e carregamento de dados XLSX.
 - `logistics_services.py`: Camada de relatórios (somente leitura), compartilhada pelo MCP server e pelo Assistente de IA.
-- `mcp_server.py`: Servidor MCP (FastMCP) para integração com LLMs externos — veja `INSTRUCOES_MCP.md`.
+- `mcp_server.py`: Servidor MCP (FastMCP) para integração com LLMs externos.
 - `ai_assistant.py`: Assistente de IA nativo (Gemini) embutido no app.
 - `utils.py`: Formatação (padrão pt-BR) e helpers de exportação/UI.
 - `templates/`: Modelos de arquivos Excel para carga de dados.
