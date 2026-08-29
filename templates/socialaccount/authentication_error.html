@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Erro de autenticação — Transbordo{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto mt-10 space-y-4">
+  <p>Não foi possível concluir o login pelo provedor. Tente novamente ou use usuário e senha.</p>
+  <a href="{% url 'account_login' %}" class="btn btn-primary">Voltar ao login</a>
+</div>
+{% endblock %}
