@@ -12,6 +12,7 @@ class CooperativaScopeMiddlewareTests(TestCase):
         self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
         self.user = User.objects.create_user(
             username='usuaria_fabrica',
+            email='usuaria_fabrica@coop-a.test',
             cooperativa=self.cooperativa,
             papel=User.PAPEL_USUARIO_FABRICA,
         )

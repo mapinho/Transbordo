@@ -48,6 +48,7 @@ class User(AbstractUser):
         (PAPEL_USUARIO_ARMAZEM, 'Usuário Armazém'),
     ]
 
+    email = models.EmailField('endereço de e-mail', unique=True)
     cooperativa = models.ForeignKey(
         'core.Cooperativa', on_delete=models.PROTECT, null=True, blank=True, related_name='usuarios'
     )

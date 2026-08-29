@@ -40,7 +40,7 @@ class CargaTests(TestCase):
     def setUp(self):
         self.coop = Cooperativa.objects.create(nome='Comigo', slug='comigo')
         self.user = User.objects.create_user(
-            username='teste', password='segredo123',
+            username='teste', email='teste@comigo.test', password='segredo123',
             papel=User.PAPEL_ADMIN_COOPERATIVA, cooperativa=self.coop,
         )
         self.client.force_login(self.user)

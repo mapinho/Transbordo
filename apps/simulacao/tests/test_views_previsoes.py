@@ -15,7 +15,7 @@ class PrevisoesGridViewTests(TestCase):
     def setUp(self):
         self.cooperativa = Cooperativa.objects.create(nome='Coop A', slug='coop-a')
         self.user = User.objects.create_user(
-            username='usuaria', password='senha-forte-123',
+            username='usuaria', email='usuaria@coop-a.test', password='senha-forte-123',
             cooperativa=self.cooperativa, papel=User.PAPEL_ADMIN_COOPERATIVA,
         )
         self.cenario = Cenario.all_cooperativas.create(cooperativa=self.cooperativa, nome='Cenário Teste')

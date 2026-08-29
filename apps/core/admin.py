@@ -13,5 +13,8 @@ class CooperativaAdmin(admin.ModelAdmin):
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     fieldsets = DjangoUserAdmin.fieldsets + (('Transbordo', {'fields': ('cooperativa', 'papel')}),)
+    add_fieldsets = DjangoUserAdmin.add_fieldsets + (
+        ('Transbordo', {'fields': ('email', 'cooperativa', 'papel')}),
+    )
     list_display = DjangoUserAdmin.list_display + ('cooperativa', 'papel')
     list_filter = DjangoUserAdmin.list_filter + ('cooperativa', 'papel')

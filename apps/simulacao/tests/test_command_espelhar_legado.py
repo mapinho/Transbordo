@@ -74,7 +74,8 @@ class EspelharLegadoTests(TestCase):
 
     def test_repoint_de_usuario_existente(self):
         User.objects.create_user(
-            username='teste', password='x', papel=User.PAPEL_ADMIN_COOPERATIVA,
+            username='teste', email='teste@antiga.test', password='x',
+            papel=User.PAPEL_ADMIN_COOPERATIVA,
             cooperativa=Cooperativa.objects.create(nome='Antiga', slug='antiga'),
         )
 
@@ -96,7 +97,8 @@ class EspelharLegadoTests(TestCase):
         violaria a constraint. A rejeição precisa vir antes de qualquer
         escrita, não como um IntegrityError cru vindo do banco."""
         User.objects.create_user(
-            username='vetor', password='x', papel=User.PAPEL_ADMIN_VECTOR,
+            username='vetor', email='vetor@vector.test', password='x',
+            papel=User.PAPEL_ADMIN_VECTOR,
         )
 
         with self.assertRaises(CommandError) as ctx:
