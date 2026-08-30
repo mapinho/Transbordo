@@ -85,12 +85,62 @@ o `git pull origin main` faria fast-forward de volta pro `main` e desfaria o rol
 As migrações da fase são aditivas (forward-only). Um rollback que precise reverter schema é manual e
 raro — reverter a migração específica com `docker compose run --rm web python manage.py migrate <app> <migração-anterior>` antes do `git checkout`.
 
-## Streamlit (legado)
+## Migração de dados dev→prod (uma vez)
 
-`comigo.vectorconsulting.com.br` roda num container próprio, buildado a partir do repo **Comigo.git** —
-este `docker-compose.yml` não tem mais o serviço `comigo` (removido antecipadamente; a Fase 11 remove o
-resto: `comigo*.conf`, `app.py` etc.). As confs `comigo*.conf` do Apache continuam no ar até lá.
+Popular o banco de produção do Transbordo com o dado real, que hoje vive só no banco de
+desenvolvimento (trazido do Comigo pelo espelhamento da Fase 5). Estratégia: **espelho completo** do
+banco de dev, restaurado num banco de prod recriado do zero, seguido de higienização do resíduo de dev.
 
-`comigo-le-ssl.conf` ainda faz proxy de `/sse` e `/messages` para `127.0.0.1:8000` — nada escuta nessa
-porta (o `web` está em `:8060`), então essas rotas em `comigo.vectorconsulting.com.br` respondem 502 até a
-Fase 11 remover `comigo*.conf` (o MCP server virou cliente stdio local — ADR 0010).
+**Pré-requisito:** o stack Django já está no ar em prod (`docs/DEPLOY.md` "Primeira vez").
+
+1. **No dev** — dump do banco local:
+   ```
+   pg_dump -Fc -d transbordo -f transbordo_dev.dump
+   ```
+   Transferir `transbordo_dev.dump` para o host de produção.
+
+2. **No host de prod** — parar os serviços que escrevem e recriar o banco:
+   ```
+   cd /opt/comigo
+   docker compose stop web worker
+   dropdb -h localhost -U transbordo transbordo
+   createdb -h localhost -U transbordo -O transbordo transbordo
+   pg_restore -h localhost -U transbordo --no-owner --no-privileges -d transbordo transbordo_dev.dump
+   ```
+   (`dropdb` falha com "being accessed by other users" se `web`/`worker` ainda estiverem de pé — daí o `stop` antes.)
+
+3. **Conferir schema:**
+   ```
+   docker compose run --rm migrate
+   ```
+   Esperado: `No migrations to apply` (o dump já carrega `django_migrations`). Se aparecer migração a
+   aplicar, o dump veio de um dev desatualizado — abortar, rodar `makemigrations --check` no dev e
+   re-dumpar.
+
+4. **Higienizar o resíduo de dev:**
+   ```
+   docker compose run --rm web python manage.py sanitizar_pos_restore --dry-run   # confere as contagens
+   docker compose run --rm web python manage.py sanitizar_pos_restore
+   ```
+   Apaga `User`/`ApiKey`/`ConversaIA` de dev, zera `procrastinate_*` e `django_session`, ajusta o
+   `django_site` para `DJANGO_ALLOWED_HOSTS[0]`. **Não** toca a cooperativa nem o domínio de simulação.
+
+5. **Recriar identidade real:**
+   ```
+   docker compose run --rm web python manage.py criar_admin_vector <user> --email <email>
+   ```
+   Depois, pela tela Gestão → Usuários, criar os usuários reais; pelo admin (`/admin/integracoes/apikey/`),
+   emitir as `ApiKey`(s) reais.
+
+6. **Subir e conferir:**
+   ```
+   docker compose up -d web worker
+   curl -s http://127.0.0.1:8060/healthz/          # {"version": "1.0.0", "db": "ok"}
+   ```
+   Login com o Admin Vector; abrir a cooperativa; conferir fábricas/armazéns/rotas/previsões/safras/
+   cenários; rodar uma simulação e ver o `worker` concluir.
+
+## Comigo (produto separado)
+
+`comigo.vectorconsulting.com.br` roda a partir do repo **Comigo.git**, com vhost, banco e container
+próprios — fora do escopo deste deploy e deste repositório. Ver ADR 0011.
