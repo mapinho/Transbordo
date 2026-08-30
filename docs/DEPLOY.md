@@ -98,31 +98,36 @@ banco de dev, restaurado num banco de prod recriado do zero, seguido de higieniz
    ```
    Transferir `transbordo_dev.dump` para o host de produção.
 
-2. **No host de prod** — parar os serviços que escrevem e recriar o banco:
+2. **No host de prod** — backup do banco atual, parar os serviços que escrevem e recriar o banco:
    ```
    cd /opt/comigo
+   pg_dump -Fc -h localhost -U transbordo -d transbordo -f prod_pre_restore_$(date +%F).dump   # guarde até o passo 6 passar
    docker compose stop web worker
    dropdb -h localhost -U transbordo transbordo
    createdb -h localhost -U transbordo -O transbordo transbordo
-   pg_restore -h localhost -U transbordo --no-owner --no-privileges -d transbordo transbordo_dev.dump
+   pg_restore -h localhost -U transbordo --no-owner --no-privileges --exit-on-error -d transbordo transbordo_dev.dump
    ```
-   (`dropdb` falha com "being accessed by other users" se `web`/`worker` ainda estiverem de pé — daí o `stop` antes.)
+   (`dropdb` falha com "being accessed by other users" se `web`/`worker` ainda estiverem de pé — ou
+   uma sessão `psql`/GUI aberta contra o banco — daí o `stop` antes.)
+   (o role `transbordo` precisa de `CREATEDB`; senão rode `createdb` como `postgres -O transbordo`.)
 
 3. **Conferir schema:**
    ```
    docker compose run --rm migrate
    ```
    Esperado: `No migrations to apply` (o dump já carrega `django_migrations`). Se aparecer migração a
-   aplicar, o dump veio de um dev desatualizado — abortar, rodar `makemigrations --check` no dev e
-   re-dumpar.
+   aplicar, o dump veio de um dev desatualizado. Como o banco de prod já foi recriado neste ponto,
+   "abortar" aqui é: restaurar `prod_pre_restore_*.dump` de volta, corrigir o dump de dev
+   (`makemigrations --check` no dev, re-dumpar) e repetir.
 
 4. **Higienizar o resíduo de dev:**
    ```
    docker compose run --rm web python manage.py sanitizar_pos_restore --dry-run   # confere as contagens
-   docker compose run --rm web python manage.py sanitizar_pos_restore
+   docker compose run --rm web python manage.py sanitizar_pos_restore --noinput
    ```
-   Apaga `User`/`ApiKey`/`ConversaIA` de dev, zera `procrastinate_*` e `django_session`, ajusta o
-   `django_site` para `DJANGO_ALLOWED_HOSTS[0]`. **Não** toca a cooperativa nem o domínio de simulação.
+   Apaga `User`/`ApiKey`/`ConversaIA` de dev, zera `procrastinate_*`, `django_session` e
+   `socialaccount_socialapp`, ajusta o `django_site` para `DJANGO_ALLOWED_HOSTS[0]`. **Não** toca a
+   cooperativa nem o domínio de simulação. Sem `--noinput` (e num TTY), pede confirmação (`sim`).
 
 5. **Recriar identidade real:**
    ```
@@ -135,9 +140,12 @@ banco de dev, restaurado num banco de prod recriado do zero, seguido de higieniz
    ```
    docker compose up -d web worker
    curl -s http://127.0.0.1:8060/healthz/          # {"version": "1.0.0", "db": "ok"}
+   docker compose run --rm web python manage.py shell -c "from apps.simulacao.models import MovimentacaoDiaria; print(MovimentacaoDiaria.all_cooperativas.count())"
    ```
-   Login com o Admin Vector; abrir a cooperativa; conferir fábricas/armazéns/rotas/previsões/safras/
-   cenários; rodar uma simulação e ver o `worker` concluir.
+   O `count()` de `MovimentacaoDiaria` deve bater com o mesmo `count()` no dev (~13k esperado);
+   confira também fábricas/armazéns/rotas/previsões/safras/cenários por amostragem.
+   Login com o Admin Vector; abrir a cooperativa; rodar uma simulação e ver o `worker` concluir.
+   Passando tudo, pode descartar o `prod_pre_restore_*.dump`.
 
 ## Comigo (produto separado)
 

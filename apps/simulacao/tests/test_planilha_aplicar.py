@@ -221,10 +221,9 @@ class AplicarTests(TestCase):
 
     def test_safra_reimportada_atualiza_registro_com_entidade_tipo_nao_canonico(self):
         """(c) Uma SafraUnidade persistida com entidade_tipo não canônico
-        (ex.: 'fabrica' minúsculo, como em tests/test_models_a11.py e nos
-        cenários clonados/legados -- ver services.clone_scenario e
-        apps/simulacao/legado.py) deve ser ATUALIZADA, não duplicada, e a
-        reimportação deve convergir o valor para o canônico 'Fábrica'."""
+        (ex.: 'fabrica' minúsculo, como em cenários clonados/legados) deve ser
+        ATUALIZADA, não duplicada, e a reimportação deve convergir o valor para
+        o canônico 'Fábrica'."""
         _, cenario = aplicar(
             montar_pasta(fabricas=[FABRICA_OK]), cooperativa=self.coop, nome_novo='Oficial',
         )

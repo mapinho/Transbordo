@@ -144,7 +144,7 @@ e `ADMIN_VECTOR_PASSWORD` (só para `criar_admin_vector --password-from-env`).
 - `apps/gestao/` — telas HTMX de gestão (Cooperativas, Usuários, Minha cooperativa, Conta). **Sem models**. Ver `apps/gestao/CLAUDE.md`.
 - `apps/simulacao/` — Django port do domínio (models, engine, services), Carga de Dados (`planilha.py`), Assistente de IA (`assistente.py` + `ConversaIA`). Ver `apps/simulacao/CLAUDE.md`.
 - `apps/integracoes/` — Face JSON (Fase 6): Django Ninja somente-leitura sobre `apps/simulacao/services.py`, `/api/v1/`, auth `X-API-Key` (`ApiKey`). Ver `apps/integracoes/CLAUDE.md`.
-- `templates/` — templates Django (`base.html`, `cotton/`, telas de `account`/`registration`/`socialaccount`/`gestao`/`simulacao`).
+- `templates/` — templates Django (`base.html`, `cotton/`, telas de `account`/`socialaccount`/`gestao`/`simulacao`).
 
 ## Key Business Rules
 
@@ -153,7 +153,7 @@ e `ADMIN_VECTOR_PASSWORD` (só para `criar_admin_vector --password-from-env`).
 - Monthly forecast volumes are rateably split across the days of the month.
 - Optimization objective priority (see `apps/simulacao/engine.py`): 1) avoid a fábrica running out of raw material (huge `Slack` coefficient) > 2) minimize total frete cost > 3) prefer draining armazéns currently "em safra".
 - 1 saca = 60 kg — always use `KG_PER_TON` / `KG_PER_SACA` from `apps/simulacao/services.py`, never a magic `1000/60`.
-- pt-BR number formatting is mandatory everywhere data is displayed: `.` for thousands, `,` for decimals, via os helpers de formatação de `apps/simulacao/` — never display a raw float/currency without it.
+- pt-BR number formatting is mandatory everywhere data is displayed: `.` for thousands, `,` for decimals, via `apps/simulacao/templatetags/simulacao_filters.py` — never display a raw float/currency without it.
 
 ## Testing / TDD
 

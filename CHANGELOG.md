@@ -12,13 +12,14 @@ Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga
   stack Django (`CMD` do `Dockerfile` agora é `gunicorn`).
 
 ### Added
-- Comando `python manage.py sanitizar_pos_restore` (higieniza resíduo de dev após restaurar um dump de desenvolvimento em produção) + runbook "Migração de dados dev→prod" em `docs/DEPLOY.md`.
+- Comando `python manage.py sanitizar_pos_restore` (higieniza resíduo de dev após restaurar um dump de desenvolvimento em produção) + runbook "Migração de dados dev→prod" em `docs/DEPLOY.md`. Também trunca `socialaccount_socialapp` (SocialApps de dev) e pede confirmação interativa (`sim`) salvo com `--noinput`; ausência de tabela não é fatal.
 - Dependência `psycopg[binary]` explícita (era transitiva do procrastinate).
 - ADR 0011 — Comigo e Transbordo como dois produtos permanentes independentes.
 
 ### Changed
 - `web` publica em `127.0.0.1:8060` no host (era `:8000`) — evita colidir com o container órfão
   `comigo_mcp`. Porta interna do container e o healthcheck seguem em `8000`; Apache faz proxy p/ `:8060`.
+- Suíte de testes do `mcp_server.py` movida de `tests/` para `apps/integracoes/tests/test_mcp_server.py` (o `mcp_server.py`, cliente HTTP de `/api/v1/`, continua no repo).
 
 ## [0.10.0] - 2026-08-29
 

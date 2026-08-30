@@ -127,8 +127,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# DJANGO_DB_* é deliberadamente distinto de DB_* (usado pelo stack
-# Streamlit/SQLAlchemy no mesmo .env) — ver docs/decisions/0002.
+# DJANGO_DB_* foi mantido distinto de DB_* (do antigo stack Streamlit/SQLAlchemy,
+# removido no Cutover/Fase 11) para os dois nunca colidirem enquanto conviviam no
+# mesmo .env — separação preservada como histórico, ver docs/decisions/0002.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
