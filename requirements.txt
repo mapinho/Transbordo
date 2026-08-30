@@ -1,10 +1,6 @@
-streamlit==1.55.0
 pandas==2.3.3
-SQLAlchemy==2.0.48
-psycopg2-binary==2.9.11
 openpyxl==3.1.5
 python-dotenv==1.2.2
-plotly==6.6.0
 ortools==9.15.6755
 fastmcp==3.4.2
 mcp[cli]==1.28.0
@@ -16,6 +12,7 @@ django-cotton>=2.7,<3.0
 django-crispy-forms>=2.7,<3.0
 crispy-tailwind>=1.0,<2.0
 procrastinate>=3.9,<4.0
+psycopg[binary]>=3.2,<4
 django-ninja>=1.4,<2.0
 django-allauth[socialaccount]>=65.0,<66.0
 gunicorn>=23,<24

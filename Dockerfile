@@ -3,10 +3,9 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # curl: usado pelo HEALTHCHECK do serviço `web` (docker-compose.yml).
-# libpq5: runtime do psycopg 3 (procrastinate) — importado já no `django.setup()`,
-# então precisa existir inclusive para o `collectstatic` do build.
+# psycopg[binary] empacota a própria libpq, então não é preciso instalar libpq5 pelo apt.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libpq5 \
+    && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependências numa camada separada — o cache de build só reinstala quando
