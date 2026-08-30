@@ -1,8 +1,9 @@
-# Deploy — Transbordo (stack Django)
+# Deploy — Transbordo
 
-O stack Django roda em `transbordo.vectorconsulting.com.br`, ao lado do Streamlit
-(`comigo.vectorconsulting.com.br`), que continua no ar até o Cutover (Fase 11).
-PostgreSQL é externo/bare-metal no host. Deploy é manual, em `/opt/comigo`.
+Transbordo roda em `transbordo.vectorconsulting.com.br`. O produto separado Comigo
+(`comigo.vectorconsulting.com.br`, repo `Comigo.git`) roda com infra própria e independente,
+desenvolvimento congelado (ver ADR 0011). PostgreSQL é externo/bare-metal no host. Deploy é manual,
+em `/opt/comigo`.
 
 ## Primeira vez
 
@@ -10,12 +11,10 @@ PostgreSQL é externo/bare-metal no host. Deploy é manual, em `/opt/comigo`.
 2. **Grupo `docker`** — o `deploy.sh` roda `docker compose` sem `sudo`. Garanta que o usuário de deploy
    está no grupo `docker`: `groups | grep -q docker || sudo usermod -aG docker $USER` (e faça logout/login
    para valer). Alternativa: rodar `./deploy.sh` com `sudo`.
-3. **Containers órfãos (`comigo_mcp`, `comigo_app`)** — os serviços `mcp` e `comigo` saíram do
-   `docker-compose.yml`, mas os containers que estavam rodando não param sozinhos (remover um serviço do
-   compose **não** para o container dele). O `comigo_mcp` ainda publica `0.0.0.0:8000` (peso morto — o
-   `web` agora usa `127.0.0.1:8060`, sem colisão); o `comigo_app` daqui é um resíduo do compose antigo (o
-   Streamlit de produção roda num container próprio, vindo do repo **Comigo.git**, e não é afetado). Antes
-   de qualquer `docker compose up`, rode uma vez: `docker compose down --remove-orphans`.
+3. **Containers órfãos** — se o host ainda tiver containers de um compose antigo (`comigo_mcp`,
+   `comigo_app`), eles não param sozinhos ao sair do `docker-compose.yml`. Antes de qualquer
+   `docker compose up`, rode uma vez para limpar: `docker compose down --remove-orphans`. (O produto
+   Comigo roda com infra própria, do repo `Comigo.git`, e não é afetado.)
 4. **`.env`** (em `/opt/comigo/.env`) — acrescentar as chaves do stack Django, **uma `KEY=VALUE` por linha**:
    ```
    DJANGO_SECRET_KEY=<gerar: python -c "import secrets; print(secrets.token_urlsafe(64))">
@@ -61,7 +60,7 @@ PostgreSQL é externo/bare-metal no host. Deploy é manual, em `/opt/comigo`.
 7. **Apache** — `sudo cp transbordo.conf transbordo-le-ssl.conf /etc/apache2/sites-available/` →
    `sudo a2ensite transbordo transbordo-le-ssl` → `sudo apache2ctl configtest` → `sudo systemctl reload apache2`.
 8. **Primeira migração** — `docker compose run --rm migrate`.
-9. **Admin Vector** — `docker compose run --rm web python manage.py criar_admin_vector <user> --email <email>`.
+9. **Admin Vector** — `docker compose run --rm web python manage.py criar_admin_vector <username> --email <email>`.
 10. **Subir** — `docker compose up -d web worker` e conferir `docker compose ps` (web = healthy).
 
 ## Deploy recorrente
@@ -127,7 +126,7 @@ banco de dev, restaurado num banco de prod recriado do zero, seguido de higieniz
 
 5. **Recriar identidade real:**
    ```
-   docker compose run --rm web python manage.py criar_admin_vector <user> --email <email>
+   docker compose run --rm web python manage.py criar_admin_vector <username> --email <email>
    ```
    Depois, pela tela Gestão → Usuários, criar os usuários reais; pelo admin (`/admin/integracoes/apikey/`),
    emitir as `ApiKey`(s) reais.

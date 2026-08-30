@@ -1,75 +1,50 @@
-# Sistema de Planejamento de Transbordo
+# Transbordo
 
-Este sistema otimiza a distribuição diária de soja entre armazéns e fábricas para minimizar o custo total de frete, respeitando limites de estoque e esmagamento.
+SaaS multi-cooperativa para planejamento e otimização de transbordo de soja: movimentação diária entre
+armazéns e fábricas minimizando frete, garantindo que as fábricas não fiquem sem matéria-prima.
+Simulação de cenários ("e se"), Face JSON (`/api/v1/`) e assistente de IA (Gemini).
 
-## Tecnologias Utilizadas
-- **Python 3.10+**
-- **Streamlit** (Interface do Usuário)
-- **Google OR-Tools** (Motor de Otimização)
-- **SQLAlchemy** (ORM)
-- **PostgreSQL** (Banco de Dados)
-- **Pandas/Plotly** (Processamento e Visualização)
+Django 6 + HTMX. Reconstruído a partir do app Streamlit original (**Comigo**, em produção à parte,
+congelado — ver `docs/decisions/0011-...`).
 
-## Como Rodar
+## Rodar (dev)
 
-1.  **Configurar o Banco de Dados:**
-    Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis (obrigatório — não há mais fallback de credenciais embutido no código):
-    ```env
-    DB_USER=seu_usuario
-    DB_PASSWORD=sua_senha
-    DB_HOST=localhost
-    DB_PORT=5432
-    DB_NAME=comigo
-    GEMINI_API_KEY=sua_chave   # opcional, só necessário para a aba "Assistente de IA"
-    ```
+1. `.env` na raiz (ver `.env.example`) — `DJANGO_SECRET_KEY`, `DJANGO_DB_*`, etc. Precisa de um
+   PostgreSQL local com o banco/role `transbordo` (ver `docs/decisions/0002-...`).
+2. Instalar:
+   ```bash
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt   # pytest, para dev
+   ```
+3. Migrar e subir:
+   ```bash
+   python manage.py migrate
+   python manage.py runserver
+   python manage.py procrastinate worker   # outro terminal — a aba Simulação depende dele
+   ```
+4. Primeiro Admin Vector: `python manage.py criar_admin_vector <user> --email <email>`.
 
-2.  **Instalar Dependências:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Executar o Sistema:**
-    ```bash
-    streamlit run app.py
-    ```
-
-Os templates de Excel para carga de dados já estão prontos em `templates/` (não é mais necessário gerá-los).
-
-## Desenvolvimento
+## Testes
 
 ```bash
-pip install -r requirements-dev.txt   # adiciona pytest
-pytest tests/ -v                      # suíte roda em SQLite em memória, sem precisar do Postgres
+pytest
 ```
 
-## Estrutura de Arquivos
-- `app.py`: Interface Streamlit.
-- `app_logic.py`: Lógica pura (sem Streamlit) extraída de `app.py`, testável isoladamente.
-- `models.py`: Definições das tabelas em português (SQLAlchemy).
-- `calculations.py`: Lógica de otimização com OR-Tools.
-- `scenarios.py`: Clonagem de cenários (simulações).
-- `data_loader.py`: Conexão com o banco e carregamento de dados XLSX.
-- `logistics_services.py`: Camada de relatórios (somente leitura), compartilhada pelo MCP server e pelo Assistente de IA.
-- `mcp_server.py`: Servidor MCP (FastMCP) para integração com LLMs externos — ver seção **MCP** abaixo.
-- `ai_assistant.py`: Assistente de IA nativo (Gemini) embutido no app.
-- `utils.py`: Formatação (padrão pt-BR) e helpers de exportação/UI.
-- `templates/`: Modelos de arquivos Excel para carga de dados.
-- `tests/`: Suíte de testes (pytest).
+## Deploy
 
-Para o guia completo do projeto (arquitetura, regras de negócio, convenções), veja [`CLAUDE.md`](CLAUDE.md).
+Ver `docs/DEPLOY.md` (Docker Compose + gunicorn + Apache; runbook de primeira vez, recorrente,
+rollback e migração de dados dev→prod).
 
 ## MCP
 
-`mcp_server.py` é um servidor MCP (stdio) que expõe os 9 relatórios de logística como *tools* para
-clientes LLM (Claude Desktop, Cursor, Gemini CLI). Desde a Fase 9 ele é um **cliente HTTP** da face
-JSON — não acessa o banco diretamente.
-
-Configuração (variáveis de ambiente, ou `.env` em dev):
+`mcp_server.py` é um servidor MCP (stdio) que expõe os relatórios de logística como *tools* para
+clientes LLM (Claude Desktop, Cursor, Gemini CLI). É um **cliente HTTP** da Face JSON — não acessa o
+banco.
 
 | var | valor |
 |---|---|
-| `TRANSBORDO_API_URL` | base da API, ex. `https://transbordo.exemplo.com/api/v1` |
-| `TRANSBORDO_API_KEY` | uma `ApiKey` ativa (criada via `python manage.py shell` ou admin) — carrega a cooperativa |
+| `TRANSBORDO_API_URL` | base da API, ex. `https://transbordo.vectorconsulting.com.br/api/v1` |
+| `TRANSBORDO_API_KEY` | uma `ApiKey` ativa (admin) — carrega a cooperativa |
 
 Bloco `mcp.json` do cliente:
 
@@ -79,9 +54,13 @@ Bloco `mcp.json` do cliente:
           "command": "python",
           "args": ["/caminho/para/mcp_server.py"],
           "env": {
-            "TRANSBORDO_API_URL": "https://transbordo.exemplo.com/api/v1",
+            "TRANSBORDO_API_URL": "https://transbordo.vectorconsulting.com.br/api/v1",
             "TRANSBORDO_API_KEY": "..."
           }
         }
       }
     }
+
+## Guia completo
+
+Arquitetura, regras de negócio e convenções: [`CLAUDE.md`](CLAUDE.md).
