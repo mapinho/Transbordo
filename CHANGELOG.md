@@ -1,19 +1,24 @@
 # Changelog
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
-Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` marca o cutover (Streamlit desligado).
+Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga o stack Streamlit legado (ADR 0011).
 
-## [Não lançado]
+## [1.0.0] - 2026-08-30
+
+### Removed
+- Fase 11 — Cutover: stack Streamlit/SQLAlchemy legado deste repo — `app.py` + 9 módulos irmãos da raiz, suíte `tests/` (SQLAlchemy), ferramenta de espelhamento (`apps/simulacao/legado.py` + comando `espelhar_legado`). Deps `streamlit`, `SQLAlchemy`, `psycopg2-binary`, `plotly`. Confs Apache `comigo*.conf`. O Streamlit em produção é o `Comigo.git`, separado e congelado (ADR 0011).
+- Serviço `comigo` (Streamlit) do `docker-compose.yml` e `CMD streamlit run` do `Dockerfile` — o
+  Streamlit de produção roda num container próprio a partir do repo Comigo.git; este compose só serve o
+  stack Django (`CMD` do `Dockerfile` agora é `gunicorn`).
+
+### Added
+- Comando `python manage.py sanitizar_pos_restore` (higieniza resíduo de dev após restaurar um dump de desenvolvimento em produção) + runbook "Migração de dados dev→prod" em `docs/DEPLOY.md`.
+- Dependência `psycopg[binary]` explícita (era transitiva do procrastinate).
+- ADR 0011 — Comigo e Transbordo como dois produtos permanentes independentes.
 
 ### Changed
 - `web` publica em `127.0.0.1:8060` no host (era `:8000`) — evita colidir com o container órfão
   `comigo_mcp`. Porta interna do container e o healthcheck seguem em `8000`; Apache faz proxy p/ `:8060`.
-
-### Removed
-- Serviço `comigo` (Streamlit) do `docker-compose.yml` e `CMD streamlit run` do `Dockerfile` — o
-  Streamlit de produção roda num container próprio a partir do repo Comigo.git; este compose só serve o
-  stack Django (`CMD` do `Dockerfile` agora é `gunicorn`). As confs `comigo*.conf` do Apache continuam
-  até a Fase 11.
 
 ## [0.10.0] - 2026-08-29
 

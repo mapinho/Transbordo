@@ -1,7 +1,7 @@
-# 11. Comigo e Transbordo: dois produtos permanentes independentes
+# ADR 0011 — Comigo e Transbordo: dois produtos permanentes independentes
 
-Data: 2026-08-30
-Status: Aceito
+- Status: Aceito
+- Data: 2026-08-30
 
 ## Contexto
 

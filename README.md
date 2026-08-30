@@ -22,7 +22,7 @@ congelado — ver `docs/decisions/0011-...`).
    python manage.py runserver
    python manage.py procrastinate worker   # outro terminal — a aba Simulação depende dele
    ```
-4. Primeiro Admin Vector: `python manage.py criar_admin_vector <user> --email <email>`.
+4. Primeiro Admin Vector: `python manage.py criar_admin_vector <username> --email <email>`.
 
 ## Testes
 
