@@ -12,3 +12,5 @@ exportacao/
 .claude/
 staticfiles/
 media/
+*.dump
+*.sql
