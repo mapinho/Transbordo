@@ -1,0 +1,10 @@
+<c-card class="mb-4">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h1 class="text-lg font-semibold text-base-content">{{ cenario.nome }}</h1>
+    {% if cenario.is_oficial %}
+      <span class="badge badge-primary">Oficial</span>
+    {% else %}
+      <span class="badge badge-outline">Simulação</span>
+    {% endif %}
+  </div>
+</c-card>

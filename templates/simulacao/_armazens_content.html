@@ -3,7 +3,7 @@
 <form hx-post="{% url 'simulacao:armazens_grid' cenario_id=cenario.id %}" hx-target="#cenario-content" id="form-armazens">
     {% csrf_token %}
     <div id="tabulator-armazens"></div>
-    <button type="submit" class="rounded bg-[var(--cor-primaria)] hover:bg-[var(--cor-primaria-hover)] text-white px-4 py-2 mt-4">
+    <button type="submit" class="btn btn-primary mt-4">
         Salvar Alterações Armazéns
     </button>
 </form>

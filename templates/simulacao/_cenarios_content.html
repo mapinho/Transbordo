@@ -1,42 +1,38 @@
-<h1 class="text-xl font-semibold mb-4">Cenários</h1>
+<c-breadcrumb><span class="text-base-content/60">Cenários</span></c-breadcrumb>
+
+<h1 class="mb-4 text-xl font-semibold text-base-content">Cenários</h1>
 
 <c-card class="mb-6">
-    <h2 class="font-medium mb-3">Criar Novo Cenário de Simulação</h2>
-    <form method="post" action="{% url 'simulacao:cenarios_list' %}" class="flex gap-3 items-end">
-        {% csrf_token %}
-        <div>
-            <label class="block text-sm mb-1" for="id_nome">Nome do Novo Cenário</label>
-            <input type="text" id="id_nome" name="nome" required class="border rounded px-2 py-1">
-        </div>
-        <div>
-            <label class="block text-sm mb-1" for="id_origem_id">Clonar dados de qual cenário?</label>
-            <select id="id_origem_id" name="origem_id" class="border rounded px-2 py-1">
-                {% for cenario in cenarios %}
-                <option value="{{ cenario.id }}">{{ cenario.nome }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="rounded bg-[var(--cor-primaria)] hover:bg-[var(--cor-primaria-hover)] text-white px-4 py-2">
-            Criar Cenário
-        </button>
-    </form>
+  <h2 class="mb-3 font-medium text-base-content">Criar novo cenário de simulação</h2>
+  <form method="post" action="{% url 'simulacao:cenarios_list' %}" class="flex flex-wrap items-end gap-3">
+    {% csrf_token %}
+    <div>
+      <label for="id_nome">Nome do novo cenário</label>
+      <input type="text" id="id_nome" name="nome" required>
+    </div>
+    <div>
+      <label for="id_origem_id">Clonar dados de qual cenário?</label>
+      <select id="id_origem_id" name="origem_id">
+        {% for cenario in cenarios %}<option value="{{ cenario.id }}">{{ cenario.nome }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Criar cenário</button>
+  </form>
 </c-card>
 
-<c-card>
-    <h2 class="font-medium mb-3">Escolher Cenário para Editar</h2>
-    <ul class="divide-y divide-[var(--cor-borda)]">
-        {% for cenario in cenarios %}
-        <li class="py-2">
-            <a href="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}" class="text-[var(--cor-primaria)] hover:underline">
-                {{ cenario.nome }}{% if cenario.is_oficial %} (Oficial){% endif %}
-            </a>
-        </li>
-        {% endfor %}
-    </ul>
-</c-card>
+<c-lista-cartao titulo="Escolher cenário para editar">
+  <ul class="divide-y divide-base-300">
+    {% for cenario in cenarios %}
+      <li class="px-4 py-2.5">
+        <a href="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}" class="text-sm text-base-content hover:text-accent hover:underline">
+          {{ cenario.nome }}
+          {% if cenario.is_oficial %}<span class="badge badge-sm badge-primary">Oficial</span>{% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</c-lista-cartao>
 
 <p class="mt-6">
-    <a href="{% url 'simulacao:carga' %}" class="text-[var(--cor-primaria)] hover:underline">
-        Carregar dados por planilha
-    </a>
+  <a href="{% url 'simulacao:carga' %}" class="text-accent hover:underline">Carregar dados por planilha</a>
 </p>
