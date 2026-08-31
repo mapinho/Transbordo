@@ -3,6 +3,31 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga o stack Streamlit legado (ADR 0011).
 
+## [1.1.0] - 2026-08-31
+
+Fase 12 — Evolução UX/UI: padrão visual da suíte AgroVector (portado do AppVector), home nova com dashboards e seletor de organização por sessão para o Admin Vector. Nenhuma mudança de regra de negócio ou de model. Ver ADR 0012 e `docs/design-system/README.md`.
+
+### Added
+- Fundação visual daisyUI 5 + Tailwind 4: temas `vector` / `vector-dark`, header navy de dois níveis (barra da suíte + faixa de módulos com subnav e breadcrumb), tri-estado de preferência de tema (`vector-theme-pref`: claro / escuro / sistema) sem flash ao navegar.
+- Home `/` (`core:home`): dashboard consolidado para o Admin Vector (métricas por organização) e home da organização para os demais papéis.
+- Seletor de organização por sessão para o Admin Vector: `obter_organizacao_corrente` / `cooperativa_id_do_request` em `apps.core.tenancy`, conceito de super-membro, "— Consolidado —" volta ao dashboard.
+- `apps/core/services.py` — métricas dos dashboards (`metricas_da_organizacao`, `metricas_consolidadas`).
+- django-tables2 + django-filter nas listagens de gestão; django-unfold no `/admin/`.
+- Componentes cotton `<c-lista-cartao>`, `<c-resumo-numerico>`, `<c-breadcrumb>`, `<c-icon>`.
+- ADR 0012 (padrão de UX/UI AgroVector) e `docs/design-system/README.md`.
+- `pyproject.toml` (PEP 621) como fonte única de dependências.
+
+### Changed
+- `LOGIN_REDIRECT_URL`: `/simulacao/cenarios/` → `/`.
+- ~25 telas re-estilizadas para o padrão AgroVector (auth, gestão, cenários/grids/simulação/assistente/carga de dados).
+- `/admin/` agora usa django-unfold.
+- Terminologia visível na UI: "Cooperativa" → "Organização" (o model `Cooperativa` permanece inalterado).
+
+### Removed
+- Tema "Grão & Aço" (`data-theme="grao-e-aco"`, variáveis `--cor-*`).
+- `static/simulacao/js/modal.js` — código morto.
+- `requirements.txt` / `requirements-dev.txt` — substituídos por `pyproject.toml`.
+
 ## [1.0.0] - 2026-08-30
 
 ### Removed
