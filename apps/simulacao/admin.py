@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from apps.simulacao.models import Armazem, Cenario, Fabrica, Rota, MovimentacaoDiaria, PrevisaoArmazem, PrevisaoFabrica, SafraUnidade, LogExecucao, ResumoMensalArmazem, ResumoMensalFabrica
 
@@ -18,66 +19,66 @@ class AllCooperativasAdminMixin:
 
 
 @admin.register(Cenario)
-class CenarioAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class CenarioAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('nome', 'cooperativa', 'is_oficial', 'data_criacao')
     list_filter = ('cooperativa', 'is_oficial')
 
 
 @admin.register(Fabrica)
-class FabricaAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class FabricaAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('nome', 'cenario', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
 
 
 @admin.register(Armazem)
-class ArmazemAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class ArmazemAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('nome', 'cenario', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
 
 
 @admin.register(Rota)
-class RotaAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class RotaAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('armazem', 'fabrica', 'cenario', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
 
 
 @admin.register(PrevisaoFabrica)
-class PrevisaoFabricaAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class PrevisaoFabricaAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('fabrica', 'mes_referencia', 'cooperativa')
     list_filter = ('cooperativa',)
 
 
 @admin.register(PrevisaoArmazem)
-class PrevisaoArmazemAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class PrevisaoArmazemAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('armazem', 'mes_referencia', 'cooperativa')
     list_filter = ('cooperativa',)
 
 
 @admin.register(SafraUnidade)
-class SafraUnidadeAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class SafraUnidadeAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('entidade_tipo', 'entidade_id', 'data_inicio', 'data_fim', 'cooperativa')
     list_filter = ('cooperativa', 'entidade_tipo')
 
 
 @admin.register(MovimentacaoDiaria)
-class MovimentacaoDiariaAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class MovimentacaoDiariaAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('data', 'armazem', 'fabrica', 'quantidade_ton', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
 
 
 @admin.register(LogExecucao)
-class LogExecucaoAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class LogExecucaoAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('data_execucao', 'status', 'cenario', 'dias_simulados', 'cooperativa')
     list_filter = ('cooperativa', 'status')
 
 
 @admin.register(ResumoMensalFabrica)
-class ResumoMensalFabricaAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class ResumoMensalFabricaAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('mes', 'fabrica', 'saldo_estoque', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
 
 
 @admin.register(ResumoMensalArmazem)
-class ResumoMensalArmazemAdmin(AllCooperativasAdminMixin, admin.ModelAdmin):
+class ResumoMensalArmazemAdmin(AllCooperativasAdminMixin, UnfoldModelAdmin):
     list_display = ('mes', 'armazem', 'saldo_estoque', 'cooperativa')
     list_filter = ('cooperativa', 'cenario')
