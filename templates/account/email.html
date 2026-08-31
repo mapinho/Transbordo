@@ -2,68 +2,54 @@
 {% load static allauth i18n %}
 {% block title %}Endereços de e-mail — Transbordo{% endblock %}
 {% block content %}
-<div class="max-w-md mx-auto mt-10 space-y-4">
-    {% element h1 %}
-        Endereços de e-mail
-    {% endelement %}
+  <c-card class="mx-auto mt-16 max-w-sm">
+    <h1 class="mb-3 text-lg font-semibold text-base-content">Endereços de e-mail</h1>
     {% if emailaddresses %}
-        {% element p %}
-            Os endereços de e-mail associados à sua conta:
-        {% endelement %}
-        {% url 'account_email' as email_url %}
-        {% element form form=form action=email_url method="post" tags="email,list" %}
-            {% slot body %}
-                {% csrf_token %}
-                {% for radio in emailaddress_radios %}
-                    {% with emailaddress=radio.emailaddress %}
-                        {% element field type="radio" checked=radio.checked name="email" value=emailaddress.email id=radio.id %}
-                            {% slot label %}
-                                {{ emailaddress.email }}
-                                {% if emailaddress.verified %}
-                                    {% element badge tags="success,email,verified" %}Verificado{% endelement %}
-                                {% else %}
-                                    {% element badge tags="warning,email,unverified" %}Não verificado{% endelement %}
-                                {% endif %}
-                                {% if emailaddress.primary %}
-                                    {% element badge tags="email,primary" %}Principal{% endelement %}
-                                {% endif %}
-                            {% endslot %}
-                        {% endelement %}
-                    {% endwith %}
-                {% endfor %}
-            {% endslot %}
-            {% slot actions %}
-                {% element button type="submit" name="action_primary" %}Tornar principal{% endelement %}
-                {% element button tags="secondary" type="submit" name="action_send" %}Reenviar verificação{% endelement %}
-                {% element button tags="danger,delete" type="submit" name="action_remove" %}Remover{% endelement %}
-            {% endslot %}
-        {% endelement %}
+      <p class="mb-3 text-sm text-base-content/70">Os endereços de e-mail associados à sua conta:</p>
+      <form method="post" action="{% url 'account_email' %}" class="space-y-3">
+        {% csrf_token %}
+        <div class="space-y-2">
+          {% for radio in emailaddress_radios %}
+            {% with emailaddress=radio.emailaddress %}
+              <label for="{{ radio.id }}" class="flex items-center gap-2 text-sm text-base-content">
+                <input type="radio" name="email" value="{{ emailaddress.email }}" id="{{ radio.id }}" {% if radio.checked %}checked{% endif %}>
+                <span>{{ emailaddress.email }}</span>
+                {% if emailaddress.verified %}
+                  <span class="badge badge-success badge-sm">Verificado</span>
+                {% else %}
+                  <span class="badge badge-warning badge-sm">Não verificado</span>
+                {% endif %}
+                {% if emailaddress.primary %}
+                  <span class="badge badge-sm">Principal</span>
+                {% endif %}
+              </label>
+            {% endwith %}
+          {% endfor %}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="submit" name="action_primary" class="btn btn-primary btn-sm">Tornar principal</button>
+          <button type="submit" name="action_send" class="btn btn-outline btn-sm">Reenviar verificação</button>
+          <button type="submit" name="action_remove" class="btn btn-outline btn-sm">Remover</button>
+        </div>
+      </form>
     {% else %}
-        {% include "account/snippets/warn_no_email.html" %}
+      {% include "account/snippets/warn_no_email.html" %}
     {% endif %}
     {% if can_add_email %}
-        {% element h2 %}
-            Adicionar e-mail
-        {% endelement %}
-        {% url 'account_email' as action_url %}
-        {% element form form=form method="post" action=action_url tags="email,add" %}
-            {% slot body %}
-                {% csrf_token %}
-                {% element fields form=form %}
-                {% endelement %}
-            {% endslot %}
-            {% slot actions %}
-                {% element button name="action_add" type="submit" %}Adicionar e-mail{% endelement %}
-            {% endslot %}
-        {% endelement %}
+      <h2 class="mt-6 mb-3 text-base font-semibold text-base-content">Adicionar e-mail</h2>
+      <form method="post" action="{% url 'account_email' %}" class="space-y-3">
+        {% csrf_token %}
+        {{ form.as_div }}
+        <button type="submit" name="action_add" class="btn btn-primary w-full">Adicionar e-mail</button>
+      </form>
     {% endif %}
-</div>
+  </c-card>
 {% endblock content %}
 {% block extra_scripts %}
-    <script src="{% static 'account/js/account.js' %}"></script>
-    <script src="{% static 'account/js/onload.js' %}"></script>
-    <script data-allauth-onload="allauth.account.forms.manageEmailForm" type="application/json">{
+  <script src="{% static 'account/js/account.js' %}"></script>
+  <script src="{% static 'account/js/onload.js' %}"></script>
+  <script data-allauth-onload="allauth.account.forms.manageEmailForm" type="application/json">{
     "i18n": {"confirmDelete": "Deseja mesmo remover o endereço de e-mail selecionado?"}
-}
-    </script>
+  }
+  </script>
 {% endblock extra_scripts %}

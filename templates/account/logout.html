@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Sair — Transbordo{% endblock %}
 {% block content %}
-<div class="max-w-sm mx-auto mt-10 space-y-4">
-  <p>Deseja mesmo sair?</p>
-  <form method="post" action="{% url 'account_logout' %}">
-    {% csrf_token %}
-    {% if redirect_field_value %}
-      <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
-    {% endif %}
-    <button type="submit" class="btn btn-primary">Sair</button>
-  </form>
-</div>
+  <c-card class="mx-auto mt-16 max-w-sm">
+    <h1 class="mb-3 text-lg font-semibold text-base-content">Sair</h1>
+    <p class="mb-4 text-sm text-base-content/70">Deseja mesmo sair?</p>
+    <form method="post" action="{% url 'account_logout' %}">
+      {% csrf_token %}
+      {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+      {% endif %}
+      <button type="submit" class="btn btn-primary w-full">Sair</button>
+    </form>
+  </c-card>
 {% endblock %}
