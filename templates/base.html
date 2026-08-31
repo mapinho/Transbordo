@@ -1,92 +1,281 @@
-{% load static %}
-{% load django_htmx %}
-<!DOCTYPE html>
-<html lang="pt-br" data-theme="grao-e-aco">
+{% load static django_htmx %}<!doctype html>
+<html lang="pt-br" data-theme="vector">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Transbordo{% endblock %}</title>
-    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
-    {% django_htmx_script %}
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
-    <style>
-        :root {
-            --cor-primaria: #2f6f3e;      /* verde — Grão & Aço */
-            --cor-primaria-hover: #24572f;
-            --cor-acento: #b8860b;        /* âmbar */
-            --cor-superficie: #ffffff;
-            --cor-borda: #e2e8f0;
-        }
-        [data-theme="grao-e-aco-escuro"] {
-            --cor-superficie: #1e293b;
-            --cor-borda: #334155;
-        }
-    </style>
-    <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/imask@7/dist/imask.min.js"></script>
-    <script src="{% static 'simulacao/js/grid_editor.js' %}"></script>
-    {% block extra_head %}{% endblock %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Sistema de Planejamento de Transbordo{% endblock %}</title>
+  <script>
+    (function () {
+      var STORAGE_KEY = 'vector-theme-pref';
+      var pref = localStorage.getItem(STORAGE_KEY) || 'system';
+      var resolved = pref === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'vector-dark' : 'vector')
+        : (pref === 'dark' ? 'vector-dark' : 'vector');
+      document.documentElement.setAttribute('data-theme', resolved);
+      document.documentElement.dataset.themePref = pref;
+    })();
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    /* @theme só registra os NOMES dos tokens junto ao Tailwind (faz bg-primary
+       etc. existirem como utilities). O valor real que pinta a tela vem do
+       <style> sem @layer abaixo — qualquer coisa dentro de uma @layer perde na
+       cascata do CSS, não importa especificidade nem ordem (ADR 0020 de
+       AppVector, reproduzido verbatim para as próximas sessões não reaprenderem). */
+    @theme {
+      --color-primary: #1F3060;
+      --color-primary-hover: #2a4080;
+      --color-primary-content: #ffffff;
+      --color-secondary: #B2B5B7;
+      --color-secondary-content: #1a2540;
+      --color-accent: #38bdf8;
+      --color-accent-content: #06283d;
+      --color-neutral: #1F3060;
+      --color-neutral-content: #ffffff;
+      --color-base-100: #ffffff;
+      --color-base-200: #E8ECF2;
+      --color-base-300: #dde3ec;
+      --color-base-content: #1a2540;
+      --color-info: #38bdf8;
+      --color-info-content: #06283d;
+      --color-success: #27c27a;
+      --color-success-content: #ffffff;
+      --color-warning: #f59e0b;
+      --color-warning-content: #1a1206;
+      --color-error: #ef4444;
+      --color-error-content: #ffffff;
+    }
+    @layer base {
+      input:not([type="checkbox"], [type="radio"]), select, textarea {
+        @apply w-full min-w-0 rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content;
+      }
+      input:not([type="checkbox"], [type="radio"]):focus, select:focus, textarea:focus {
+        @apply border-primary outline-none ring-1 ring-primary;
+      }
+      label { @apply mb-1 block text-sm font-medium text-base-content/80; }
+      .c-breadcrumb > *:not(:first-child)::before {
+        content: "/"; margin-right: 0.5rem; color: var(--color-base-content); opacity: .35;
+      }
+    }
+  </style>
+  <style>
+    /* Fonte de verdade real das cores (sem @layer) — identidade Vector navy #1F3060. */
+    :root {
+      --color-primary: #1F3060; --color-primary-hover: #2a4080; --color-primary-content: #ffffff;
+      --color-secondary: #B2B5B7; --color-secondary-content: #1a2540;
+      --color-accent: #38bdf8; --color-accent-content: #06283d;
+      --color-neutral: #1F3060; --color-neutral-content: #ffffff;
+      --color-base-100: #ffffff; --color-base-200: #E8ECF2; --color-base-300: #dde3ec;
+      --color-base-content: #1a2540;
+      --color-info: #38bdf8; --color-info-content: #06283d;
+      --color-success: #27c27a; --color-success-content: #ffffff;
+      --color-warning: #f59e0b; --color-warning-content: #1a1206;
+      --color-error: #ef4444; --color-error-content: #ffffff;
+    }
+    [data-theme="vector-dark"] {
+      color-scheme: dark;
+      --color-base-100: #0d1530; --color-base-200: #060d1a; --color-base-300: #08111f;
+      --color-base-content: #d4dff0; --color-secondary-content: #08111f;
+      --color-neutral: #08111f; --color-neutral-content: #d4dff0;
+      --color-success-content: #06140d; --color-error-content: #2a0a0a;
+    }
+  </style>
+  <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="{% static 'vector/css/tabulator-vector.css' %}" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  {% django_htmx_script %}
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/js/tabulator.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/imask@7/dist/imask.min.js"></script>
+  <script src="{% static 'simulacao/js/grid_editor.js' %}"></script>
+  {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
-    <div id="htmx-error-toast" class="alert alert-error fixed top-4 right-4 w-auto max-w-md z-50 hidden">
-        <span id="htmx-error-toast-text"></span>
-    </div>
-    <nav class="border-b border-[var(--cor-borda)] bg-[var(--cor-superficie)] px-6 py-3 flex items-center justify-between">
-        <span class="font-semibold text-[var(--cor-primaria)]">Comigo — Transbordo</span>
-        {% if request.user.is_authenticated %}
-        <div class="flex items-center gap-4 text-sm">
-          {% if menu_membro_cooperativa %}
-            <a href="{% url 'simulacao:cenarios_list' %}" class="hover:underline">Cenários</a>
+<body class="min-h-screen bg-base-200 text-base-content antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <div id="htmx-error-toast" role="alert" class="alert alert-error fixed top-4 right-4 z-50 hidden w-auto max-w-md">
+    <span id="htmx-error-toast-text"></span>
+  </div>
+
+  <header class="sticky top-0 z-40 bg-primary text-primary-content shadow-sm">
+    <div class="navbar mx-auto max-w-7xl px-4 sm:px-6">
+      <div class="navbar-start gap-3">
+        <a href="{% url 'core:home' %}" class="flex items-center gap-3 no-underline">
+          <img src="{% static 'vector/img/logo-vector.png' %}" alt="Vector Consulting" class="h-9 w-auto">
+          <span class="hidden flex-col leading-tight sm:flex">
+            <span class="text-sm font-semibold text-white">Sistema de Planejamento de Transbordo</span>
+            <span class="text-[10px] uppercase tracking-wider text-primary-content/60">AgroVector</span>
+          </span>
+        </a>
+        {% if user.is_authenticated %}
+          <span class="mx-1 hidden h-5 border-l border-white/20 sm:block"></span>
+          {% if organizacoes_disponiveis is not None %}
+            <form method="post" action="{% url 'core:selecionar_organizacao' %}">
+              {% csrf_token %}
+              <select name="org_id" onchange="this.form.submit()"
+                      class="max-w-[12rem] border-white/20 bg-primary text-xs text-primary-content">
+                <option value="">— Consolidado —</option>
+                {% for o in organizacoes_disponiveis %}
+                  <option value="{{ o.id }}" {% if org and org.id == o.id %}selected{% endif %}>{{ o.nome }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          {% elif org %}
+            <span class="hidden text-xs text-primary-content/80 sm:inline">{{ org.nome }}</span>
           {% endif %}
-          {% if menu_admin_cooperativa %}
-            <a href="{% url 'gestao:minha_cooperativa' %}" class="hover:underline">Minha cooperativa</a>
-          {% endif %}
-          {% if menu_gerir_usuarios %}
-            <a href="{% url 'gestao:usuarios' %}" class="hover:underline">Usuários</a>
-          {% endif %}
-          {% if menu_admin_vector %}
-            <a href="{% url 'gestao:cooperativas' %}" class="hover:underline">Cooperativas</a>
-          {% endif %}
-          <a href="{% url 'gestao:conta' %}" class="hover:underline">Conta</a>
-          {% if request.user.is_staff %}
-            <a href="/admin/" class="hover:underline">Admin</a>
-          {% endif %}
-          <form method="post" action="{% url 'account_logout' %}" class="inline">
+        {% endif %}
+      </div>
+
+      <div class="navbar-end gap-1">
+        {% if user.is_authenticated %}
+          <div class="dropdown dropdown-end">
+            <button type="button" tabindex="0" class="btn btn-ghost btn-sm text-primary-content">
+              {{ user.get_full_name|default:user.email }}
+              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu menu-sm z-10 mt-3 w-56 rounded-box bg-base-100 p-2 text-base-content shadow-lg">
+              <li><a href="{% url 'gestao:conta' %}">Minha conta</a></li>
+              {% if menu_admin_cooperativa %}<li><a href="{% url 'gestao:minha_cooperativa' %}">Minha organização</a></li>{% endif %}
+              {% if menu_gerir_usuarios %}<li><a href="{% url 'gestao:usuarios' %}">Usuários</a></li>{% endif %}
+              {% if menu_admin_vector %}<li><a href="{% url 'gestao:cooperativas' %}">Organizações</a></li>{% endif %}
+              {% if user.is_staff %}<li><a href="/admin/">Admin Django</a></li>{% endif %}
+            </ul>
+          </div>
+
+          <div class="dropdown dropdown-end">
+            <button type="button" tabindex="0" class="btn btn-ghost btn-circle btn-sm text-primary-content" title="Aparência" aria-label="Alternar tema">
+              <svg id="vector-theme-icon-light" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+              <svg id="vector-theme-icon-dark" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              <svg id="vector-theme-icon-system" class="hidden h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu menu-sm z-10 mt-3 w-44 rounded-box bg-base-100 p-2 text-base-content shadow-lg">
+              <li><a onclick="vectorApplyTheme('light')">☀️ Claro</a></li>
+              <li><a onclick="vectorApplyTheme('dark')">🌙 Escuro</a></li>
+              <li><a onclick="vectorApplyTheme('system')">🖥️ Sistema</a></li>
+            </ul>
+          </div>
+
+          <form method="post" action="{% url 'account_logout' %}">
             {% csrf_token %}
-            <button type="submit" class="text-slate-600 hover:underline">Sair ({{ request.user.username }})</button>
+            <button type="submit" class="btn btn-ghost btn-circle btn-sm text-primary-content" title="Sair" aria-label="Sair">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+            </button>
           </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if mostra_modulos %}
+      <nav class="border-t border-white/10 bg-black/10">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-1 px-4 text-sm sm:px-6">
+          {% url 'core:home' as url_inicio %}
+          {% url 'simulacao:cenarios_list' as url_cenarios %}
+          {% url 'simulacao:carga' as url_carga %}
+          <a href="{{ url_inicio }}" class="flex items-center gap-1.5 border-b-2 px-3 py-2.5 {% if request.path == url_inicio %}border-white font-semibold text-white{% else %}border-transparent text-primary-content/70 hover:text-white{% endif %}">
+            <c-icon name="home" /> Início
+          </a>
+          <a href="{{ url_cenarios }}" class="flex items-center gap-1.5 border-b-2 px-3 py-2.5 {% if request.path|slice:':20' == '/simulacao/cenarios/' %}border-white font-semibold text-white{% else %}border-transparent text-primary-content/70 hover:text-white{% endif %}">
+            <c-icon name="git-branch" /> Cenários
+          </a>
+          <a href="{{ url_carga }}" class="flex items-center gap-1.5 border-b-2 px-3 py-2.5 {% if request.path|slice:':17' == '/simulacao/carga/' %}border-white font-semibold text-white{% else %}border-transparent text-primary-content/70 hover:text-white{% endif %}">
+            <c-icon name="upload" /> Carga de Dados
+          </a>
         </div>
-        {% endif %}
-    </nav>
-    <main class="p-6">
-        {% if messages %}
-        <ul class="mb-4">
-            {% for message in messages %}
-            <li class="rounded border border-[var(--cor-borda)] bg-white px-4 py-2 mb-2">{{ message }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {% block content %}{% endblock %}
-    </main>
-    <script src="{% static 'simulacao/js/modal.js' %}"></script>
-    <script>
-        document.body.addEventListener('htmx:responseError', function (evt) {
-            var toast = document.getElementById('htmx-error-toast');
-            var text = document.getElementById('htmx-error-toast-text');
-            text.textContent = (evt.detail.xhr && evt.detail.xhr.responseText) || 'Ocorreu um erro ao processar a solicitação.';
-            toast.classList.remove('hidden');
-            clearTimeout(toast._hideTimeout);
-            toast._hideTimeout = setTimeout(function () {
-                toast.classList.add('hidden');
-            }, 5000);
-        });
-    </script>
-    <footer class="px-6 py-3 text-xs text-slate-400 border-t border-[var(--cor-borda)]">
-        Transbordo v{{ APP_VERSION }}
-    </footer>
-    {% block extra_scripts %}{% endblock %}
+      </nav>
+    {% endif %}
+  </header>
+
+  <main class="mx-auto my-8 max-w-7xl px-4 sm:px-6">
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+        {% for message in messages %}
+          <div role="alert" class="alert text-sm {% if 'error' in message.tags %}alert-error{% elif 'success' in message.tags %}alert-success{% else %}alert-info{% endif %}">
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block breadcrumb %}{% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <dialog id="vector-modal" class="modal">
+    <div class="modal-box max-w-lg"><div id="vector-modal-body"></div></div>
+    <form method="dialog" class="modal-backdrop"><button>Fechar</button></form>
+  </dialog>
+  <script>
+    (function () {
+      var modal = document.getElementById("vector-modal");
+      var body = document.getElementById("vector-modal-body");
+      document.body.addEventListener("htmx:afterSwap", function (e) {
+        if (e.target === body && body.innerHTML.trim() && !modal.open) modal.showModal();
+      });
+    })();
+  </script>
+
+  <dialog id="vector-confirm" class="modal">
+    <div class="modal-box max-w-sm">
+      <p id="vector-confirm-message" class="py-2 text-sm text-base-content"></p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('vector-confirm').close()">Cancelar</button>
+        <button type="button" id="vector-confirm-ok" class="btn btn-primary btn-sm">Confirmar</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>Fechar</button></form>
+  </dialog>
+  <script>
+    (function () {
+      var dialog = document.getElementById("vector-confirm");
+      var mensagem = document.getElementById("vector-confirm-message");
+      var okBtn = document.getElementById("vector-confirm-ok");
+      window.vectorConfirm = function (form, texto) {
+        mensagem.textContent = texto;
+        okBtn.onclick = function () { dialog.close(); form.submit(); };
+        dialog.showModal();
+      };
+      document.body.addEventListener("htmx:confirm", function (evt) {
+        if (!evt.detail.question) return;
+        evt.preventDefault();
+        mensagem.textContent = evt.detail.question;
+        okBtn.onclick = function () { dialog.close(); evt.detail.issueRequest(true); };
+        dialog.showModal();
+      });
+    })();
+  </script>
+
+  <script>
+    document.body.addEventListener('htmx:responseError', function (evt) {
+      var toast = document.getElementById('htmx-error-toast');
+      document.getElementById('htmx-error-toast-text').textContent =
+        (evt.detail.xhr && evt.detail.xhr.responseText) || 'Ocorreu um erro ao processar a solicitação.';
+      toast.classList.remove('hidden');
+      clearTimeout(toast._hideTimeout);
+      toast._hideTimeout = setTimeout(function () { toast.classList.add('hidden'); }, 5000);
+    });
+    function vectorApplyTheme(pref) {
+      localStorage.setItem('vector-theme-pref', pref);
+      document.documentElement.dataset.themePref = pref;
+      var resolved = pref === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'vector-dark' : 'vector')
+        : (pref === 'dark' ? 'vector-dark' : 'vector');
+      document.documentElement.setAttribute('data-theme', resolved);
+      vectorSyncThemeIcon();
+    }
+    function vectorSyncThemeIcon() {
+      var pref = document.documentElement.dataset.themePref || 'system';
+      ['light', 'dark', 'system'].forEach(function (name) {
+        var icon = document.getElementById('vector-theme-icon-' + name);
+        if (icon) icon.classList.toggle('hidden', name !== pref);
+      });
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+      if (document.documentElement.dataset.themePref === 'system') vectorApplyTheme('system');
+    });
+    vectorSyncThemeIcon();
+  </script>
+
+  <footer class="mx-auto max-w-7xl px-4 py-3 text-xs text-base-content/40 sm:px-6">
+    Transbordo v{{ APP_VERSION }}
+  </footer>
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>
