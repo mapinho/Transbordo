@@ -26,6 +26,19 @@ class UsuariosCrudTests(TestCase):
         self.assertContains(response, 'adA')
         self.assertContains(response, 'ub')
 
+    def test_listagem_filtra_por_busca(self):
+        self.client.force_login(self.vector)
+        r = self.client.get(reverse('gestao:usuarios'), {'q': 'adA'})
+        self.assertContains(r, 'adA')
+        self.assertNotContains(
+            r, reverse('gestao:usuario_editar', args=[self.user_b.id])
+        )
+
+    def test_listagem_usa_tabela_daisyui(self):
+        self.client.force_login(self.vector)
+        r = self.client.get(reverse('gestao:usuarios'))
+        self.assertContains(r, 'table table-sm')
+
     def test_admin_cooperativa_ve_so_os_seus(self):
         self.client.force_login(self.admin_a)
         response = self.client.get(reverse('gestao:usuarios'))

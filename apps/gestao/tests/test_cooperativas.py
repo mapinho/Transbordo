@@ -26,6 +26,22 @@ class CooperativasCrudTests(TestCase):
         self.client.force_login(self.admin_coop)
         self.assertEqual(self.client.get(reverse('gestao:cooperativas')).status_code, 403)
 
+    def test_listagem_filtra_por_nome(self):
+        Cooperativa.objects.create(nome='Zeta', slug='zeta')
+        self.client.force_login(self.vector)
+        r = self.client.get(reverse('gestao:cooperativas'), {'nome': 'Zeta'})
+        self.assertContains(r, 'Zeta')
+        # 'Coop A' fora do filtro: sem link de edição dela na tabela
+        # (o seletor de organização no header ainda a lista — por isso checamos o link).
+        self.assertNotContains(
+            r, reverse('gestao:cooperativa_editar', args=[self.coop.id])
+        )
+
+    def test_listagem_usa_tabela_daisyui(self):
+        self.client.force_login(self.vector)
+        r = self.client.get(reverse('gestao:cooperativas'))
+        self.assertContains(r, 'table table-sm')
+
     def test_admin_vector_cria_cooperativa(self):
         self.client.force_login(self.vector)
         response = self.client.post(reverse('gestao:cooperativa_nova'), {

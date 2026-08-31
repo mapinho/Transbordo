@@ -6,18 +6,25 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+import django_tables2 as tables2
+
 from apps.core import permissions
 from apps.core.models import Cooperativa, User
 from apps.core.permissions import requer_admin_vector
+from apps.gestao.filters import CooperativaFilter, UsuarioFilter
 from apps.gestao.forms import CooperativaForm, MinhaCooperativaForm, UsuarioForm
+from apps.gestao.tables import CooperativaTable, UsuarioTable
 
 
 @login_required
 @requer_admin_vector
 def cooperativas(request):
-    itens = Cooperativa.objects.all().order_by('nome')
+    f = CooperativaFilter(request.GET, queryset=Cooperativa.objects.all().order_by('nome'))
+    tabela = CooperativaTable(f.qs)
+    tables2.RequestConfig(request, paginate={'per_page': 25}).configure(tabela)
+    ctx = {'tabela': tabela, 'filtro': f}
     template = 'gestao/_cooperativas_content.html' if request.htmx else 'gestao/cooperativas.html'
-    return render(request, template, {'cooperativas': itens})
+    return render(request, template, ctx)
 
 
 @login_required
@@ -65,9 +72,12 @@ def email_configurado():
 @login_required
 def usuarios(request):
     _requer_gestor(request)
-    itens = usuarios_visiveis(request.user)
+    f = UsuarioFilter(request.GET, queryset=usuarios_visiveis(request.user))
+    tabela = UsuarioTable(f.qs)
+    tables2.RequestConfig(request, paginate={'per_page': 25}).configure(tabela)
+    ctx = {'tabela': tabela, 'filtro': f}
     template = 'gestao/_usuarios_content.html' if request.htmx else 'gestao/usuarios.html'
-    return render(request, template, {'usuarios': itens})
+    return render(request, template, ctx)
 
 
 @login_required
