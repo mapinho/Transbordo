@@ -12,4 +12,5 @@ urlpatterns = [
     path('simulacao/', include('apps.simulacao.urls')),
     path('gestao/', include('apps.gestao.urls')),
     path('api/v1/', integracoes_api.urls),
+    path('', include('apps.core.urls')),
 ]

@@ -27,7 +27,7 @@ class LoginTests(TestCase):
             'login': 'usuaria', 'password': 'senha-forte-123',
         })
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, '/simulacao/cenarios/')
+        self.assertEqual(response.url, '/')
 
     def test_login_invalido_nao_autentica(self):
         response = self.client.post(reverse('account_login'), {

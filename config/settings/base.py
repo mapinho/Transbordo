@@ -95,7 +95,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = os.getenv('DJANGO_DEFAULT_FROM_EMAIL', 'nao-responda@transbordo.local')
 
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/simulacao/cenarios/'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 MIDDLEWARE = [

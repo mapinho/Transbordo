@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Início — Transbordo{% endblock %}
+{% block content %}
+  <h1 class="mb-4 text-xl font-semibold text-base-content">
+    Olá, {{ request.user.first_name|default:request.user.email }}
+    {% if org %}<span class="text-base-content/60">· {{ org.nome }}</span>{% endif %}
+  </h1>
+  {% include "core/_home_organizacao_conteudo.html" %}
+{% endblock %}
