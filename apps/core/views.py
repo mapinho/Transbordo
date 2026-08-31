@@ -56,7 +56,7 @@ def home(request):
 @require_POST
 def selecionar_organizacao(request):
     org_id = (request.POST.get('org_id') or '').strip()
-    if org_id and org_id.isdigit() and Cooperativa.objects.filter(id=org_id, ativo=True).exists():
+    if org_id and org_id.isdecimal() and Cooperativa.objects.filter(id=org_id, ativo=True).exists():
         request.session['org_corrente_id'] = int(org_id)
     else:
         request.session.pop('org_corrente_id', None)

@@ -13,10 +13,10 @@ ROTAS_MEMBRO = [
     ("simulacao:carga", {}),
     ("gestao:conta", {}),
 ]
-ROTAS_CENARIO = [
-    "simulacao:fabricas_grid", "simulacao:armazens_grid", "simulacao:rotas_grid",
-    "simulacao:previsoes_grid", "simulacao:safras_grid", "simulacao:simulacao_tab",
-    "simulacao:assistente_tab",
+# Abas do cenário abertas a qualquer papel de membro (@requer_membro_organizacao).
+ABAS_CENARIO_MEMBRO = [
+    "simulacao:rotas_grid", "simulacao:previsoes_grid", "simulacao:safras_grid",
+    "simulacao:simulacao_tab", "simulacao:assistente_tab",
 ]
 
 
@@ -38,18 +38,55 @@ class RenderSmokeTests(TestCase):
             username="uf", email="uf@t.test", password="x",
             papel=User.PAPEL_USUARIO_FABRICA, cooperativa=cls.coop,
         )
+        cls.usuario_armazem = User.objects.create_user(
+            username="ua", email="ua@t.test", password="x",
+            papel=User.PAPEL_USUARIO_ARMAZEM, cooperativa=cls.coop,
+        )
+
+    @property
+    def _papeis_de_membro(self):
+        return (self.admin_coop, self.usuario_fabrica, self.usuario_armazem)
 
     def test_telas_de_membro(self):
-        self.client.force_login(self.admin_coop)
-        for nome, kw in ROTAS_MEMBRO:
-            r = self.client.get(reverse(nome, kwargs=kw))
-            self.assertEqual(r.status_code, 200, nome)
+        for user in self._papeis_de_membro:
+            self.client.force_login(user)
+            for nome, kw in ROTAS_MEMBRO:
+                r = self.client.get(reverse(nome, kwargs=kw))
+                self.assertEqual(r.status_code, 200, f"{nome} ({user.papel})")
 
-    def test_abas_do_cenario(self):
-        self.client.force_login(self.admin_coop)
-        for nome in ROTAS_CENARIO:
-            r = self.client.get(reverse(nome, kwargs={"cenario_id": self.cenario.id}))
-            self.assertEqual(r.status_code, 200, nome)
+    def test_abas_comuns_do_cenario(self):
+        for user in self._papeis_de_membro:
+            self.client.force_login(user)
+            for nome in ABAS_CENARIO_MEMBRO:
+                r = self.client.get(reverse(nome, kwargs={"cenario_id": self.cenario.id}))
+                self.assertEqual(r.status_code, 200, f"{nome} ({user.papel})")
+
+    def test_abas_editaveis_do_cenario_por_papel(self):
+        matriz = (
+            ("simulacao:fabricas_grid", (
+                (self.admin_coop, 200), (self.usuario_fabrica, 200), (self.usuario_armazem, 403),
+            )),
+            ("simulacao:armazens_grid", (
+                (self.admin_coop, 200), (self.usuario_armazem, 200), (self.usuario_fabrica, 403),
+            )),
+        )
+        for nome, casos in matriz:
+            for user, esperado in casos:
+                self.client.force_login(user)
+                r = self.client.get(reverse(nome, kwargs={"cenario_id": self.cenario.id}))
+                self.assertEqual(r.status_code, esperado, f"{nome} ({user.papel})")
+
+    def test_403_template(self):
+        self.client.force_login(self.usuario_armazem)
+        r = self.client.get(
+            reverse("simulacao:fabricas_grid", kwargs={"cenario_id": self.cenario.id})
+        )
+        self.assertEqual(r.status_code, 403)
+        self.assertTemplateUsed(r, "403.html")
+
+    # socialaccount/authentication_error.html não é coberto aqui: a rota
+    # `socialaccount_login_error` responde 401 sem o estado de sessão do fluxo
+    # OAuth (não é cheaply reachable a partir de um GET nu).
 
     def test_gestao_forms(self):
         self.client.force_login(self.vector)

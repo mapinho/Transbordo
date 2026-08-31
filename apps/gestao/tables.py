@@ -20,6 +20,7 @@ class UsuarioTable(tables.Table):
     username = tables.Column(
         linkify=("gestao:usuario_editar", {"usuario_id": tables.A("pk")}),
     )
+    cooperativa = tables.Column(verbose_name="Organização")
 
     class Meta:
         model = User

@@ -22,7 +22,7 @@
       <ul class="divide-y divide-base-300">
         {% for c in cenarios_recentes %}
           <li class="px-4 py-2.5">
-            <a href="{% url 'simulacao:fabricas_grid' cenario_id=c.id %}" class="text-sm text-base-content hover:text-accent hover:underline">
+            <a href="{% url 'simulacao:simulacao_tab' cenario_id=c.id %}" class="text-sm text-base-content hover:text-accent hover:underline">
               {{ c.nome }}{% if c.is_oficial %} <span class="badge badge-sm badge-primary">Oficial</span>{% endif %}
             </a>
           </li>

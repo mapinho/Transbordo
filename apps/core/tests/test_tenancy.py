@@ -92,6 +92,11 @@ class OrganizacaoCorrenteTests(TestCase):
     def test_membro_usa_a_propria_cooperativa(self):
         self.assertEqual(obter_organizacao_corrente(self._req(self.membro)), self.coop.id)
 
+    def test_membro_ignora_org_da_sessao(self):
+        outra = Cooperativa.objects.create(nome="Outra", slug="outra")
+        r = self._req(self.membro, {"org_corrente_id": outra.id})
+        self.assertEqual(obter_organizacao_corrente(r), self.coop.id)
+
     def test_admin_vector_sem_sessao_e_none(self):
         self.assertIsNone(obter_organizacao_corrente(self._req(self.vector)))
 

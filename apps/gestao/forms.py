@@ -39,6 +39,7 @@ class UsuarioForm(_HelperMixin, forms.ModelForm):
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'papel', 'cooperativa', 'is_active']
+        labels = {'cooperativa': 'Organização'}
 
     def __init__(self, *args, gestor=None, **kwargs):
         super().__init__(*args, **kwargs)
