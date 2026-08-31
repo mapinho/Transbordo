@@ -4,19 +4,29 @@
      hx-trigger="every 2s" hx-swap="outerHTML"
      {% endif %}>
     {% if not log_atual %}
-        <p>Nenhuma simulação executada ainda para este cenário.</p>
+        <div class="alert">
+            <span>Nenhuma simulação executada ainda para este cenário.</span>
+        </div>
     {% elif log_atual.status == 'em_andamento' %}
-        <p class="flex items-center gap-2">
-            <span class="loading loading-spinner"></span>
-            Simulação em andamento…
-        </p>
+        <div class="flex flex-col gap-2">
+            <span class="badge badge-info gap-2">
+                <span class="loading loading-spinner loading-xs"></span>
+                Simulação em andamento…
+            </span>
+            <progress class="progress progress-primary w-full max-w-sm"></progress>
+        </div>
     {% elif log_atual.status == 'sucesso' %}
-        <p class="text-success">
-            Concluída: {{ log_atual.dias_simulados }} dia(s) simulado(s) em
-            {{ log_atual.duracao_segundos|floatformat:1 }}s.
-            ({{ log_atual.data_execucao|date:'d/m/Y H:i' }})
-        </p>
+        <div class="alert alert-success">
+            <span>
+                <span class="badge badge-success">Concluída</span>
+                {{ log_atual.dias_simulados }} dia(s) simulado(s) em
+                {{ log_atual.duracao_segundos|floatformat:1 }}s.
+                ({{ log_atual.data_execucao|date:'d/m/Y H:i' }})
+            </span>
+        </div>
     {% elif log_atual.status == 'erro' %}
-        <p class="text-error">Erro: {{ log_atual.mensagem }}</p>
+        <div class="alert alert-error">
+            <span>Erro: {{ log_atual.mensagem }}</span>
+        </div>
     {% endif %}
 </div>

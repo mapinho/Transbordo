@@ -33,6 +33,8 @@ class CenariosListViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<html')
         self.assertContains(response, 'Oficial')
+        self.assertContains(response, 'badge')
+        self.assertNotContains(response, 'cor-primaria')
 
     def test_nao_mostra_cenario_de_outra_cooperativa(self):
         outra_cooperativa = Cooperativa.objects.create(nome='Coop B', slug='coop-b')

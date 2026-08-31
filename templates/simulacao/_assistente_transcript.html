@@ -1,9 +1,9 @@
-<div class="space-y-3">
+<div class="space-y-2">
     {% for m in conversa.mensagens %}
-    <div class="{% if m.papel == 'user' %}text-right{% endif %}">
-        <span class="inline-block rounded px-3 py-2 {% if m.papel == 'user' %}bg-[var(--cor-primaria)] text-white{% else %}bg-white border border-[var(--cor-borda)]{% endif %}">{{ m.conteudo|linebreaksbr }}</span>
+    <div class="chat {% if m.papel == 'user' %}chat-end{% else %}chat-start{% endif %}">
+        <div class="chat-bubble {% if m.papel == 'user' %}chat-bubble-primary{% endif %}">{{ m.conteudo|linebreaksbr }}</div>
     </div>
     {% empty %}
-    <p class="text-slate-400 text-sm">Nenhuma mensagem ainda.</p>
+    <p class="text-base-content/50 text-sm">Nenhuma mensagem ainda.</p>
     {% endfor %}
 </div>
