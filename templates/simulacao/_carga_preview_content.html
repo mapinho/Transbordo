@@ -1,36 +1,41 @@
-<h1 class="text-xl font-semibold mb-4">
+<c-breadcrumb>
+    <a href="{% url 'simulacao:carga' %}" class="text-base-content/60 hover:text-accent hover:underline">Carga de Dados</a>
+    <span class="text-base-content/60">Pré-visualização</span>
+</c-breadcrumb>
+
+<h1 class="mb-4 text-xl font-semibold text-base-content">
     Pré-visualização — {% if cenario %}{{ cenario.nome }}{% else %}{{ nome_novo }} (novo){% endif %}
 </h1>
 
 {% if relatorio.tem_erro_estrutural %}
-<c-card class="mb-6">
-    <h2 class="font-medium mb-2">A planilha não pôde ser lida</h2>
-    <p>{{ relatorio.erro_estrutural }}</p>
-    <p class="mt-4">
-        <a href="{% url 'simulacao:carga' %}" class="text-[var(--cor-primaria)] hover:underline">
-            Enviar outra planilha
-        </a>
-    </p>
-</c-card>
+<div class="alert alert-error mb-6">
+    <div>
+        <h2 class="font-medium">A planilha não pôde ser lida</h2>
+        <p>{{ relatorio.erro_estrutural }}</p>
+        <p class="mt-2">
+            <a href="{% url 'simulacao:carga' %}" class="link">Enviar outra planilha</a>
+        </p>
+    </div>
+</div>
 {% else %}
 
 <c-card class="mb-6">
-    <table class="w-full text-sm">
+    <table class="table table-sm">
         <thead>
-            <tr class="text-left border-b border-[var(--cor-borda)]">
-                <th class="py-2">Aba</th>
-                <th class="py-2">Criar</th>
-                <th class="py-2">Atualizar</th>
-                <th class="py-2">Rejeitadas</th>
+            <tr>
+                <th>Aba</th>
+                <th>Criar</th>
+                <th>Atualizar</th>
+                <th>Rejeitadas</th>
             </tr>
         </thead>
         <tbody>
             {% for resumo in relatorio.abas %}
-            <tr class="border-b border-[var(--cor-borda)]">
-                <td class="py-2">{{ resumo.aba }}</td>
-                <td class="py-2">{{ resumo.criar }}</td>
-                <td class="py-2">{{ resumo.atualizar }}</td>
-                <td class="py-2">{{ resumo.rejeitadas|length }}</td>
+            <tr>
+                <td>{{ resumo.aba }}</td>
+                <td>{{ resumo.criar }}</td>
+                <td>{{ resumo.atualizar }}</td>
+                <td>{{ resumo.rejeitadas|length }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -38,26 +43,30 @@
 </c-card>
 
 {% if relatorio.total_rejeitadas %}
+<div class="alert alert-warning mb-6">
+    <div>
+        <h2 class="font-medium">Linhas rejeitadas ({{ relatorio.total_rejeitadas }})</h2>
+        <p class="mt-1 text-sm">
+            Estas linhas não serão importadas; as demais serão. Corrija a planilha e reenvie, ou
+            confirme para importar apenas o que está válido.
+        </p>
+    </div>
+</div>
 <c-card class="mb-6">
-    <h2 class="font-medium mb-3">Linhas rejeitadas ({{ relatorio.total_rejeitadas }})</h2>
-    <p class="text-sm mb-3">
-        Estas linhas não serão importadas; as demais serão. Corrija a planilha e reenvie, ou
-        confirme para importar apenas o que está válido.
-    </p>
-    <table class="w-full text-sm">
+    <table class="table table-sm">
         <thead>
-            <tr class="text-left border-b border-[var(--cor-borda)]">
-                <th class="py-2">Aba</th>
-                <th class="py-2">Linha</th>
-                <th class="py-2">Motivo</th>
+            <tr>
+                <th>Aba</th>
+                <th>Linha</th>
+                <th>Motivo</th>
             </tr>
         </thead>
         <tbody>
             {% for resumo in relatorio.abas %}{% for rejeitada in resumo.rejeitadas %}
-            <tr class="border-b border-[var(--cor-borda)]">
-                <td class="py-2">{{ rejeitada.aba }}</td>
-                <td class="py-2">{{ rejeitada.linha }}</td>
-                <td class="py-2">{{ rejeitada.motivo }}</td>
+            <tr>
+                <td>{{ rejeitada.aba }}</td>
+                <td>{{ rejeitada.linha }}</td>
+                <td>{{ rejeitada.motivo }}</td>
             </tr>
             {% endfor %}{% endfor %}
         </tbody>
@@ -67,11 +76,9 @@
 
 <form method="post" action="{% url 'simulacao:carga_preview' token=token %}" class="flex gap-3">
     {% csrf_token %}
-    <button type="submit" name="confirmar" value="1"
-            class="rounded bg-[var(--cor-primaria)] hover:bg-[var(--cor-primaria-hover)] text-white px-4 py-2">
+    <button type="submit" name="confirmar" value="1" class="btn btn-primary">
         Confirmar e importar
     </button>
-    <a href="{% url 'simulacao:carga' %}"
-       class="rounded border border-[var(--cor-borda)] px-4 py-2">Cancelar</a>
+    <a href="{% url 'simulacao:carga' %}" class="btn btn-ghost">Cancelar</a>
 </form>
 {% endif %}
