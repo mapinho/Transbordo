@@ -13,8 +13,7 @@ congelado — ver `docs/decisions/0011-...`).
    PostgreSQL local com o banco/role `transbordo` (ver `docs/decisions/0002-...`).
 2. Instalar:
    ```bash
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt   # pytest, para dev
+   pip install -e ".[dev]"   # runtime + pytest/pytest-django
    ```
 3. Migrar e subir:
    ```bash

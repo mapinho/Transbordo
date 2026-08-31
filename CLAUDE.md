@@ -28,9 +28,8 @@ rebuilt on Django 6 + HTMX across Fases 5–11. See ADR 0011.
 ## Commands
 
 ```bash
-# Install
-pip install -r requirements.txt
-pip install -r requirements-dev.txt   # adds pytest, for local dev only
+# Install (editable, com o extra de dev: pytest, pytest-django)
+pip install -e ".[dev]"
 
 # Run the app (dev)
 python manage.py runserver

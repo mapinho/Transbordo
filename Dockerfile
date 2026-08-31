@@ -9,9 +9,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependências numa camada separada — o cache de build só reinstala quando
-# requirements.txt muda, não a cada alteração de código.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# pyproject.toml muda, não a cada alteração de código.
+COPY pyproject.toml VERSION ./
+RUN pip install --no-cache-dir .
 
 COPY . .
 
