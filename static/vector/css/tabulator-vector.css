@@ -1,0 +1,37 @@
+/* Mapeia o Tabulator para os tokens daisyUI (--color-base-*) nos dois temas.
+   Carregado por base.html depois do CSS oficial do Tabulator. */
+.tabulator {
+  background-color: var(--color-base-100);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.875rem;
+}
+.tabulator .tabulator-header,
+.tabulator .tabulator-header .tabulator-col {
+  background-color: var(--color-base-200);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+.tabulator .tabulator-row {
+  background-color: var(--color-base-100);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+.tabulator .tabulator-row.tabulator-row-even {
+  background-color: var(--color-base-200);
+}
+.tabulator .tabulator-row:hover {
+  background-color: var(--color-base-300);
+}
+.tabulator .tabulator-cell {
+  border-color: var(--color-base-300);
+}
+.tabulator .tabulator-cell.tabulator-editing {
+  border-color: var(--color-primary);
+  outline: 1px solid var(--color-primary);
+}
+.tabulator .tabulator-footer {
+  background-color: var(--color-base-200);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+}

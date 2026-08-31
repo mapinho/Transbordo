@@ -1,0 +1,13 @@
+<div class="card border border-base-300 bg-base-100 shadow-sm {{ class }}">
+  <div class="card-body p-0">
+    <div class="flex items-center justify-between gap-2 border-b border-base-300 px-4 py-3">
+      <h2 class="text-sm font-semibold text-base-content">{{ titulo }}</h2>
+      <div class="flex items-center gap-1">
+        {{ acoes }}
+      </div>
+    </div>
+    <div class="max-h-96 overflow-y-auto">
+      {{ slot }}
+    </div>
+  </div>
+</div>
