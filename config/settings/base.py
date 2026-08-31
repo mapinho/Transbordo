@@ -24,6 +24,9 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,6 +43,8 @@ INSTALLED_APPS = [
     'django_cotton',
     'crispy_forms',
     'crispy_tailwind',
+    'django_tables2',
+    'django_filters',
     'procrastinate.contrib.django',
     'apps.core',
     'apps.simulacao',
@@ -163,3 +168,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = ['tailwind']
 CRISPY_TEMPLATE_PACK = 'tailwind'
+
+DJANGO_TABLES2_TEMPLATE = 'django_tables2/tailwind.html'
+
+UNFOLD = {
+    'SITE_TITLE': 'Transbordo — Admin',
+    'SITE_HEADER': 'Transbordo — Admin',
+    'COLORS': {
+        'primary': {
+            '500': '31 48 96',
+            '600': '31 48 96',
+            '700': '42 64 128',
+        },
+    },
+}
