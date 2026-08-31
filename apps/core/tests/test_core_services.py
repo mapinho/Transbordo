@@ -46,6 +46,23 @@ class MetricasOrganizacaoTests(TestCase):
         self.assertIsNone(m["ultima_simulacao"])
         self.assertEqual(m["toneladas"], 0.0)
 
+    def test_ultima_simulacao_ignora_log_de_cenario_nao_oficial(self):
+        from django.utils import timezone
+        ts_oficial = timezone.now() - datetime.timedelta(hours=2)
+        LogExecucao.all_cooperativas.create(
+            cooperativa=self.coop, cenario=None, status=LogExecucao.Status.SUCESSO,
+            data_execucao=ts_oficial,
+        )
+        outro = Cenario.all_cooperativas.create(
+            cooperativa=self.coop, nome="What-if", is_oficial=False,
+        )
+        LogExecucao.all_cooperativas.create(
+            cooperativa=self.coop, cenario=outro, status=LogExecucao.Status.SUCESSO,
+            data_execucao=timezone.now(),
+        )
+        m = services.metricas_da_organizacao(self.coop.id)
+        self.assertEqual(m["ultima_simulacao"], ts_oficial)
+
     def test_organizacao_sem_cenario_oficial(self):
         coop2 = Cooperativa.objects.create(nome="B", slug="b")
         m = services.metricas_da_organizacao(coop2.id)

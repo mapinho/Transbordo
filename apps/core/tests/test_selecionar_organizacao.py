@@ -31,6 +31,13 @@ class SelecionarOrganizacaoTests(TestCase):
         self.client.post(reverse("core:selecionar_organizacao"), {"org_id": self.inativa.id})
         self.assertNotIn("org_corrente_id", self.client.session)
 
+    def test_org_id_nao_numerico_limpa_sessao(self):
+        self.client.force_login(self.vector)
+        self.client.post(reverse("core:selecionar_organizacao"), {"org_id": self.coop.id})
+        r = self.client.post(reverse("core:selecionar_organizacao"), {"org_id": "abc"})
+        self.assertEqual(r.status_code, 302)
+        self.assertNotIn("org_corrente_id", self.client.session)
+
     def test_membro_recebe_403(self):
         self.client.force_login(self.membro)
         self.assertEqual(

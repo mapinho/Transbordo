@@ -36,9 +36,18 @@ def home(request):
             'metricas': services.metricas_consolidadas(),
         })
     org = Cooperativa.objects.filter(id=org_id).first()
+    cenarios_recentes = []
+    if org_id:
+        from apps.simulacao.models import Cenario
+        cenarios_recentes = list(
+            Cenario.all_cooperativas
+            .filter(cooperativa_id=org_id)
+            .order_by('-is_oficial', '-data_criacao')[:8]
+        )
     return render(request, 'core/home_organizacao.html', {
         'org': org,
         'metricas': services.metricas_da_organizacao(org_id) if org_id else None,
+        'cenarios_recentes': cenarios_recentes,
     })
 
 
@@ -47,7 +56,7 @@ def home(request):
 @require_POST
 def selecionar_organizacao(request):
     org_id = (request.POST.get('org_id') or '').strip()
-    if org_id and Cooperativa.objects.filter(id=org_id, ativo=True).exists():
+    if org_id and org_id.isdigit() and Cooperativa.objects.filter(id=org_id, ativo=True).exists():
         request.session['org_corrente_id'] = int(org_id)
     else:
         request.session.pop('org_corrente_id', None)

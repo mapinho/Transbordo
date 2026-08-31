@@ -1,1 +1,38 @@
-<p class="text-base-content/60">Conteúdo da home da organização (Task 8).</p>
+{% load simulacao_filters %}
+{% if metricas %}
+  <c-resumo-numerico class="mb-6">
+    <div class="stat"><div class="stat-title">Fábricas</div><div class="stat-value text-base-content">{{ metricas.fabricas }}</div></div>
+    <div class="stat"><div class="stat-title">Armazéns</div><div class="stat-value text-base-content">{{ metricas.armazens }}</div></div>
+    <div class="stat"><div class="stat-title">Cenários</div><div class="stat-value text-base-content">{{ metricas.cenarios }}</div></div>
+    <div class="stat">
+      <div class="stat-title">Última simulação</div>
+      <div class="stat-value text-base-content">{% if metricas.ultima_simulacao %}{{ metricas.ultima_simulacao|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+    </div>
+  </c-resumo-numerico>
+
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <c-lista-cartao titulo="Atalhos">
+      <ul class="divide-y divide-base-300">
+        <li class="px-4 py-2.5"><a href="{% url 'simulacao:cenarios_list' %}" class="flex items-center gap-2 text-sm text-base-content hover:text-accent hover:underline"><c-icon name="git-branch" /> Cenários</a></li>
+        <li class="px-4 py-2.5"><a href="{% url 'simulacao:carga' %}" class="flex items-center gap-2 text-sm text-base-content hover:text-accent hover:underline"><c-icon name="upload" /> Carga de Dados</a></li>
+      </ul>
+    </c-lista-cartao>
+
+    <c-lista-cartao titulo="Cenários recentes">
+      <ul class="divide-y divide-base-300">
+        {% for c in cenarios_recentes %}
+          <li class="px-4 py-2.5">
+            <a href="{% url 'simulacao:fabricas_grid' cenario_id=c.id %}" class="text-sm text-base-content hover:text-accent hover:underline">
+              {{ c.nome }}{% if c.is_oficial %} <span class="badge badge-sm badge-primary">Oficial</span>{% endif %}
+            </a>
+          </li>
+        {% empty %}
+          <li class="px-4 py-6 text-center text-sm text-base-content/50">Nenhum cenário ainda.</li>
+        {% endfor %}
+      </ul>
+    </c-lista-cartao>
+  </div>
+  {# TODO Fase 13: dashboard detalhado por papel (usuário de fábrica / de armazém). #}
+{% else %}
+  <c-card><p class="text-sm text-base-content/60">Selecione uma organização para ver os indicadores.</p></c-card>
+{% endif %}

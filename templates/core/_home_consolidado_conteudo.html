@@ -1,1 +1,37 @@
-<p class="text-base-content/60">Conteúdo da visão consolidada (Task 8).</p>
+{% load simulacao_filters %}
+<c-resumo-numerico class="mb-6">
+  <div class="stat"><div class="stat-title">Organizações ativas</div><div class="stat-value text-base-content">{{ metricas.totais.organizacoes }}</div></div>
+  <div class="stat"><div class="stat-title">Fábricas</div><div class="stat-value text-base-content">{{ metricas.totais.fabricas }}</div></div>
+  <div class="stat"><div class="stat-title">Armazéns</div><div class="stat-value text-base-content">{{ metricas.totais.armazens }}</div></div>
+  <div class="stat"><div class="stat-title">Toneladas</div><div class="stat-value text-base-content">{{ metricas.totais.toneladas|volume }}</div></div>
+  <div class="stat"><div class="stat-title">Sacas</div><div class="stat-value text-base-content">{{ metricas.totais.sacas|volume }}</div></div>
+  <div class="stat"><div class="stat-title">Frete</div><div class="stat-value text-base-content">{{ metricas.totais.frete|moeda }}</div></div>
+</c-resumo-numerico>
+
+<c-card>
+  <table class="table table-sm">
+    <thead><tr>
+      <th>Organização</th><th>Fábricas</th><th>Armazéns</th><th>Toneladas</th><th>Frete (R$)</th><th>Última simulação</th>
+    </tr></thead>
+    <tbody>
+      {% for linha in metricas.por_organizacao %}
+        <tr class="hover:bg-base-200">
+          <td>
+            <form method="post" action="{% url 'core:selecionar_organizacao' %}" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="org_id" value="{{ linha.id }}">
+              <button type="submit" class="text-accent hover:underline">{{ linha.nome }}</button>
+            </form>
+          </td>
+          <td>{{ linha.fabricas }}</td>
+          <td>{{ linha.armazens }}</td>
+          <td>{% if linha.toneladas is not None %}{{ linha.toneladas|volume }}{% else %}—{% endif %}</td>
+          <td>{% if linha.frete is not None %}{{ linha.frete|moeda }}{% else %}—{% endif %}</td>
+          <td>{% if linha.ultima_simulacao %}{{ linha.ultima_simulacao|date:"d/m/Y H:i" }}{% else %}nunca{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="py-3 text-sm text-base-content/50">Nenhuma organização ativa.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</c-card>

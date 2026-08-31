@@ -44,3 +44,22 @@ class HomeRoutingTests(TestCase):
     def test_login_redireciona_para_raiz(self):
         r = self.client.post(reverse("account_login"), {"login": "m", "password": "x"})
         self.assertEqual(r.url, "/")
+
+    def test_consolidado_mostra_totais_e_linha_por_org(self):
+        from apps.simulacao.models import Fabrica
+        Fabrica.all_cooperativas.create(
+            cooperativa=self.coop,
+            cenario=Cenario.all_cooperativas.get(cooperativa=self.coop, is_oficial=True),
+            nome="F1", capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1, carga_media_caminhao=1,
+            estoque_inicial=0,
+        )
+        self.client.force_login(self.vector)
+        r = self.client.get(reverse("core:home"))
+        self.assertContains(r, "Coop A")
+        self.assertContains(r, "Organizações ativas")
+
+    def test_home_org_sem_simulacao_renderiza_travessao(self):
+        self.client.force_login(self.membro)
+        r = self.client.get(reverse("core:home"))
+        self.assertContains(r, "—")  # métricas de massa ausentes
