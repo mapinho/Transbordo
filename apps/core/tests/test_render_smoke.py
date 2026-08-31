@@ -34,6 +34,10 @@ class RenderSmokeTests(TestCase):
         cls.vector = User.objects.create_user(
             username="v", email="v@t.test", password="x", papel=User.PAPEL_ADMIN_VECTOR,
         )
+        cls.usuario_fabrica = User.objects.create_user(
+            username="uf", email="uf@t.test", password="x",
+            papel=User.PAPEL_USUARIO_FABRICA, cooperativa=cls.coop,
+        )
 
     def test_telas_de_membro(self):
         self.client.force_login(self.admin_coop)
@@ -46,6 +50,21 @@ class RenderSmokeTests(TestCase):
         for nome in ROTAS_CENARIO:
             r = self.client.get(reverse(nome, kwargs={"cenario_id": self.cenario.id}))
             self.assertEqual(r.status_code, 200, nome)
+
+    def test_gestao_forms(self):
+        self.client.force_login(self.vector)
+        for nome, kw in (
+            ("gestao:cooperativa_nova", {}),
+            ("gestao:cooperativa_editar", {"cooperativa_id": self.coop.id}),
+            ("gestao:usuario_novo", {}),
+            ("gestao:usuario_editar", {"usuario_id": self.usuario_fabrica.id}),
+        ):
+            r = self.client.get(reverse(nome, kwargs=kw))
+            self.assertEqual(r.status_code, 200, nome)
+        # minha_cooperativa é gated por e_admin_cooperativa (admin_vector recebe 403 lá)
+        self.client.force_login(self.admin_coop)
+        r = self.client.get(reverse("gestao:minha_cooperativa"))
+        self.assertEqual(r.status_code, 200, "gestao:minha_cooperativa")
 
     def test_home_consolidado_admin_vector(self):
         self.client.force_login(self.vector)
