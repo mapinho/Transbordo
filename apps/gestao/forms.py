@@ -1,22 +1,36 @@
+from crispy_forms.helper import FormHelper
 from django import forms
 
 from apps.core import permissions
 from apps.core.models import Cooperativa, User
 
 
-class CooperativaForm(forms.ModelForm):
+class _HelperMixin:
+    """Dá ao form um ``helper`` crispy que só renderiza os campos.
+
+    O ``<form>``, o ``{% csrf_token %}`` e os botões ficam no template.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_tag = False
+        self.helper.disable_csrf = True
+
+
+class CooperativaForm(_HelperMixin, forms.ModelForm):
     class Meta:
         model = Cooperativa
         fields = ['nome', 'slug', 'ativo', 'dias_janela_safra_padrao']
 
 
-class MinhaCooperativaForm(forms.ModelForm):
+class MinhaCooperativaForm(_HelperMixin, forms.ModelForm):
     class Meta:
         model = Cooperativa
         fields = ['dias_janela_safra_padrao']
 
 
-class UsuarioForm(forms.ModelForm):
+class UsuarioForm(_HelperMixin, forms.ModelForm):
     senha = forms.CharField(
         required=False, widget=forms.PasswordInput, label='Senha inicial',
         help_text='Deixe em branco para criar sem senha (defina depois pelo link de e-mail).',

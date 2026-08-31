@@ -1,12 +1,17 @@
 {% extends "gestao/base_gestao.html" %}
+{% load crispy_forms_tags %}
 {% block title %}{{ titulo }} — Transbordo{% endblock %}
 {% block gestao_breadcrumb %}<c-breadcrumb><a href="{% url 'gestao:cooperativas' %}" class="text-base-content/60 hover:text-accent hover:underline">Organizações</a><span class="text-base-content/60">{{ titulo }}</span></c-breadcrumb>{% endblock %}
 {% block gestao_content %}
   <h1 class="text-lg font-semibold text-base-content mb-4">{{ titulo }}</h1>
-  <form method="post" class="space-y-3 max-w-md">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-primary">Salvar</button>
-    <a href="{% url 'gestao:cooperativas' %}" class="btn">Cancelar</a>
-  </form>
+  <c-card class="max-w-xl">
+    <form method="post">
+      {% csrf_token %}
+      {% crispy form %}
+      <div class="mt-4 flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        <a href="{% url 'gestao:cooperativas' %}" class="btn btn-ghost btn-sm">Cancelar</a>
+      </div>
+    </form>
+  </c-card>
 {% endblock %}

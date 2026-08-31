@@ -27,10 +27,14 @@ class CooperativasCrudTests(TestCase):
         self.assertEqual(self.client.get(reverse('gestao:cooperativas')).status_code, 403)
 
     def test_listagem_filtra_por_nome(self):
-        Cooperativa.objects.create(nome='Zeta', slug='zeta')
+        zeta = Cooperativa.objects.create(nome='Zeta', slug='zeta')
         self.client.force_login(self.vector)
         r = self.client.get(reverse('gestao:cooperativas'), {'nome': 'Zeta'})
         self.assertContains(r, 'Zeta')
+        # linha que casa: link de edição dela presente
+        self.assertContains(
+            r, reverse('gestao:cooperativa_editar', args=[zeta.id])
+        )
         # 'Coop A' fora do filtro: sem link de edição dela na tabela
         # (o seletor de organização no header ainda a lista — por isso checamos o link).
         self.assertNotContains(
@@ -41,6 +45,12 @@ class CooperativasCrudTests(TestCase):
         self.client.force_login(self.vector)
         r = self.client.get(reverse('gestao:cooperativas'))
         self.assertContains(r, 'table table-sm')
+
+    def test_form_renderiza_crispy_em_card(self):
+        self.client.force_login(self.vector)
+        r = self.client.get(reverse('gestao:cooperativa_nova'))
+        self.assertContains(r, 'rounded-lg border border-base-300')  # <c-card>
+        self.assertContains(r, 'id="id_nome"')
 
     def test_admin_vector_cria_cooperativa(self):
         self.client.force_login(self.vector)

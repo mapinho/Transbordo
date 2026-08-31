@@ -1,18 +1,23 @@
 {% extends "gestao/base_gestao.html" %}
+{% load crispy_forms_tags %}
 {% block title %}{{ titulo }} — Transbordo{% endblock %}
 {% block gestao_breadcrumb %}<c-breadcrumb><a href="{% url 'gestao:usuarios' %}" class="text-base-content/60 hover:text-accent hover:underline">Usuários</a><span class="text-base-content/60">{{ titulo }}</span></c-breadcrumb>{% endblock %}
 {% block gestao_content %}
   <h1 class="text-lg font-semibold text-base-content mb-4">{{ titulo }}</h1>
-  <form method="post" class="space-y-3 max-w-md">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-primary">Salvar</button>
-    <a href="{% url 'gestao:usuarios' %}" class="btn">Cancelar</a>
-  </form>
-  {% if form.instance.pk and pode_enviar_link %}
-    <form method="post" action="{% url 'gestao:usuario_enviar_link' form.instance.pk %}" class="mt-4">
+  <c-card class="max-w-xl">
+    <form method="post">
       {% csrf_token %}
-      <button type="submit" class="btn btn-sm">Enviar link de definição de senha</button>
+      {% crispy form %}
+      <div class="mt-4 flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        <a href="{% url 'gestao:usuarios' %}" class="btn btn-ghost btn-sm">Cancelar</a>
+      </div>
     </form>
-  {% endif %}
+    {% if form.instance.pk and pode_enviar_link %}
+      <form method="post" action="{% url 'gestao:usuario_enviar_link' form.instance.pk %}" class="mt-4 border-t border-base-300 pt-4">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline btn-sm">Enviar link de definição de senha</button>
+      </form>
+    {% endif %}
+  </c-card>
 {% endblock %}

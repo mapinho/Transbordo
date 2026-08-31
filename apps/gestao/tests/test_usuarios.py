@@ -30,6 +30,10 @@ class UsuariosCrudTests(TestCase):
         self.client.force_login(self.vector)
         r = self.client.get(reverse('gestao:usuarios'), {'q': 'adA'})
         self.assertContains(r, 'adA')
+        # linha que casa: link de edição dela presente
+        self.assertContains(
+            r, reverse('gestao:usuario_editar', args=[self.admin_a.id])
+        )
         self.assertNotContains(
             r, reverse('gestao:usuario_editar', args=[self.user_b.id])
         )
