@@ -27,7 +27,7 @@ def cooperativa_nova(request):
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('gestao:cooperativas')
-    return render(request, 'gestao/cooperativa_form.html', {'form': form, 'titulo': 'Nova cooperativa'})
+    return render(request, 'gestao/cooperativa_form.html', {'form': form, 'titulo': 'Nova organização'})
 
 
 @login_required

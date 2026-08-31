@@ -1,7 +1,8 @@
 {% extends "gestao/base_gestao.html" %}
 {% block title %}{{ titulo }} — Transbordo{% endblock %}
+{% block gestao_breadcrumb %}<c-breadcrumb><a href="{% url 'gestao:usuarios' %}" class="text-base-content/60 hover:text-accent hover:underline">Usuários</a><span class="text-base-content/60">{{ titulo }}</span></c-breadcrumb>{% endblock %}
 {% block gestao_content %}
-  <h1 class="text-lg font-semibold text-[var(--cor-primaria)] mb-4">{{ titulo }}</h1>
+  <h1 class="text-lg font-semibold text-base-content mb-4">{{ titulo }}</h1>
   <form method="post" class="space-y-3 max-w-md">
     {% csrf_token %}
     {{ form.as_p }}
