@@ -12,12 +12,17 @@ data through an MCP server and an in-app Gemini-powered chat assistant.
 
 It began as a single-cooperative Streamlit app (**Comigo**, still in production at
 `comigo.vectorconsulting.com.br` from the separate `Comigo.git` repo, development frozen) and was
-rebuilt on Django 6 + HTMX across Fases 5–11. See ADR 0011.
+rebuilt on Django 6 + HTMX across Fases 5–12. It is now sold as SaaS as the "Sistema de Planejamento
+de Transbordo", the first product of the **AgroVector** suite (shared UX/UI standard). See ADR 0011 and
+ADR 0012.
 
 ## Tech Stack
 
 - Python 3.10+ (developed against 3.13)
 - Django 6 + HTMX + django-cotton — server-rendered UI
+- daisyUI 5 + Tailwind 4 (Play CDN) — temas `vector` / `vector-dark` da suíte AgroVector (ADR 0012, `docs/design-system/README.md`)
+- django-tables2 + django-filter — listagens somente-leitura; crispy-tailwind — formulários; Tabulator — grids editáveis
+- django-unfold — reskin do Django admin em `/admin/`
 - PostgreSQL — production and test database (tests use a real local PostgreSQL via `DJANGO_DB_*`)
 - Google OR-Tools — MILP solver (SCIP/GLOP) for the daily transbordo optimization
 - pandas — usado pelo engine de otimização e pela camada de services
@@ -54,7 +59,7 @@ Migração para Django 6 + HTMX (ver `docs/superpowers/specs/2026-08-22-fase5-ar
 - `pytest` — roda os testes de `apps/*/tests/`; precisa de um PostgreSQL local alcançável via
   `DJANGO_DB_*` (crie o banco/role antes de rodar pela primeira vez — ver `docs/decisions/0002-...`).
 - O `.env` usa `DJANGO_DB_*` / `DJANGO_*` — ver `.env.example`.
-- ADRs em `docs/decisions/`, de `0001` a `0011`.
+- ADRs em `docs/decisions/`, de `0001` a `0012`.
 - `python manage.py procrastinate worker` — worker assíncrono; precisa estar rodando junto com o
   `runserver` para a aba "Simulação" executar (ADR 0007).
 
@@ -114,6 +119,36 @@ O `docker-compose.yml` serve **só** este produto. O produto separado Comigo
 (`comigo.vectorconsulting.com.br`, repo **Comigo.git**) roda com infra própria e independente,
 desenvolvimento congelado — ver ADR 0011.
 
+## Fase 12 — Evolução UX/UI (concluída)
+
+Padrão de UX/UI da suíte **AgroVector** portado de `AppVector.git` e aplicado por inteiro ao Transbordo.
+Ver `docs/superpowers/specs/2026-08-30-fase12-evolucao-ux-ui-design.md`, **ADR 0012** e o guia normativo
+portável `docs/design-system/README.md`. Nenhum model muda — a fase **não cria migrations**.
+
+- **Fundação visual** (`templates/base.html` reescrita): daisyUI 5 + Tailwind 4 via Play CDN; temas
+  `vector` / `vector-dark` + estado "sistema"; o truque de cascata **sem `@layer`** (dois blocos de
+  `<style>` — `@theme` registra os nomes, `:root` sem `@layer` pinta a tela; ADR 0020 de AppVector);
+  script anti-flash lendo `localStorage['vector-theme-pref']`; `hx-headers` CSRF global;
+  `#vector-modal` / `#vector-confirm` compartilhados. Tema verde "Grão & Aço" e
+  `static/simulacao/js/modal.js` removidos.
+- **Componentes cotton** novos em `templates/cotton/`: `<c-card>`, `<c-lista-cartao>`,
+  `<c-resumo-numerico>`, `<c-breadcrumb>`, `<c-icon>`. Overrides `templates/django_tables2/tailwind.html`
+  e `templates/tailwind/field.html`; `static/vector/css/tabulator-vector.css`; `static/vector/img/`.
+- **Header de dois níveis** (sempre navy): logo Vector + nome do sistema + supra-marca "AgroVector" +
+  organização corrente (esquerda); dropdown do usuário + ícone de aparência + sair (direita). Segunda
+  linha = faixa de módulos (`{% if mostra_modulos %}`). Breadcrumb no `{% block breadcrumb %}`.
+- **Home nova** em `/` (`apps.core.views.home`), agora o `LOGIN_REDIRECT_URL` (era
+  `/simulacao/cenarios/`): dashboard consolidado (Admin Vector sem organização) e home da organização
+  (membro, ou Admin Vector com organização selecionada). Números via `apps/core/services.py`
+  (`metricas_da_organizacao` / `metricas_consolidadas`, managers `all_cooperativas`).
+- **Seletor de organização por sessão** (Abordagem A, ADR 0012): `apps/core/tenancy.py`
+  (`obter_organizacao_corrente` / `cooperativa_id_do_request`), `middleware.py`, `permissions.py`
+  (`requer_membro_organizacao`, `pode_editar_*(request=...)`), view `core:selecionar_organizacao`. Admin
+  Vector com organização selecionada age como super-membro dela. Face JSON inalterada.
+- **`/admin/` com django-unfold**; **listagens de gestão** em django-tables2 + django-filter; UI usa
+  "Organização" nos textos (o model segue `Cooperativa` até a próxima fase).
+- **`pyproject.toml`** (PEP 621, `pip`) substitui `requirements.txt` / `requirements-dev.txt`.
+
 ## Environment
 
 A `.env` file at the project root is **required** (ver `.env.example`):
@@ -137,13 +172,15 @@ e `ADMIN_VECTOR_PASSWORD` (só para `criar_admin_vector --password-from-env`).
 ## Architecture / File Map
 
 - `manage.py` — Django entrypoint.
+- `pyproject.toml` — PEP 621; runtime deps + `[project.optional-dependencies] dev`; versão lida de `VERSION`. Substitui os `requirements*.txt` (Fase 12).
 - `mcp_server.py` — servidor MCP (stdio); desde a Fase 9 é cliente HTTP de `/api/v1/` (ADR 0010), sem acesso a banco. Config `TRANSBORDO_API_URL`/`TRANSBORDO_API_KEY`.
 - `config/` — projeto Django (settings por ambiente, `urls.py`, `wsgi.py`).
-- `apps/core/` — identidade e tenancy: `models.py` (`Cooperativa`, `User` com `papel`), `tenancy.py`/`middleware.py`, `adapters.py` (allauth, sem signup), `permissions.py`, comandos `criar_admin_vector` e `sanitizar_pos_restore`.
-- `apps/gestao/` — telas HTMX de gestão (Cooperativas, Usuários, Minha cooperativa, Conta). **Sem models**. Ver `apps/gestao/CLAUDE.md`.
+- `apps/core/` — identidade, tenancy, home e dashboards. `models.py` (`Cooperativa`, `User` com `papel`), `tenancy.py`/`middleware.py` (organização corrente por sessão), `permissions.py`, `views.py` (`home`, `selecionar_organizacao`, `healthz`), `services.py` (métricas), `adapters.py` (allauth, sem signup), comandos `criar_admin_vector` e `sanitizar_pos_restore`. Ver `apps/core/CLAUDE.md`.
+- `apps/gestao/` — telas HTMX de gestão (Organizações, Usuários, Minha organização, Conta). **Sem models**. `tables.py`/`filters.py` (django-tables2/filter), `context_processors.py` (menu do header). Ver `apps/gestao/CLAUDE.md`.
 - `apps/simulacao/` — Django port do domínio (models, engine, services), Carga de Dados (`planilha.py`), Assistente de IA (`assistente.py` + `ConversaIA`). Ver `apps/simulacao/CLAUDE.md`.
 - `apps/integracoes/` — Face JSON (Fase 6): Django Ninja somente-leitura sobre `apps/simulacao/services.py`, `/api/v1/`, auth `X-API-Key` (`ApiKey`). Ver `apps/integracoes/CLAUDE.md`.
-- `templates/` — templates Django (`base.html`, `cotton/`, telas de `account`/`socialaccount`/`gestao`/`simulacao`).
+- `templates/` — templates Django (`base.html` fundação Vector, `cotton/`, overrides `django_tables2/` e `tailwind/`, telas de `core`/`account`/`socialaccount`/`gestao`/`simulacao`). `static/vector/` — logo + `tabulator-vector.css`.
+- `docs/design-system/README.md` — guia normativo portável do design system AgroVector (ADR 0012).
 
 ## Key Business Rules
 
@@ -166,6 +203,8 @@ This codebase follows strict TDD (red → green) for all behavior changes: write
 
 ## Roadmap Status
 
-Fases 1–11 concluídas. `VERSION` / `CHANGELOG.md` na `1.0.0`. O produto Streamlit original (Comigo)
-segue em produção à parte, congelado (ADR 0011). Próximas evoluções são do Transbordo — confirme o
-escopo com o dono do projeto antes de começar trabalho novo.
+Fases 1–12 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.1.0` no encerramento da Fase 12
+(tag `v1.1.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
+segue em produção à parte, congelado (ADR 0011). Próximas evoluções são do Transbordo (estruturas
+organizacionais; novos parâmetros do motor; predição de recebimento/venda) — confirme o escopo com o
+dono do projeto antes de começar trabalho novo.

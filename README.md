@@ -23,6 +23,10 @@ congelado — ver `docs/decisions/0011-...`).
    ```
 4. Primeiro Admin Vector: `python manage.py criar_admin_vector <username> --email <email>`.
 
+Após o login, a aplicação abre na home em `/` (`LOGIN_REDIRECT_URL`): dashboard consolidado para o
+Admin Vector, home da organização para os membros. UI no padrão da suíte **AgroVector** — ver
+`docs/design-system/README.md` e `docs/decisions/0012-...`.
+
 ## Testes
 
 ```bash
