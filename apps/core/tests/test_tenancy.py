@@ -1,11 +1,14 @@
+from django.core.exceptions import PermissionDenied
 from django.db import connection, models
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.test.utils import isolate_apps
 
-from apps.core.models import Cooperativa
+from apps.core.models import Cooperativa, User
 from apps.core.tenancy import (
     CooperativaScopedModel,
+    cooperativa_id_do_request,
     definir_cooperativa_atual,
+    obter_organizacao_corrente,
     resetar_cooperativa_atual,
 )
 
@@ -66,3 +69,41 @@ class TenantManagerIsolationTests(TestCase):
 
     def test_all_cooperativas_manager_bypasses_scope(self):
         self.assertEqual(self.Item.all_cooperativas.count(), 2)
+
+
+class OrganizacaoCorrenteTests(TestCase):
+    def setUp(self):
+        self.rf = RequestFactory()
+        self.coop = Cooperativa.objects.create(nome="A", slug="a")
+        self.inativa = Cooperativa.objects.create(nome="Z", slug="z", ativo=False)
+        self.membro = User.objects.create_user(
+            username="m", email="m@t.test", papel=User.PAPEL_USUARIO_FABRICA, cooperativa=self.coop,
+        )
+        self.vector = User.objects.create_user(
+            username="v", email="v@t.test", papel=User.PAPEL_ADMIN_VECTOR,
+        )
+
+    def _req(self, user, session=None):
+        r = self.rf.get("/")
+        r.user = user
+        r.session = session or {}
+        return r
+
+    def test_membro_usa_a_propria_cooperativa(self):
+        self.assertEqual(obter_organizacao_corrente(self._req(self.membro)), self.coop.id)
+
+    def test_admin_vector_sem_sessao_e_none(self):
+        self.assertIsNone(obter_organizacao_corrente(self._req(self.vector)))
+
+    def test_admin_vector_com_sessao_valida(self):
+        r = self._req(self.vector, {"org_corrente_id": self.coop.id})
+        self.assertEqual(obter_organizacao_corrente(r), self.coop.id)
+
+    def test_admin_vector_id_inativo_e_limpo_da_sessao(self):
+        r = self._req(self.vector, {"org_corrente_id": self.inativa.id})
+        self.assertIsNone(obter_organizacao_corrente(r))
+        self.assertNotIn("org_corrente_id", r.session)
+
+    def test_cooperativa_id_do_request_levanta_sem_org(self):
+        with self.assertRaises(PermissionDenied):
+            cooperativa_id_do_request(self._req(self.vector))

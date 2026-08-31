@@ -23,6 +23,42 @@ def resetar_cooperativa_atual(token):
     _cooperativa_atual.reset(token)
 
 
+def obter_organizacao_corrente(request):
+    """id da organização na qual o request opera, ou None.
+
+    Membro de organização -> a própria cooperativa. Admin Vector -> a
+    seleção guardada em session['org_corrente_id'] (validada contra
+    Cooperativa ativa; id inválido é descartado). Anônimo -> None.
+    """
+    user = getattr(request, 'user', None)
+    if user is None or not user.is_authenticated:
+        return None
+    if getattr(user, 'cooperativa_id', None):
+        return user.cooperativa_id
+    from apps.core.permissions import e_admin_vector
+    if not e_admin_vector(user):
+        return None
+    session = getattr(request, 'session', None)
+    org_id = session.get('org_corrente_id') if session is not None else None
+    if not org_id:
+        return None
+    from apps.core.models import Cooperativa
+    if Cooperativa.objects.filter(id=org_id, ativo=True).exists():
+        return org_id
+    if session is not None:
+        session.pop('org_corrente_id', None)
+    return None
+
+
+def cooperativa_id_do_request(request):
+    """Como obter_organizacao_corrente, mas exige uma organização definida."""
+    from django.core.exceptions import PermissionDenied
+    org_id = obter_organizacao_corrente(request)
+    if org_id is None:
+        raise PermissionDenied('Selecione uma organização.')
+    return org_id
+
+
 class TenantManager(models.Manager):
     """Escopa automaticamente pela cooperativa corrente (contextvar).
 

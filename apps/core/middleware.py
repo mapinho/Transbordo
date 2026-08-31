@@ -1,6 +1,13 @@
-"""Middleware que expõe a cooperativa do usuário autenticado ao TenantManager
-durante o ciclo de vida do request (ver apps.core.tenancy)."""
-from apps.core.tenancy import definir_cooperativa_atual, resetar_cooperativa_atual
+"""Middleware que expõe a organização corrente do request ao TenantManager
+durante o ciclo de vida do request (ver apps.core.tenancy).
+
+Para membros de organização é a própria cooperativa; para Admin Vector é a
+seleção guardada na sessão (obter_organizacao_corrente)."""
+from apps.core.tenancy import (
+    definir_cooperativa_atual,
+    obter_organizacao_corrente,
+    resetar_cooperativa_atual,
+)
 
 
 class CooperativaScopeMiddleware:
@@ -8,10 +15,7 @@ class CooperativaScopeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        user = getattr(request, 'user', None)
-        cooperativa_id = None
-        if user is not None and user.is_authenticated:
-            cooperativa_id = user.cooperativa_id
+        cooperativa_id = obter_organizacao_corrente(request)
         token = definir_cooperativa_atual(cooperativa_id)
         try:
             return self.get_response(request)
