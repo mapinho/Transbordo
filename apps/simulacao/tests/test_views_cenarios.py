@@ -59,3 +59,25 @@ class CenariosListViewTests(TestCase):
         )
         self.client.force_login(vector)
         self.assertEqual(self.client.get(reverse('simulacao:cenarios_list')).status_code, 403)
+
+
+class CenariosAdminVectorComOrgTests(TestCase):
+    def setUp(self):
+        self.coop = Cooperativa.objects.create(nome="Coop A", slug="coop-a")
+        Cenario.all_cooperativas.create(cooperativa=self.coop, nome="Oficial", is_oficial=True)
+        self.vector = User.objects.create_user(
+            username="v", email="v@t.test", password="x", papel=User.PAPEL_ADMIN_VECTOR,
+        )
+
+    def test_com_org_selecionada_lista_cenarios(self):
+        self.client.force_login(self.vector)
+        s = self.client.session
+        s["org_corrente_id"] = self.coop.id
+        s.save()
+        r = self.client.get(reverse("simulacao:cenarios_list"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Oficial")
+
+    def test_sem_org_selecionada_403(self):
+        self.client.force_login(self.vector)
+        self.assertEqual(self.client.get(reverse("simulacao:cenarios_list")).status_code, 403)

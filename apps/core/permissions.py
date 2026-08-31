@@ -38,12 +38,23 @@ def pode_gerir_usuarios(user):
     return e_admin_vector(user) or e_admin_cooperativa(user)
 
 
-def pode_editar_fabricas(user):
-    return e_admin_cooperativa(user) or e_usuario_fabrica(user)
+def pode_editar_fabricas(user, request=None):
+    if e_admin_cooperativa(user) or e_usuario_fabrica(user):
+        return True
+    return bool(e_admin_vector(user) and _org_do_request(request))
 
 
-def pode_editar_armazens(user):
-    return e_admin_cooperativa(user) or e_usuario_armazem(user)
+def pode_editar_armazens(user, request=None):
+    if e_admin_cooperativa(user) or e_usuario_armazem(user):
+        return True
+    return bool(e_admin_vector(user) and _org_do_request(request))
+
+
+def _org_do_request(request):
+    if request is None:
+        return None
+    from apps.core.tenancy import obter_organizacao_corrente
+    return obter_organizacao_corrente(request)
 
 
 def papel_required(*papeis):
@@ -61,13 +72,25 @@ def _predicado_required(predicado):
     def decorator(view):
         @wraps(view)
         def _wrapped(request, *args, **kwargs):
-            if not predicado(request.user):
+            if not predicado(request.user, request):
                 raise PermissionDenied
             return view(request, *args, **kwargs)
         return _wrapped
     return decorator
 
 
+def requer_membro_organizacao(view):
+    @wraps(view)
+    def _wrapped(request, *args, **kwargs):
+        user = request.user
+        if papel_de(user) in MEMBROS_COOPERATIVA:
+            return view(request, *args, **kwargs)
+        if e_admin_vector(user) and _org_do_request(request) is not None:
+            return view(request, *args, **kwargs)
+        raise PermissionDenied('Selecione uma organização.')
+    return _wrapped
+
+
 requer_edicao_fabricas = _predicado_required(pode_editar_fabricas)
 requer_edicao_armazens = _predicado_required(pode_editar_armazens)
-requer_admin_vector = _predicado_required(e_admin_vector)
+requer_admin_vector = _predicado_required(lambda user, request=None: e_admin_vector(user))

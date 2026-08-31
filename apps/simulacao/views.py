@@ -13,12 +13,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from procrastinate.exceptions import AlreadyEnqueued
 
+from apps.core.models import Cooperativa
 from apps.core.permissions import (
-    MEMBROS_COOPERATIVA,
-    papel_required,
     requer_edicao_armazens,
     requer_edicao_fabricas,
+    requer_membro_organizacao,
 )
+from apps.core.tenancy import cooperativa_id_do_request
 from apps.simulacao import assistente, engine, services, tasks
 from apps.simulacao.columns import (
     ARMAZEM_COLUMNS,
@@ -47,9 +48,9 @@ STALENESS_TIMEOUT = datetime.timedelta(minutes=30)
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def cenarios_list(request):
-    cooperativa_id = request.user.cooperativa_id
+    cooperativa_id = cooperativa_id_do_request(request)
 
     if request.method == 'POST':
         nome = request.POST.get('nome', '').strip()
@@ -157,7 +158,7 @@ def _salvar_armazens(cenario, linhas):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def rotas_grid(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
 
@@ -198,7 +199,7 @@ def _salvar_rotas(cenario, linhas):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def previsoes_grid(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
 
@@ -262,7 +263,7 @@ def _salvar_previsoes(cenario, linhas_fabrica, linhas_armazem):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def safras_grid(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
 
@@ -314,7 +315,7 @@ def _caminho_da_carga(token):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def carga_template(request):
     return FileResponse(
         gerar_template(), as_attachment=True,
@@ -323,9 +324,9 @@ def carga_template(request):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def carga_upload(request):
-    cooperativa_id = request.user.cooperativa_id
+    cooperativa_id = cooperativa_id_do_request(request)
     cenarios = list(Cenario.all_cooperativas.filter(cooperativa_id=cooperativa_id))
 
     if request.method == 'POST':
@@ -370,13 +371,13 @@ def carga_upload(request):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def carga_preview(request, token):
     guardado = request.session.get('carga')
     if not guardado or guardado['token'] != token:
         raise Http404('Carga não encontrada.')
 
-    cooperativa_id = request.user.cooperativa_id
+    cooperativa_id = cooperativa_id_do_request(request)
     cenario = None
     if guardado['cenario_id']:
         cenario = get_object_or_404(
@@ -391,7 +392,8 @@ def carga_preview(request, token):
             try:
                 _relatorio, gravado = aplicar(
                     arquivo, cenario=cenario,
-                    cooperativa=request.user.cooperativa, nome_novo=guardado['nome_novo'],
+                    cooperativa=Cooperativa.objects.get(id=cooperativa_id),
+                    nome_novo=guardado['nome_novo'],
                 )
             except (ValueError, ValidationError) as erro:
                 mensagem = '; '.join(erro.messages) if isinstance(erro, ValidationError) else str(erro)
@@ -417,7 +419,7 @@ def carga_preview(request, token):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def simulacao_tab(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
     inicio_sugerido, fim_sugerido = engine.obter_range_previsoes(cenario_id=cenario.id)
@@ -432,7 +434,7 @@ def simulacao_tab(request, cenario_id):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 @require_POST
 def simulacao_executar(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
@@ -476,7 +478,7 @@ def simulacao_executar(request, cenario_id):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def simulacao_status(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
     return _render_simulacao_status(request, cenario)
@@ -513,7 +515,7 @@ def _assistente_context(request, cenario):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 def assistente_tab(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
     context = _assistente_context(request, cenario)
@@ -522,7 +524,7 @@ def assistente_tab(request, cenario_id):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 @require_POST
 def assistente_enviar(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)
@@ -535,7 +537,7 @@ def assistente_enviar(request, cenario_id):
 
 
 @login_required
-@papel_required(*MEMBROS_COOPERATIVA)
+@requer_membro_organizacao
 @require_POST
 def assistente_nova(request, cenario_id):
     cenario = get_object_or_404(Cenario, id=cenario_id)

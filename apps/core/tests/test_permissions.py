@@ -60,3 +60,35 @@ class PermissionsMatrixTests(TestCase):
         req.user = self.users['admin_cooperativa']
         with self.assertRaises(PermissionDenied):
             view(req)
+
+
+class SuperMembroAdminVectorTests(TestCase):
+    def setUp(self):
+        self.rf = RequestFactory()
+        self.coop = Cooperativa.objects.create(nome="A", slug="a")
+        self.vector = User.objects.create_user(
+            username="v2", email="v2@t.test", papel=User.PAPEL_ADMIN_VECTOR,
+        )
+
+    def _req(self, session):
+        r = self.rf.get("/")
+        r.user = self.vector
+        r.session = session
+        return r
+
+    def test_requer_membro_organizacao_com_org(self):
+        @p.requer_membro_organizacao
+        def view(request):
+            return HttpResponse("ok")
+        self.assertEqual(view(self._req({"org_corrente_id": self.coop.id})).status_code, 200)
+
+    def test_requer_membro_organizacao_sem_org(self):
+        @p.requer_membro_organizacao
+        def view(request):
+            return HttpResponse("ok")
+        with self.assertRaises(PermissionDenied):
+            view(self._req({}))
+
+    def test_pode_editar_fabricas_admin_vector_com_org(self):
+        self.assertTrue(p.pode_editar_fabricas(self.vector, self._req({"org_corrente_id": self.coop.id})))
+        self.assertFalse(p.pode_editar_fabricas(self.vector, self._req({})))
