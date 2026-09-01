@@ -6,8 +6,8 @@ import datetime
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
-from apps.simulacao.models import MovimentacaoDiaria
-from apps.simulacao.services import KG_PER_SACA, KG_PER_TON  # noqa: F401  (usados nas tasks seguintes)
+from apps.simulacao.models import Cenario, MovimentacaoDiaria
+from apps.simulacao.services import KG_PER_SACA, KG_PER_TON
 
 PAGE_SIZE = 100
 EXPORT_MAX = 50_000
@@ -127,3 +127,21 @@ def agregar(cenario_id, periodo, agrupar, filtros, pagina=1):
         linhas.append(linha)
 
     return {"colunas": visao["colunas"], "linhas": linhas, "totais": totais, "paginacao": paginacao}
+
+
+def totais_do_recorte(cenario_id, filtros):
+    """Totais do recorte para o card do topo — mesmos números de
+    `agregar(...)["totais"]`, mas sem montar linhas."""
+    agg = _queryset_filtrado(cenario_id, filtros).aggregate(
+        ton=Sum("quantidade_ton"), custo=Sum("custo_total"))
+    return {"ton": agg["ton"] or 0.0, "sacas": _com_sacas(agg["ton"]), "custo": agg["custo"] or 0.0}
+
+
+def cenarios_comparaveis(cenario_id, cooperativa_id):
+    """Cenários da cooperativa com ao menos uma `MovimentacaoDiaria`, exceto
+    `cenario_id`, ordenados por `-is_oficial, nome`."""
+    com_mov = (MovimentacaoDiaria.objects.filter(cooperativa_id=cooperativa_id)
+               .values_list("cenario_id", flat=True).distinct())
+    qs = (Cenario.objects.filter(cooperativa_id=cooperativa_id, id__in=list(com_mov))
+          .exclude(id=cenario_id).order_by("-is_oficial", "nome"))
+    return [{"id": c.id, "nome": c.nome} for c in qs]
