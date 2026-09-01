@@ -659,7 +659,7 @@ def resultados_export(request, cenario_id):
             buf, as_attachment=True, filename=f'{nome}.xlsx', content_type=XLSX)
 
     buf = io.StringIO()
-    buf.write("﻿")  # BOM UTF-8 (U+FEFF) para o Excel pt-BR abrir o CSV sem corromper acentos
+    buf.write("\ufeff")  # BOM UTF-8 (U+FEFF) para o Excel pt-BR abrir o CSV sem corromper acentos
     w = csv.writer(buf, delimiter=";")
     w.writerow([c["label"] for c in colunas])
     for linha in dados["linhas"]:
