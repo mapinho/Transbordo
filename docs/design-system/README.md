@@ -300,7 +300,31 @@ Listagens read-only usam `django-tables2` + `django-filter`. Grids editáveis se
 
 ---
 
-## 7. Portando para um novo produto da suíte
+## 7. Gráficos (Chart.js)
+
+Padrão da suíte para qualquer gráfico (ADR 0013). Biblioteca: **Chart.js 4.x**.
+
+- **Nunca no `base.html`** — carregamento preguiçoso. Um loader curto vive na parcial que desenha o
+  gráfico: se `window.Chart` já existe, chama o render direto; senão injeta uma vez
+  `<script src="https://cdn.jsdelivr.net/npm/chart.js@<versão exata>/dist/chart.umd.min.js">` e chama o
+  render no `onload`. Páginas sem gráfico não baixam nada.
+- **Versão pinada exata** no `src` (mesmo CDN de daisyUI/htmx/Tailwind) — nunca um range.
+- **Contrato servidor→cliente**: a view põe no contexto um dict
+  `{"tipo": "bar"|"line", "labels": [...], "datasets": [{"label", "dados", "eixo"}]}`. O template
+  serializa com `{{ grafico|json_script:"grafico-dados" }}` (tag nativa do Django). O JS lê
+  `.textContent` do `<script type="application/json">`, faz `JSON.parse` e monta a config.
+- **Sobreviver aos swaps HTMX**: o `render()` roda a cada swap (o script inline da parcial reexecuta);
+  antes de recriar faz `window._resultadosChart?.destroy()` e reatribui a instância nova.
+- **Duas formas padronizadas**: (1) **barras mensais de dois eixos** — `y` à esquerda (Toneladas), `y2`
+  à direita (Frete R$), a série de `y2` desenhada como linha sobre as barras; (2) **linha diária** —
+  série única em `y`.
+- **Degradação graciosa**: offline ou CSP restritivo → o CDN não carrega e o gráfico não aparece; a
+  tabela e o resto da página continuam. O gráfico é complemento, nunca a única via ao dado.
+- Implementação de referência: `templates/simulacao/_resultados_grafico.html`.
+
+---
+
+## 8. Portando para um novo produto da suíte
 
 - [ ] Copiar `templates/base.html` e trocar só: `<title>`, o nome do sistema no header, e a lista de
       módulos do nível 2. **Não** tocar os dois blocos de `<style>` nem o script anti-flash.
@@ -324,5 +348,8 @@ Listagens read-only usam `django-tables2` + `django-filter`. Grids editáveis se
 - [ ] Multi-tenant: se houver um papel cross-tenant (tipo Admin Vector), resolver a organização
       corrente por sessão (Abordagem A da ADR 0012) — `obter_organizacao_corrente(request)` no
       middleware de escopo, view `selecionar_organizacao`, decorator `requer_membro_organizacao`.
+- [ ] Gráficos: Chart.js por CDN, versão exata, carregamento preguiçoso na parcial (nunca no
+      `base.html`), contrato `{{ grafico|json_script:"…" }}` + `render()`/`destroy()` a cada swap —
+      ver seção 7 e a ADR 0013.
 - [ ] `pyproject.toml` (PEP 621, `pip`) — sem `requirements*.txt`, sem resolvedor novo.
 - [ ] Registrar as decisões próprias do produto e apontar de volta para este guia + a ADR 0012.

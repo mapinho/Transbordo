@@ -118,3 +118,18 @@ class ResultadosViewTests(TestCase):
         self.client.force_login(self.user)
         r = self.client.get(reverse("simulacao:simulacao_tab", kwargs={"cenario_id": self.cen.id}))
         self.assertNotContains(r, "tab-disabled")
+
+    def test_grafico_mensal_tem_canvas_e_dados(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada"},
+                            HTTP_HX_REQUEST="true", HTTP_HX_TARGET="resultados-area")
+        self.assertContains(r, 'id="grafico-resultados"')
+        self.assertContains(r, 'id="grafico-dados"')
+        self.assertContains(r, "chart.umd.min.js")
+
+    def test_visao_crua_sem_grafico(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="resultados-area")
+        self.assertNotContains(r, 'id="grafico-resultados"')
