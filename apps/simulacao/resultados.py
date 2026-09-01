@@ -129,6 +129,45 @@ def agregar(cenario_id, periodo, agrupar, filtros, pagina=1):
     return {"colunas": visao["colunas"], "linhas": linhas, "totais": totais, "paginacao": paginacao}
 
 
+_METRICAS = ("ton", "sacas", "custo")
+
+
+def _delta(atual, comparado):
+    if comparado is None:
+        return "novo"
+    if comparado == 0:
+        return 0.0 if atual == 0 else None
+    return (atual - comparado) / comparado * 100
+
+
+def aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros):
+    periodo, agrupar = normalizar_visao(periodo, agrupar)
+    if (periodo, agrupar) == ("diario", "fabrica_armazem"):
+        dados["comparacao_ignorada"] = True
+        return dados
+    dados["comparacao_ignorada"] = False
+
+    comp = agregar(cenario_comparado_id, periodo, agrupar, filtros, pagina=None)
+    por_chave = {l["_chave"]: l for l in comp["linhas"]}
+
+    for linha in dados["linhas"]:
+        alvo = por_chave.get(linha["_chave"])
+        for m in _METRICAS:
+            linha[f"{m}_delta"] = _delta(linha[m], alvo[m] if alvo else None)
+
+    novas_colunas = []
+    for col in dados["colunas"]:
+        novas_colunas.append(col)
+        if col["key"] in _METRICAS:
+            novas_colunas.append(
+                {"key": f'{col["key"]}_delta', "label": "Δ%", "tipo": "delta"})
+    dados["colunas"] = novas_colunas
+
+    dados["totais_delta"] = {
+        m: _delta(dados["totais"][m], comp["totais"][m]) for m in _METRICAS}
+    return dados
+
+
 def totais_do_recorte(cenario_id, filtros):
     """Totais do recorte para o card do topo — mesmos números de
     `agregar(...)["totais"]`, mas sem montar linhas."""
