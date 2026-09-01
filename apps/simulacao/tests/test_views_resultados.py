@@ -52,7 +52,28 @@ class ResultadosViewTests(TestCase):
         self.client.force_login(self.user)
         r = self.client.get(self.url)
         self.assertContains(r, "<html")
-        self.assertContains(r, "ARM".replace("ARM", "A"))  # nome do armazém na linha crua
+        self.assertContains(r, "Origem")  # cabeçalho da coluna da linha crua
+        self.assertContains(r, ">A<")     # nome do armazém na célula da linha
+
+    def test_combos_mostram_rotulos_ptbr(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url)
+        self.assertContains(r, "Diário")
+        self.assertContains(r, "Fábrica + Armazém")
+
+    def test_comparar_nao_numerico_nao_quebra(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"comparar": "xyz"})
+        self.assertEqual(r.status_code, 200)
+
+    def test_filtro_data_invalida_nao_quebra(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"data_de": "nonsense"})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "formato inválido")
 
     def test_parcial_htmx(self):
         self._povoar()

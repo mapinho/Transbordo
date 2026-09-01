@@ -551,6 +551,23 @@ def assistente_nova(request, cenario_id):
                   _assistente_context(request, cenario))
 
 
+def _resultados_params(request, cenario):
+    """Parseia os parâmetros compartilhados por resultados_tab e resultados_export.
+    `comparar_id` é int | None (parâmetro não-numérico é descartado)."""
+    form = ResultadosForm(request.GET or None, cenario=cenario)
+    form.is_valid()
+    filtros = form.filtros_limpos() if form.is_bound else {
+        "data_de": None, "data_ate": None, "armazem_ids": [], "fabrica_ids": []}
+    periodo, agrupar = resultados.normalizar_visao(
+        request.GET.get("periodo"), request.GET.get("agrupar"))
+    comparar_raw = request.GET.get("comparar") or ""
+    try:
+        comparar_id = int(comparar_raw) if comparar_raw else None
+    except (TypeError, ValueError):
+        comparar_id = None
+    return form, filtros, periodo, agrupar, comparar_id
+
+
 def _resultados_template(request, tem_dados):
     """Escolhe a parcial a renderizar pelo header HX-Target (django-htmx)."""
     if not request.htmx:
@@ -576,30 +593,19 @@ def resultados_tab(request, cenario_id):
         return render(request, _resultados_template(request, tem_dados=False), ctx)
 
     coop_id = cooperativa_id_do_request(request)
-    form = ResultadosForm(request.GET or None, cenario=cenario)
-    form.is_valid()
-    filtros = form.filtros_limpos() if form.is_bound else {
-        "data_de": None, "data_ate": None, "armazem_ids": [], "fabrica_ids": []}
-
-    periodo, agrupar = resultados.normalizar_visao(
-        request.GET.get("periodo"), request.GET.get("agrupar"))
-    comparar = request.GET.get("comparar") or ""
+    form, filtros, periodo, agrupar, comparar_id = _resultados_params(request, cenario)
+    comparar = str(comparar_id) if comparar_id else ""
     try:
         pagina = max(1, int(request.GET.get("page", 1)))
     except (TypeError, ValueError):
         pagina = 1
 
     dados = resultados.agregar(cenario.id, periodo, agrupar, filtros, pagina=pagina)
-    card = resultados.totais_do_recorte(cenario.id, filtros)
+    card = resultados.totais_com_delta(cenario.id, comparar_id, filtros)
     grafico = resultados.dados_grafico(
-        cenario.id, periodo, agrupar, filtros, int(comparar) if comparar else None)
-    if comparar:
-        dados = resultados.aplicar_comparacao(dados, int(comparar), periodo, agrupar, filtros)
-        comp_tot = resultados.totais_do_recorte(int(comparar), filtros)
-        card["delta"] = {m: resultados._delta(card[m], comp_tot[m])
-                         for m in ("ton", "sacas", "custo")}
-    else:
-        card["delta"] = None
+        cenario.id, periodo, agrupar, filtros, comparar_id)
+    if comparar_id:
+        dados = resultados.aplicar_comparacao(dados, comparar_id, periodo, agrupar, filtros)
 
     qs = request.GET.copy()
     qs.pop("page", None)
@@ -609,7 +615,7 @@ def resultados_tab(request, cenario_id):
         "form": form, "periodo": periodo, "agrupar": agrupar, "comparar": comparar,
         "dados": dados, "card": card, "grafico": grafico,
         "comparaveis": resultados.cenarios_comparaveis(cenario.id, coop_id),
-        "periodos": resultados.PERIODOS, "agrupamentos": resultados.AGRUPAMENTOS,
+        "periodos": resultados.ROTULOS_PERIODO, "agrupamentos": resultados.ROTULOS_AGRUPAR,
         "querystring": qs.urlencode(),
     }
     return render(request, _resultados_template(request, tem_dados=True), ctx)
@@ -623,19 +629,15 @@ def resultados_export(request, cenario_id):
     if formato not in ("xlsx", "csv"):
         return HttpResponseBadRequest("Formato inválido.")
 
-    form = ResultadosForm(request.GET or None, cenario=cenario)
-    form.is_valid()
-    filtros = form.filtros_limpos() if form.is_bound else {
-        "data_de": None, "data_ate": None, "armazem_ids": [], "fabrica_ids": []}
-    periodo, agrupar = resultados.normalizar_visao(
-        request.GET.get("periodo"), request.GET.get("agrupar"))
-    comparar = request.GET.get("comparar") or ""
+    _form, filtros, periodo, agrupar, comparar_id = _resultados_params(request, cenario)
 
-    dados = resultados.agregar(cenario.id, periodo, agrupar, filtros, pagina=None)
-    if len(dados["linhas"]) > resultados.EXPORT_MAX:
+    try:
+        dados = resultados.agregar(cenario.id, periodo, agrupar, filtros,
+                                   pagina=None, limite=resultados.EXPORT_MAX)
+    except resultados.RecorteGrandeDemais:
         return HttpResponseBadRequest("Refine os filtros para exportar.")
-    if comparar:
-        dados = resultados.aplicar_comparacao(dados, int(comparar), periodo, agrupar, filtros)
+    if comparar_id:
+        dados = resultados.aplicar_comparacao(dados, comparar_id, periodo, agrupar, filtros)
 
     colunas = dados["colunas"]
 

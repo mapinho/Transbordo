@@ -15,12 +15,12 @@
         class="mb-4 flex flex-wrap items-end gap-3">
     <label class="flex flex-col text-sm">Período
       <select id="id_periodo" name="periodo" class="select select-bordered select-sm">
-        {% for p in periodos %}<option value="{{ p }}" {% if p == periodo %}selected{% endif %}>{{ p|capfirst }}</option>{% endfor %}
+        {% for valor, rotulo in periodos %}<option value="{{ valor }}" {% if valor == periodo %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
       </select>
     </label>
     <label class="flex flex-col text-sm">Agrupar por
       <select id="id_agrupar" name="agrupar" class="select select-bordered select-sm" {% if periodo == 'total' %}disabled{% endif %}>
-        {% for a in agrupamentos %}<option value="{{ a }}" {% if a == agrupar %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        {% for valor, rotulo in agrupamentos %}<option value="{{ valor }}" {% if valor == agrupar %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
       </select>
     </label>
     <label class="flex flex-col text-sm">Comparar com
@@ -36,6 +36,10 @@
     <button type="submit" class="btn btn-outline btn-sm">Aplicar</button>
     <a href="{% url 'simulacao:resultados_tab' cenario.id %}" class="btn btn-ghost btn-sm">Limpar</a>
   </form>
+
+  {% if form.is_bound and form.errors %}
+    <p class="mb-3 text-xs text-error">Alguns filtros têm formato inválido e foram ignorados.</p>
+  {% endif %}
 
   <div id="resultados-area">
     {% include "simulacao/_resultados_area.html" %}

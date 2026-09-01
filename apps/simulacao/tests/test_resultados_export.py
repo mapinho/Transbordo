@@ -1,6 +1,7 @@
 import csv
 import datetime
 import io
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -8,6 +9,7 @@ from django.urls import reverse
 from openpyxl import load_workbook
 
 from apps.core.models import Cooperativa
+from apps.simulacao import resultados
 from apps.simulacao.models import Armazem, Cenario, Fabrica, MovimentacaoDiaria
 
 User = get_user_model()
@@ -65,6 +67,23 @@ class ExportTests(TestCase):
         r = self.client.get(self.url, {"formato": "csv", "data_de": "2026-01-06"})
         conteudo = (b"".join(r.streaming_content) if hasattr(r, "streaming_content") else r.content)
         self.assertEqual(len(conteudo.decode("utf-8-sig").strip().splitlines()), 3)  # header + 2
+
+    def test_export_recorte_grande_400(self):
+        self.client.force_login(self.user)
+        with mock.patch.object(resultados, "EXPORT_MAX", 2):
+            r = self.client.get(self.url, {"formato": "csv", "periodo": "diario",
+                                           "agrupar": "fabrica_armazem"})
+        self.assertEqual(r.status_code, 400)
+
+    def test_export_comparar_nao_numerico_nao_quebra(self):
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"formato": "csv", "comparar": "abc"})
+        self.assertEqual(r.status_code, 200)
+
+    def test_export_anonimo_redireciona_login(self):
+        r = self.client.get(self.url, {"formato": "csv"})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("/accounts/login/", r["Location"])
 
     def test_gate_admin_vector_sem_org(self):
         v = User.objects.create_user(username="v", email="v@t.test", password="x",

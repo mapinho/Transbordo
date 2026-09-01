@@ -71,3 +71,23 @@ class ComparacaoTests(TestCase):
         d = resultados.agregar(self.atual.id, "total", "nada", VAZIO)
         d = resultados.aplicar_comparacao(d, self.comp.id, "total", "nada", VAZIO)
         self.assertEqual(d["totais_delta"]["custo"], (100 - 125) / 125 * 100)
+
+    def test_filtro_armazem_traduzido_para_cenario_comparado(self):
+        # F1: ids de armazém são do cenário atual; o clone comparado tem o mesmo
+        # NOME com id diferente. A comparação deve traduzir por nome, não sumir.
+        arm_atual = Armazem.objects.filter(cenario=self.atual).first()
+        filtros = {**VAZIO, "armazem_ids": [arm_atual.id]}
+        d = resultados.agregar(self.atual.id, "mensal", "nada", filtros)
+        d = resultados.aplicar_comparacao(d, self.comp.id, "mensal", "nada", filtros)
+        self.assertIsInstance(d["linhas"][0]["ton_delta"], float)
+
+    def test_totais_com_delta_traduz_filtro(self):
+        arm_atual = Armazem.objects.filter(cenario=self.atual).first()
+        filtros = {**VAZIO, "armazem_ids": [arm_atual.id]}
+        card = resultados.totais_com_delta(self.atual.id, self.comp.id, filtros)
+        self.assertIsInstance(card["delta"]["ton"], float)
+
+    def test_totais_com_delta_sem_comparado(self):
+        card = resultados.totais_com_delta(self.atual.id, None, VAZIO)
+        self.assertIsNone(card["delta"])
+        self.assertEqual(card["ton"], 10.0)

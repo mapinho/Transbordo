@@ -110,6 +110,16 @@ class AgregarTests(TestCase):
         self.assertEqual(len(d["linhas"]), 154)
         self.assertIsNone(d["paginacao"])
 
+    def test_limite_excedido_levanta(self):
+        with self.assertRaises(resultados.RecorteGrandeDemais):
+            resultados.agregar(self.cen.id, "diario", "fabrica_armazem", VAZIO,
+                               pagina=None, limite=2)
+
+    def test_limite_none_nao_restringe(self):
+        d = resultados.agregar(self.cen.id, "diario", "fabrica_armazem", VAZIO,
+                               pagina=None, limite=None)
+        self.assertEqual(len(d["linhas"]), 4)
+
     def test_nao_vaza_outro_cenario(self):
         outro = Cenario.objects.create(cooperativa=self.coop, nome="Outro")
         a = Armazem.objects.create(

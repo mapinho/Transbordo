@@ -6,7 +6,7 @@ import datetime
 from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
-from apps.simulacao.models import Cenario, MovimentacaoDiaria
+from apps.simulacao.models import Armazem, Cenario, Fabrica, MovimentacaoDiaria
 from apps.simulacao.services import KG_PER_SACA, KG_PER_TON
 
 PAGE_SIZE = 100
@@ -14,6 +14,17 @@ EXPORT_MAX = 50_000
 
 PERIODOS = ("diario", "mensal", "total")
 AGRUPAMENTOS = ("fabrica_armazem", "fabrica", "armazem", "nada")
+
+# Rótulos pt-BR dos dois combos primários (o valor cru vai no <option value>).
+ROTULOS_PERIODO = (("diario", "Diário"), ("mensal", "Mensal"), ("total", "Total"))
+ROTULOS_AGRUPAR = (
+    ("fabrica_armazem", "Fábrica + Armazém"), ("fabrica", "Fábrica"),
+    ("armazem", "Armazém"), ("nada", "Sem agrupamento"),
+)
+
+
+class RecorteGrandeDemais(Exception):
+    """O recorte tem mais linhas do que o `limite` passado a `agregar`."""
 
 _COL_DIA = {"key": "dia", "label": "Dia", "tipo": "data_dia"}
 _COL_MES = {"key": "dia", "label": "Mês", "tipo": "data_mes"}
@@ -69,11 +80,29 @@ def _queryset_filtrado(cenario_id, filtros):
     return qs
 
 
+def _traduzir_filtros(filtros, cenario_id):
+    """Re-resolve armazem_ids/fabrica_ids (ids de um cenário) para os ids dos
+    armazéns/fábricas de mesmo NOME em `cenario_id`. Necessário ao comparar
+    cenários: clones têm ids novos, nomes iguais (mesma lógica de `_chave`)."""
+    if not filtros.get("armazem_ids") and not filtros.get("fabrica_ids"):
+        return filtros
+    traduzido = dict(filtros)
+    if filtros.get("armazem_ids"):
+        nomes = Armazem.objects.filter(id__in=filtros["armazem_ids"]).values_list("nome", flat=True)
+        traduzido["armazem_ids"] = list(
+            Armazem.objects.filter(cenario_id=cenario_id, nome__in=list(nomes)).values_list("id", flat=True))
+    if filtros.get("fabrica_ids"):
+        nomes = Fabrica.objects.filter(id__in=filtros["fabrica_ids"]).values_list("nome", flat=True)
+        traduzido["fabrica_ids"] = list(
+            Fabrica.objects.filter(cenario_id=cenario_id, nome__in=list(nomes)).values_list("id", flat=True))
+    return traduzido
+
+
 def _com_sacas(ton):
     return (ton or 0.0) * KG_PER_TON / KG_PER_SACA
 
 
-def agregar(cenario_id, periodo, agrupar, filtros, pagina=1):
+def agregar(cenario_id, periodo, agrupar, filtros, pagina=1, limite=None):
     periodo, agrupar = normalizar_visao(periodo, agrupar)
     visao = VISOES[(periodo, agrupar)]
     base = _queryset_filtrado(cenario_id, filtros)
@@ -99,6 +128,8 @@ def agregar(cenario_id, periodo, agrupar, filtros, pagina=1):
             .order_by(*group_by))
 
     total_linhas = qs.count()
+    if limite is not None and total_linhas > limite:
+        raise RecorteGrandeDemais(total_linhas)
     paginacao = None
     if visao["pagina"] and pagina is not None:
         num_paginas = max(1, (total_linhas + PAGE_SIZE - 1) // PAGE_SIZE)
@@ -150,7 +181,8 @@ def aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros):
         return dados
     dados["comparacao_ignorada"] = False
 
-    comp = agregar(cenario_comparado_id, periodo, agrupar, filtros, pagina=None)
+    comp = agregar(cenario_comparado_id, periodo, agrupar,
+                   _traduzir_filtros(filtros, cenario_comparado_id), pagina=None)
     por_chave = {linha_c["_chave"]: linha_c for linha_c in comp["linhas"]}
 
     for linha in dados["linhas"]:
@@ -177,6 +209,19 @@ def totais_do_recorte(cenario_id, filtros):
     agg = _queryset_filtrado(cenario_id, filtros).aggregate(
         ton=Sum("quantidade_ton"), custo=Sum("custo_total"))
     return {"ton": agg["ton"] or 0.0, "sacas": _com_sacas(agg["ton"]), "custo": agg["custo"] or 0.0}
+
+
+def totais_com_delta(cenario_id, cenario_comparado_id, filtros):
+    """Totais do recorte do cenário + Δ% contra o comparado (filtros traduzidos
+    por nome). `cenario_comparado_id` None → `delta` = None."""
+    atual = totais_do_recorte(cenario_id, filtros)
+    if cenario_comparado_id is None:
+        atual["delta"] = None
+        return atual
+    comp = totais_do_recorte(
+        cenario_comparado_id, _traduzir_filtros(filtros, cenario_comparado_id))
+    atual["delta"] = {m: _delta(atual[m], comp[m]) for m in _METRICAS}
+    return atual
 
 
 def cenarios_comparaveis(cenario_id, cooperativa_id):
@@ -214,7 +259,8 @@ def dados_grafico(cenario_id, periodo, agrupar, filtros, cenario_comparado_id):
         {"label": "Frete (R$)", "dados": custo, "eixo": "y2"},
     ]
     if cenario_comparado_id:
-        _lab, ton_c, custo_c = _serie_periodo(cenario_comparado_id, periodo, filtros)
+        _lab, ton_c, custo_c = _serie_periodo(
+            cenario_comparado_id, periodo, _traduzir_filtros(filtros, cenario_comparado_id))
         # alinha pelo label do cenário atual; mês/dia ausente no comparado = 0
         mapa_ton = dict(zip(_lab, ton_c))
         mapa_custo = dict(zip(_lab, custo_c))
