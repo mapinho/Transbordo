@@ -1,8 +1,12 @@
 """Motor de agregação do painel de Resultados (Fase 13). Funções puras sobre
 `MovimentacaoDiaria`, via ORM escopado (`objects`), não `all_cooperativas`
 (diferente de `services.py` — ver ADR 0006 e a spec 2026-09-01)."""
+import datetime
+
+from django.db.models import Sum
 from django.db.models.functions import TruncMonth
 
+from apps.simulacao.models import MovimentacaoDiaria
 from apps.simulacao.services import KG_PER_SACA, KG_PER_TON  # noqa: F401  (usados nas tasks seguintes)
 
 PAGE_SIZE = 100
@@ -50,3 +54,76 @@ def normalizar_visao(periodo, agrupar):
     if (periodo, agrupar) in VISOES:
         return (periodo, agrupar)
     return ("diario", "fabrica_armazem")
+
+
+def _queryset_filtrado(cenario_id, filtros):
+    qs = MovimentacaoDiaria.objects.filter(cenario_id=cenario_id)
+    if filtros.get("data_de"):
+        qs = qs.filter(data__gte=filtros["data_de"])
+    if filtros.get("data_ate"):
+        qs = qs.filter(data__lte=filtros["data_ate"])
+    if filtros.get("armazem_ids"):
+        qs = qs.filter(armazem_id__in=filtros["armazem_ids"])
+    if filtros.get("fabrica_ids"):
+        qs = qs.filter(fabrica_id__in=filtros["fabrica_ids"])
+    return qs
+
+
+def _com_sacas(ton):
+    return (ton or 0.0) * KG_PER_TON / KG_PER_SACA
+
+
+def agregar(cenario_id, periodo, agrupar, filtros, pagina=1):
+    periodo, agrupar = normalizar_visao(periodo, agrupar)
+    visao = VISOES[(periodo, agrupar)]
+    base = _queryset_filtrado(cenario_id, filtros)
+
+    tot = base.aggregate(ton=Sum("quantidade_ton"), custo=Sum("custo_total"))
+    totais = {
+        "ton": tot["ton"] or 0.0,
+        "sacas": _com_sacas(tot["ton"]),
+        "custo": tot["custo"] or 0.0,
+    }
+
+    if periodo == "total":
+        linha = {"ton": totais["ton"], "sacas": totais["sacas"], "custo": totais["custo"],
+                 "_chave": ("total",)}
+        return {"colunas": visao["colunas"], "linhas": [linha], "totais": totais, "paginacao": None}
+
+    group_by = visao["group_by"]
+    qs = base
+    if "mes" in group_by:
+        qs = qs.annotate(mes=TRUNC_MES)
+    qs = (qs.values(*group_by)
+            .annotate(ton=Sum("quantidade_ton"), custo=Sum("custo_total"))
+            .order_by(*group_by))
+
+    total_linhas = qs.count()
+    paginacao = None
+    if visao["pagina"] and pagina is not None:
+        num_paginas = max(1, (total_linhas + PAGE_SIZE - 1) // PAGE_SIZE)
+        pagina = min(max(1, pagina), num_paginas)
+        ini = (pagina - 1) * PAGE_SIZE
+        qs = qs[ini:ini + PAGE_SIZE]
+        paginacao = {"pagina": pagina, "num_paginas": num_paginas, "total": total_linhas}
+
+    linhas = []
+    for row in qs:
+        dia = row.get("mes") or row.get("data")
+        if isinstance(dia, datetime.datetime):
+            dia = dia.date()
+        linha = {"dia": dia, "ton": row["ton"] or 0.0, "sacas": _com_sacas(row["ton"]),
+                 "custo": row["custo"] or 0.0}
+        if "armazem__nome" in group_by:
+            linha["origem"] = row["armazem__nome"]
+        if "fabrica__nome" in group_by:
+            linha["destino"] = row["fabrica__nome"]
+        chave = [dia.isoformat() if periodo == "diario" else dia.strftime("%Y-%m")]
+        if "origem" in linha:
+            chave.append(linha["origem"])
+        if "destino" in linha:
+            chave.append(linha["destino"])
+        linha["_chave"] = tuple(chave)
+        linhas.append(linha)
+
+    return {"colunas": visao["colunas"], "linhas": linhas, "totais": totais, "paginacao": paginacao}
