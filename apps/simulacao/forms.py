@@ -4,7 +4,9 @@ from apps.simulacao.models import Armazem, Fabrica
 
 
 _DATE_ATTRS = {"type": "date", "class": "input input-bordered input-sm"}
-_MULTI_ATTRS = {"class": "select select-bordered select-sm", "size": "4"}
+# daisyUI `.select` força altura de linha única — num <select multiple> ele
+# achata as 4 linhas e o texto fica encavalado. Usar só borda/raio utilitários.
+_MULTI_ATTRS = {"class": "rounded-lg border border-base-300 bg-base-100 p-1 text-sm", "size": "4"}
 
 
 class ResultadosForm(forms.Form):
