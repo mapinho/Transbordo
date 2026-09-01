@@ -179,7 +179,10 @@ def dados_grafico(cenario_id: int, periodo: str, filtros: dict,
    parcial mostra a nota *"A comparação não se aplica à listagem de movimentações — troque o
    agrupamento ou o período."* As outras 8 visões (inclusive `mensal × fabrica_armazem`) recebem Δ.
 2. Roda `agregar(cenario_comparado_id, periodo, agrupar, filtros)` — mesma forma, mesmos filtros —
-   e indexa as linhas por `_chave`.
+   e indexa as linhas por `_chave`. Os filtros de armazém/fábrica são **traduzidos por NOME** para o
+   cenário comparado antes de rodar (`_traduzir_filtros`): os ids não transferem entre clones, mas os
+   nomes sim, consistente com a lógica de `_chave`. O mesmo vale para `dados_grafico` e para o card do
+   topo (`totais_com_delta`).
 3. Para cada linha do cenário atual, para `ton` / `sacas` / `custo`:
    - sem par no comparado → `_delta[key] = "novo"`.
    - par existe, `comparado[key] == 0`, atual `> 0` → `_delta[key] = None`.
@@ -273,8 +276,9 @@ path('cenarios/<int:cenario_id>/resultados/export/', views.resultados_export, na
 **`_resultados_tabela.html`** — burro: `<thead>` de `dados.colunas`, `<tbody>` de `dados.linhas`,
 célula despachada por `col.tipo` (`data_dia`→`|date:"d/m/Y"`, `data_mes`→`|date:"m/Y"`, `texto`→`{{ v }}`,
 `num`→`|volume`, `moeda`→`|moeda`, `delta`→`{{ linha|item:col.key|variacao }}`).
-`<tfoot>` com `dados.totais` em **todas as visões exceto a linha crua**. `{% empty %}` → "Nenhuma
-movimentação no recorte selecionado."
+`<tfoot>` com `dados.totais` aparece nas visões **não-paginadas**; nas 3 visões diárias paginadas o
+card-resumo do topo já carrega os totais do recorte inteiro (um `<tfoot>` ali só duplicaria o card).
+`{% empty %}` → "Nenhuma movimentação no recorte selecionado."
 
 Django template não faz `linha[col.key]` com chave variável → **filtro novo `item`** (lookup de
 dict, 3 linhas) junto de `variacao`. `aplicar_comparacao` grava cada Δ plano na linha sob a chave da
