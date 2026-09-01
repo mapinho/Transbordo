@@ -141,6 +141,9 @@ def _delta(atual, comparado):
 
 
 def aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros):
+    """Anota `dados` (retorno de `agregar` do cenário atual) com Δ% contra
+    `cenario_comparado_id`: `*_delta` por linha, colunas Δ%, e `totais_delta`.
+    Linha crua (diario×fabrica_armazem) não recebe Δ."""
     periodo, agrupar = normalizar_visao(periodo, agrupar)
     if (periodo, agrupar) == ("diario", "fabrica_armazem"):
         dados["comparacao_ignorada"] = True
@@ -148,7 +151,7 @@ def aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros):
     dados["comparacao_ignorada"] = False
 
     comp = agregar(cenario_comparado_id, periodo, agrupar, filtros, pagina=None)
-    por_chave = {l["_chave"]: l for l in comp["linhas"]}
+    por_chave = {linha_c["_chave"]: linha_c for linha_c in comp["linhas"]}
 
     for linha in dados["linhas"]:
         alvo = por_chave.get(linha["_chave"])
@@ -184,3 +187,42 @@ def cenarios_comparaveis(cenario_id, cooperativa_id):
     qs = (Cenario.objects.filter(cooperativa_id=cooperativa_id, id__in=list(com_mov))
           .exclude(id=cenario_id).order_by("-is_oficial", "nome"))
     return [{"id": c.id, "nome": c.nome} for c in qs]
+
+
+def _serie_periodo(cenario_id, periodo, filtros):
+    """Séries do período (labels, toneladas, custo) do cenário, sem agrupamento."""
+    d = agregar(cenario_id, periodo, "nada", filtros, pagina=None)
+    labels_fmt = "%m/%Y" if periodo == "mensal" else "%d/%m"
+    return (
+        [linha["dia"].strftime(labels_fmt) for linha in d["linhas"]],
+        [linha["ton"] for linha in d["linhas"]],
+        [linha["custo"] for linha in d["linhas"]],
+    )
+
+
+def dados_grafico(cenario_id, periodo, agrupar, filtros, cenario_comparado_id):
+    """Payload de dataset para Chart.js nas duas visões com gráfico (barras
+    mensal, linha diário-total). `None` nas demais. Usa sempre os totais do
+    período, ignorando o agrupamento da tabela."""
+    periodo, agrupar = normalizar_visao(periodo, agrupar)
+    mostra = periodo == "mensal" or (periodo == "diario" and agrupar == "nada")
+    if not mostra:
+        return None
+    labels, ton, custo = _serie_periodo(cenario_id, periodo, filtros)
+    datasets = [
+        {"label": "Toneladas", "dados": ton, "eixo": "y"},
+        {"label": "Frete (R$)", "dados": custo, "eixo": "y2"},
+    ]
+    if cenario_comparado_id:
+        _lab, ton_c, custo_c = _serie_periodo(cenario_comparado_id, periodo, filtros)
+        # alinha pelo label do cenário atual; mês/dia ausente no comparado = 0
+        mapa_ton = dict(zip(_lab, ton_c))
+        mapa_custo = dict(zip(_lab, custo_c))
+        datasets += [
+            {"label": "Toneladas (comparado)",
+             "dados": [mapa_ton.get(x, 0.0) for x in labels], "eixo": "y"},
+            {"label": "Frete (comparado)",
+             "dados": [mapa_custo.get(x, 0.0) for x in labels], "eixo": "y2"},
+        ]
+    return {"tipo": "bar" if periodo == "mensal" else "line",
+            "labels": labels, "datasets": datasets}
