@@ -9,7 +9,7 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
   (`agregar` / `totais_do_recorte` / `cenarios_comparaveis` / `aplicar_comparacao` / `dados_grafico`).
   Usa `Model.objects` escopado, **não** `all_cooperativas`; **duplica de propósito** parte de
   `services.py::get_monthly_summary` / `get_daily_movements` — `services.py` é porte 1:1 congelado que
-  alimenta MCP/API. Ver ADR 0013 e a spec 2026-09-01.
+  alimenta MCP/API. Ver ADR 0013 e `docs/superpowers/specs/2026-09-01-fase13-painel-resultados-design.md`.
 - `apps/simulacao/forms.py` — **Fase 13**: `ResultadosForm` (`forms.Form` puro; datas +
   `armazem_ids` / `fabrica_ids` do cenário; `filtros_limpos()` devolve o dict de filtros).
 - `apps/simulacao/views.py` — as views HTMX do domínio. Desde a **Fase 12** (ADR 0012) são gated por

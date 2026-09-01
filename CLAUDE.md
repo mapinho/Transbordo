@@ -153,10 +153,10 @@ portável `docs/design-system/README.md`. Nenhum model muda — a fase **não cr
 ## Fase 13 — Painel de Resultados (concluída)
 
 Até agora os resultados de uma simulação só saíam via Face JSON / MCP / Assistente de IA — a UI mostrava
-apenas o status da execução. A Fase 13 adiciona a **aba "Resultados"** por cenário (a 8ª do subnav,
-habilitada só depois da 1ª simulação com sucesso). Ver **ADR 0013** e
-`docs/superpowers/specs/2026-09-01-fase13-painel-resultados/`. Nenhum model muda — a fase **não cria
-migrations**. `VERSION` → `1.2.0`.
+apenas o status da execução. A Fase 13 adiciona a **aba "Resultados"** por cenário (a nova aba, 8 no
+total, entre "Simulação" e "Assistente"), habilitada só depois da 1ª simulação com sucesso. Ver
+**ADR 0013** e `docs/superpowers/specs/2026-09-01-fase13-painel-resultados-design.md`. Nenhum model
+muda — a fase **não cria migrations**. `VERSION` → `1.2.0`.
 
 - **`apps/simulacao/resultados.py`** — motor de agregação por ORM da UI (`agregar` /
   `totais_do_recorte` / `cenarios_comparaveis` / `aplicar_comparacao` / `dados_grafico`). Usa `.objects`
