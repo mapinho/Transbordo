@@ -16,7 +16,7 @@ ROTAS_MEMBRO = [
 # Abas do cenário abertas a qualquer papel de membro (@requer_membro_organizacao).
 ABAS_CENARIO_MEMBRO = [
     "simulacao:rotas_grid", "simulacao:previsoes_grid", "simulacao:safras_grid",
-    "simulacao:simulacao_tab", "simulacao:assistente_tab",
+    "simulacao:simulacao_tab", "simulacao:assistente_tab", "simulacao:resultados_tab",
 ]
 
 
