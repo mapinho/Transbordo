@@ -1,4 +1,6 @@
+import csv
 import datetime
+import io
 import json
 import secrets
 
@@ -11,6 +13,7 @@ from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from openpyxl import Workbook
 from procrastinate.exceptions import AlreadyEnqueued
 
 from apps.core.models import Cooperativa
@@ -610,3 +613,63 @@ def resultados_tab(request, cenario_id):
         "querystring": qs.urlencode(),
     }
     return render(request, _resultados_template(request, tem_dados=True), ctx)
+
+
+@login_required
+@requer_membro_organizacao
+def resultados_export(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    formato = request.GET.get("formato", "xlsx")
+    if formato not in ("xlsx", "csv"):
+        return HttpResponseBadRequest("Formato inválido.")
+
+    form = ResultadosForm(request.GET or None, cenario=cenario)
+    form.is_valid()
+    filtros = form.filtros_limpos() if form.is_bound else {
+        "data_de": None, "data_ate": None, "armazem_ids": [], "fabrica_ids": []}
+    periodo, agrupar = resultados.normalizar_visao(
+        request.GET.get("periodo"), request.GET.get("agrupar"))
+    comparar = request.GET.get("comparar") or ""
+
+    dados = resultados.agregar(cenario.id, periodo, agrupar, filtros, pagina=None)
+    if len(dados["linhas"]) > resultados.EXPORT_MAX:
+        return HttpResponseBadRequest("Refine os filtros para exportar.")
+    if comparar:
+        dados = resultados.aplicar_comparacao(dados, int(comparar), periodo, agrupar, filtros)
+
+    colunas = dados["colunas"]
+
+    def valor(linha, col):
+        v = linha.get(col["key"])
+        if col["tipo"] in ("data_dia", "data_mes"):
+            return linha.get("dia")
+        return v
+
+    nome = f'resultados-{cenario.id}-{periodo}-{agrupar}-{timezone.now():%Y%m%d}'
+    if formato == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.append([c["label"] for c in colunas])
+        for linha in dados["linhas"]:
+            ws.append([valor(linha, c) for c in colunas])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return FileResponse(
+            buf, as_attachment=True, filename=f'{nome}.xlsx', content_type=XLSX)
+
+    buf = io.StringIO()
+    buf.write("﻿")  # BOM UTF-8 (U+FEFF) para o Excel pt-BR abrir o CSV sem corromper acentos
+    w = csv.writer(buf, delimiter=";")
+    w.writerow([c["label"] for c in colunas])
+    for linha in dados["linhas"]:
+        row = []
+        for c in colunas:
+            v = valor(linha, c)
+            if isinstance(v, float):
+                v = f"{v:.2f}".replace(".", ",")
+            row.append(v)
+        w.writerow(row)
+    return FileResponse(
+        io.BytesIO(buf.getvalue().encode("utf-8")),
+        as_attachment=True, filename=f'{nome}.csv', content_type="text/csv")
