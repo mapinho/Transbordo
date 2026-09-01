@@ -22,6 +22,7 @@ ADR 0012.
 - Django 6 + HTMX + django-cotton — server-rendered UI
 - daisyUI 5 + Tailwind 4 (Play CDN) — temas `vector` / `vector-dark` da suíte AgroVector (ADR 0012, `docs/design-system/README.md`)
 - django-tables2 + django-filter — listagens somente-leitura; crispy-tailwind — formulários; Tabulator — grids editáveis
+- Chart.js 4.x (CDN) — gráficos, carregado sob demanda (ADR 0013)
 - django-unfold — reskin do Django admin em `/admin/`
 - PostgreSQL — production and test database (tests use a real local PostgreSQL via `DJANGO_DB_*`)
 - Google OR-Tools — MILP solver (SCIP/GLOP) for the daily transbordo optimization
@@ -59,7 +60,7 @@ Migração para Django 6 + HTMX (ver `docs/superpowers/specs/2026-08-22-fase5-ar
 - `pytest` — roda os testes de `apps/*/tests/`; precisa de um PostgreSQL local alcançável via
   `DJANGO_DB_*` (crie o banco/role antes de rodar pela primeira vez — ver `docs/decisions/0002-...`).
 - O `.env` usa `DJANGO_DB_*` / `DJANGO_*` — ver `.env.example`.
-- ADRs em `docs/decisions/`, de `0001` a `0012`.
+- ADRs em `docs/decisions/`, de `0001` a `0013`.
 - `python manage.py procrastinate worker` — worker assíncrono; precisa estar rodando junto com o
   `runserver` para a aba "Simulação" executar (ADR 0007).
 
@@ -149,6 +150,30 @@ portável `docs/design-system/README.md`. Nenhum model muda — a fase **não cr
   "Organização" nos textos (o model segue `Cooperativa` até a próxima fase).
 - **`pyproject.toml`** (PEP 621, `pip`) substitui `requirements.txt` / `requirements-dev.txt`.
 
+## Fase 13 — Painel de Resultados (concluída)
+
+Até agora os resultados de uma simulação só saíam via Face JSON / MCP / Assistente de IA — a UI mostrava
+apenas o status da execução. A Fase 13 adiciona a **aba "Resultados"** por cenário (a 8ª do subnav,
+habilitada só depois da 1ª simulação com sucesso). Ver **ADR 0013** e
+`docs/superpowers/specs/2026-09-01-fase13-painel-resultados/`. Nenhum model muda — a fase **não cria
+migrations**. `VERSION` → `1.2.0`.
+
+- **`apps/simulacao/resultados.py`** — motor de agregação por ORM da UI (`agregar` /
+  `totais_do_recorte` / `cenarios_comparaveis` / `aplicar_comparacao` / `dados_grafico`). Usa `.objects`
+  escopado pelo contextvar, **não** `all_cooperativas`; **duplica de propósito** parte de `services.py`
+  (`get_monthly_summary` / `get_daily_movements`), que fica congelado alimentando MCP/API.
+  `apps/simulacao/forms.py` — `ResultadosForm` (`Form` puro: datas + `armazem_ids` / `fabrica_ids`).
+- **Dois combos**: Período (Diário / Mensal / Total) × Agrupar por (Fábrica+Armazém / Fábrica / Armazém /
+  nada) = 9 formas de uma mesma tabela. Card-resumo do recorte no topo.
+- **Comparação** com um 2º cenário: colunas Δ% (`text-error` ↑ quando maior, `text-success` ↓ quando
+  menor; "novo" quando ausente no comparado); a linha crua (Diário × Fábrica+Armazém) não recebe Δ.
+- **Filtros** de data / armazém / fábrica; **exportação** Excel (openpyxl) e CSV do recorte;
+  **gráfico Chart.js** (barras na visão mensal, linha na diária-total) — ADR 0013 eleva o Chart.js a
+  padrão de gráfico da suíte AgroVector, carregado sob demanda por CDN.
+- Views `resultados_tab` / `resultados_export` + parciais HTMX com 3 alvos de swap
+  (`resultados-area` / `resultados-tabela` / conteúdo completo); templatetags `variacao` / `item` /
+  `cenario_tem_resultado` em `apps/simulacao/templatetags/simulacao_filters.py`.
+
 ## Environment
 
 A `.env` file at the project root is **required** (ver `.env.example`):
@@ -203,8 +228,8 @@ This codebase follows strict TDD (red → green) for all behavior changes: write
 
 ## Roadmap Status
 
-Fases 1–12 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.1.0` no encerramento da Fase 12
-(tag `v1.1.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
+Fases 1–13 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.2.0` no encerramento da Fase 13
+(tag `v1.2.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
 segue em produção à parte, congelado (ADR 0011). Próximas evoluções são do Transbordo (estruturas
 organizacionais; novos parâmetros do motor; predição de recebimento/venda) — confirme o escopo com o
 dono do projeto antes de começar trabalho novo.

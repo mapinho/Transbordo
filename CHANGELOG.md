@@ -3,6 +3,18 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga o stack Streamlit legado (ADR 0011).
 
+## [1.2.0] - 2026-09-01
+
+Fase 13 — Painel de Resultados: nova aba "Resultados" por cenário (movimentações e sumarizações, comparação entre cenários, exportação e gráfico). Nenhuma mudança de regra de negócio ou de model — a fase não cria migrations. Ver ADR 0013.
+
+### Added
+- Aba "Resultados" por cenário (habilitada após a 1ª simulação): listagem de movimentações diárias e sumarizações (diárias e mensais) via dois combos Período (Diário / Mensal / Total) × Agrupar por (Fábrica+Armazém / Fábrica / Armazém / nada); card-resumo do cenário; comparação com um segundo cenário (colunas Δ%, `text-error` ↑ / `text-success` ↓); filtros de data / armazém / fábrica; exportação Excel (openpyxl) e CSV do recorte; gráfico de barras mensal / linha diária.
+- `apps/simulacao/resultados.py` (motor de agregação ORM da UI), `apps/simulacao/forms.py` (`ResultadosForm`), templatetags `variacao` / `item` / `cenario_tem_resultado`.
+- Chart.js 4.x via CDN como padrão de gráfico da suíte AgroVector (ADR 0013), carregado sob demanda.
+
+### Changed
+- `templates/simulacao/_subnav.html` ganha a 8ª aba "Resultados".
+
 ## [1.1.0] - 2026-08-31
 
 Fase 12 — Evolução UX/UI: padrão visual da suíte AgroVector (portado do AppVector), home nova com dashboards e seletor de organização por sessão para o Admin Vector. Nenhuma mudança de regra de negócio ou de model. Ver ADR 0012 e `docs/design-system/README.md`.
