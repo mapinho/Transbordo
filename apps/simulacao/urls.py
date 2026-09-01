@@ -29,6 +29,7 @@ urlpatterns = [
         'cenarios/<int:cenario_id>/assistente/nova/',
         views.assistente_nova, name='assistente_nova',
     ),
+    path('cenarios/<int:cenario_id>/resultados/', views.resultados_tab, name='resultados_tab'),
     path('carga/', views.carga_upload, name='carga'),
     path('carga/template/', views.carga_template, name='carga_template'),
     path('carga/<str:token>/', views.carga_preview, name='carga_preview'),

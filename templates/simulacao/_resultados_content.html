@@ -1,0 +1,44 @@
+{% load simulacao_filters %}
+{% include "simulacao/_subnav.html" %}
+
+{% if not tem_resultado %}
+  <c-card>
+    <p class="text-sm text-base-content/70">Nenhum resultado. Rode uma simulação na aba
+      <a href="{% url 'simulacao:simulacao_tab' cenario_id=cenario.id %}" class="text-accent hover:underline">Simulação</a>.</p>
+  </c-card>
+{% else %}
+<c-card>
+  <form id="form-resultados"
+        hx-get="{% url 'simulacao:resultados_tab' cenario.id %}"
+        hx-target="#resultados-area" hx-swap="innerHTML" hx-push-url="true"
+        hx-trigger="change from:#id_periodo, change from:#id_agrupar, change from:#id_comparar, submit"
+        class="mb-4 flex flex-wrap items-end gap-3">
+    <label class="flex flex-col text-sm">Período
+      <select id="id_periodo" name="periodo" class="select select-bordered select-sm">
+        {% for p in periodos %}<option value="{{ p }}" {% if p == periodo %}selected{% endif %}>{{ p|capfirst }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="flex flex-col text-sm">Agrupar por
+      <select id="id_agrupar" name="agrupar" class="select select-bordered select-sm" {% if periodo == 'total' %}disabled{% endif %}>
+        {% for a in agrupamentos %}<option value="{{ a }}" {% if a == agrupar %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="flex flex-col text-sm">Comparar com
+      <select id="id_comparar" name="comparar" class="select select-bordered select-sm">
+        <option value="">— sem comparação —</option>
+        {% for c in comparaveis %}<option value="{{ c.id }}" {% if comparar == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nome }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="flex flex-col text-sm">Data de {{ form.data_de }}</label>
+    <label class="flex flex-col text-sm">Data até {{ form.data_ate }}</label>
+    <label class="flex flex-col text-sm">Armazéns {{ form.armazem_ids }}</label>
+    <label class="flex flex-col text-sm">Fábricas {{ form.fabrica_ids }}</label>
+    <button type="submit" class="btn btn-outline btn-sm">Aplicar</button>
+    <a href="{% url 'simulacao:resultados_tab' cenario.id %}" class="btn btn-ghost btn-sm">Limpar</a>
+  </form>
+
+  <div id="resultados-area">
+    {% include "simulacao/_resultados_area.html" %}
+  </div>
+</c-card>
+{% endif %}

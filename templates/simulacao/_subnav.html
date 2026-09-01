@@ -1,4 +1,6 @@
+{% load simulacao_filters %}
 {% include "simulacao/_cenario_header.html" %}
+{% cenario_tem_resultado cenario as tem_resultado %}
 <div role="tablist" class="tabs tabs-bordered mb-4">
     <a href="{% url 'simulacao:fabricas_grid' cenario_id=cenario.id %}"
        role="tab"
@@ -30,6 +32,13 @@
        hx-get="{% url 'simulacao:simulacao_tab' cenario_id=cenario.id %}"
        hx-target="#cenario-content" hx-push-url="true"
        class="tab {% if active == 'simulacao' %}tab-active{% endif %}">Simulação</a>
+    <a href="{% url 'simulacao:resultados_tab' cenario_id=cenario.id %}"
+       role="tab"
+       {% if tem_resultado %}
+       hx-get="{% url 'simulacao:resultados_tab' cenario_id=cenario.id %}"
+       hx-target="#cenario-content" hx-push-url="true"
+       {% else %}aria-disabled="true" title="Rode uma simulação"{% endif %}
+       class="tab {% if active == 'resultados' %}tab-active{% endif %}{% if not tem_resultado %} tab-disabled opacity-50 pointer-events-none{% endif %}">Resultados</a>
     <a href="{% url 'simulacao:assistente_tab' cenario_id=cenario.id %}"
        role="tab"
        hx-get="{% url 'simulacao:assistente_tab' cenario_id=cenario.id %}"

@@ -34,6 +34,13 @@ def item(dicionario, chave):
     return ""
 
 
+@register.simple_tag
+def cenario_tem_resultado(cenario):
+    """True se o cenário tem ao menos uma `MovimentacaoDiaria` (escopo do tenant)."""
+    from apps.simulacao.models import MovimentacaoDiaria
+    return MovimentacaoDiaria.objects.filter(cenario_id=cenario.id).exists()
+
+
 @register.filter
 def variacao(valor):
     """Renderiza um delta (`float | None | "novo"`) como span colorido."""

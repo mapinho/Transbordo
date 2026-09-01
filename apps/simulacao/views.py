@@ -20,7 +20,8 @@ from apps.core.permissions import (
     requer_membro_organizacao,
 )
 from apps.core.tenancy import cooperativa_id_do_request
-from apps.simulacao import assistente, engine, services, tasks
+from apps.simulacao import assistente, engine, resultados, services, tasks
+from apps.simulacao.forms import ResultadosForm
 from apps.simulacao.columns import (
     ARMAZEM_COLUMNS,
     FABRICA_COLUMNS,
@@ -35,6 +36,7 @@ from apps.simulacao.models import (
     ConversaIA,
     Fabrica,
     LogExecucao,
+    MovimentacaoDiaria,
     PrevisaoArmazem,
     PrevisaoFabrica,
     Rota,
@@ -544,3 +546,67 @@ def assistente_nova(request, cenario_id):
     ConversaIA.objects.filter(cenario=cenario, usuario=request.user, ativa=True).update(ativa=False)
     return render(request, 'simulacao/_assistente_content.html',
                   _assistente_context(request, cenario))
+
+
+def _resultados_template(request, tem_dados):
+    """Escolhe a parcial a renderizar pelo header HX-Target (django-htmx)."""
+    if not request.htmx:
+        return 'simulacao/resultados.html'
+    alvo = request.htmx.target
+    if not tem_dados:
+        return 'simulacao/_resultados_content.html'
+    if alvo == 'resultados-tabela' or request.GET.get('parcial') == 'tabela':
+        return 'simulacao/_resultados_tabela.html'
+    if alvo == 'resultados-area':
+        return 'simulacao/_resultados_area.html'
+    return 'simulacao/_resultados_content.html'
+
+
+@login_required
+@requer_membro_organizacao
+def resultados_tab(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    tem_resultado = MovimentacaoDiaria.objects.filter(cenario_id=cenario.id).exists()
+
+    if not tem_resultado:
+        ctx = {"cenario": cenario, "active": "resultados", "tem_resultado": False}
+        return render(request, _resultados_template(request, tem_dados=False), ctx)
+
+    coop_id = cooperativa_id_do_request(request)
+    form = ResultadosForm(request.GET or None, cenario=cenario)
+    form.is_valid()
+    filtros = form.filtros_limpos() if form.is_bound else {
+        "data_de": None, "data_ate": None, "armazem_ids": [], "fabrica_ids": []}
+
+    periodo, agrupar = resultados.normalizar_visao(
+        request.GET.get("periodo"), request.GET.get("agrupar"))
+    comparar = request.GET.get("comparar") or ""
+    try:
+        pagina = max(1, int(request.GET.get("page", 1)))
+    except (TypeError, ValueError):
+        pagina = 1
+
+    dados = resultados.agregar(cenario.id, periodo, agrupar, filtros, pagina=pagina)
+    card = resultados.totais_do_recorte(cenario.id, filtros)
+    grafico = resultados.dados_grafico(
+        cenario.id, periodo, agrupar, filtros, int(comparar) if comparar else None)
+    if comparar:
+        dados = resultados.aplicar_comparacao(dados, int(comparar), periodo, agrupar, filtros)
+        comp_tot = resultados.totais_do_recorte(int(comparar), filtros)
+        card["delta"] = {m: resultados._delta(card[m], comp_tot[m])
+                         for m in ("ton", "sacas", "custo")}
+    else:
+        card["delta"] = None
+
+    qs = request.GET.copy()
+    qs.pop("page", None)
+    qs.pop("parcial", None)
+    ctx = {
+        "cenario": cenario, "active": "resultados", "tem_resultado": True,
+        "form": form, "periodo": periodo, "agrupar": agrupar, "comparar": comparar,
+        "dados": dados, "card": card, "grafico": grafico,
+        "comparaveis": resultados.cenarios_comparaveis(cenario.id, coop_id),
+        "periodos": resultados.PERIODOS, "agrupamentos": resultados.AGRUPAMENTOS,
+        "querystring": qs.urlencode(),
+    }
+    return render(request, _resultados_template(request, tem_dados=True), ctx)
