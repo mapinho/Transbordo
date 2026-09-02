@@ -204,6 +204,92 @@ def _totais(linhas, metricas):
     return tot
 
 
+_METRICAS_CARD = ("recebimento", "transbordo", "esmagamento", "vendas",
+                  "saldo", "capacidade", "excedente")
+
+
+def _delta(atual, comparado):
+    """Δ% de `atual` sobre `comparado` (mesma regra da Fase 13):
+    `comparado is None` -> `"novo"`; `comparado == 0` -> `0.0` se `atual == 0`,
+    senão `None`; senão `(atual - comparado) / comparado * 100`."""
+    if comparado is None:
+        return "novo"
+    if comparado == 0:
+        return 0.0 if atual == 0 else None
+    return (atual - comparado) / comparado * 100
+
+
+def _traduzir_filtros(filtros, cenario_id):
+    """Re-resolve `armazem_ids`/`fabrica_ids` (ids de um cenário) para os ids
+    dos armazéns/fábricas de mesmo NOME em `cenario_id` (clones têm ids novos,
+    nomes iguais). Sem unidade de mesmo nome no cenário comparado, a lista fica
+    vazia = "sem filtro" (limitação conhecida — Fase 13 Ruling 8)."""
+    if not filtros.get("armazem_ids") and not filtros.get("fabrica_ids"):
+        return filtros
+    traduzido = dict(filtros)
+    if filtros.get("armazem_ids"):
+        nomes = Armazem.objects.filter(id__in=filtros["armazem_ids"]).values_list("nome", flat=True)
+        traduzido["armazem_ids"] = list(
+            Armazem.objects.filter(cenario_id=cenario_id, nome__in=list(nomes)).values_list("id", flat=True))
+    if filtros.get("fabrica_ids"):
+        nomes = Fabrica.objects.filter(id__in=filtros["fabrica_ids"]).values_list("nome", flat=True)
+        traduzido["fabrica_ids"] = list(
+            Fabrica.objects.filter(cenario_id=cenario_id, nome__in=list(nomes)).values_list("id", flat=True))
+    return traduzido
+
+
+def card_de_pico(cenario_id, filtros):
+    """Card-resumo do recorte na visão "sistema": fluxos (`recebimento`,
+    `transbordo`, `esmagamento`, `vendas`) = Σ de todos os meses; `saldo` e
+    `excedente` = pico (máx mensal); `capacidade` = valor do 1º mês; `saldo_min`
+    = mín mensal; `mes_ruptura` = `_mes_ptbr` do mês do mín se `< 0`, senão
+    `None`. Recorte vazio -> tudo zero, `mes_ruptura` None."""
+    linhas = _agregar_sistema(cenario_id, filtros)
+    card = {m: 0.0 for m in _METRICAS_CARD}
+    card["saldo_min"] = 0.0
+    card["mes_ruptura"] = None
+    if not linhas:
+        return card
+    for linha in linhas:
+        for m in ("recebimento", "transbordo", "esmagamento", "vendas"):
+            card[m] += linha[m]
+    card["saldo"] = max(linha["saldo"] for linha in linhas)
+    card["excedente"] = max(linha["excedente"] for linha in linhas)
+    card["capacidade"] = linhas[0]["capacidade"]
+    pior = min(linhas, key=lambda linha: linha["saldo"])
+    if pior["saldo"] < 0:
+        card["saldo_min"] = pior["saldo"]
+        card["mes_ruptura"] = _mes_ptbr(pior["mes"])
+    return card
+
+
+def card_com_delta(cenario_id, cenario_comparado_id, filtros):
+    """`card_de_pico(cenario_id, filtros)` + `"delta"`: dict `{métrica: Δ%}`
+    contra `cenario_comparado_id` (filtros traduzidos por nome), ou `None` se
+    `cenario_comparado_id is None`."""
+    atual = card_de_pico(cenario_id, filtros)
+    if cenario_comparado_id is None:
+        atual["delta"] = None
+        return atual
+    comp = card_de_pico(cenario_comparado_id, _traduzir_filtros(filtros, cenario_comparado_id))
+    atual["delta"] = {m: _delta(atual[m], comp[m]) for m in _METRICAS_CARD}
+    return atual
+
+
+def cenarios_comparaveis(cenario_id, cooperativa_id):
+    """Cenários da cooperativa com ao menos um `ResumoMensalArmazem` OU
+    `ResumoMensalFabrica`, exceto `cenario_id`, ordenados por `-is_oficial,
+    nome`."""
+    com_estoque = set(
+        ResumoMensalArmazem.objects.filter(cooperativa_id=cooperativa_id)
+        .values_list("cenario_id", flat=True)) | set(
+        ResumoMensalFabrica.objects.filter(cooperativa_id=cooperativa_id)
+        .values_list("cenario_id", flat=True))
+    qs = (Cenario.objects.filter(cooperativa_id=cooperativa_id, id__in=list(com_estoque))
+          .exclude(id=cenario_id).order_by("-is_oficial", "nome"))
+    return [{"id": c.id, "nome": c.nome} for c in qs]
+
+
 def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
     """`{"colunas", "linhas", "totais", "paginacao"}` para uma das três visões.
 
