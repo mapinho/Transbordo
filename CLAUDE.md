@@ -172,7 +172,36 @@ muda — a fase **não cria migrations**. `VERSION` → `1.2.0`.
   padrão de gráfico da suíte AgroVector, carregado sob demanda por CDN.
 - Views `resultados_tab` / `resultados_export` + parciais HTMX com 3 alvos de swap
   (`resultados-area` / `resultados-tabela` / conteúdo completo); templatetags `variacao` / `item` /
-  `cenario_tem_resultado` em `apps/simulacao/templatetags/simulacao_filters.py`.
+  `cenario_tem_simulacao` (renomeado na Fase 14) em `apps/simulacao/templatetags/simulacao_filters.py`.
+
+## Fase 14 — Painel de Movimentação de Estoque (concluída)
+
+A aba "Resultados" (Fase 13) mostra as movimentações; faltava a visão consolidada do balanço mensal de
+estoque do sistema. A Fase 14 adiciona a **aba "Estoque"** por cenário (a 9ª aba, entre "Resultados" e
+"Assistente"), habilitada só depois da 1ª simulação com sucesso, sobre as tabelas de balanço mensal
+(`ResumoMensalArmazem` / `ResumoMensalFabrica`). Ver
+`docs/superpowers/specs/2026-09-02-fase14-painel-estoque-design.md`. Nenhum model muda — a fase **não
+cria migrations** e **não tem ADR novo** (Chart.js já é ADR 0013). `VERSION` → `1.3.0`.
+
+- **`apps/simulacao/estoque.py`** — motor de agregação por ORM da aba (`agregar` / `card_de_pico` /
+  `card_com_delta` / `cenarios_comparaveis` / `aplicar_comparacao` / `dados_grafico` /
+  `normalizar_visao`). Usa `.objects` escopado pelo contextvar, **não** `all_cooperativas`; **duplica
+  de propósito** parte de `services.py` (`get_factories_summary` / `get_warehouses_summary` /
+  `compare_*`), que fica congelado alimentando MCP/Face JSON/Assistente. `apps/simulacao/forms.py` —
+  `EstoqueForm` (`Form` puro: mês `type=month` + multi de armazém / fábrica).
+- **Combo Visão**: Sistema (totais mensais + rodapé `<tfoot>`) / Por armazém / Por fábrica — uma mesma
+  tabela em três recortes. **Card de pico** no topo: "pior momento do sistema" (pico de excedente,
+  saldo mínimo mensal e "ruptura em MM/AAAA" quando o saldo fica negativo).
+- **Comparação** com um 2º cenário: colunas Δ% nas 3 visões + card com Δ.
+- **Filtros** de mês / armazém / fábrica; **exportação** Excel (openpyxl) e CSV do recorte
+  (`EXPORT_MAX=50_000`); **gráfico Chart.js** de linha (Saldo total / Excedente total por mês, série
+  do comparado opcional), carregado sob demanda.
+- **Sinalização**: célula Excedente `text-error` quando `> 0`; célula Saldo `text-error` + ⚠ e linha
+  `bg-error/5` quando `< 0` (ruptura).
+- Views `estoque_tab` / `estoque_export` + parciais HTMX com 3 alvos de swap (`estoque-area` /
+  `estoque-tabela` / conteúdo completo) + helpers `_estoque_params` / `_estoque_template`; 9ª aba
+  "Estoque" em `templates/simulacao/_subnav.html`. Templatetag `cenario_tem_resultado` renomeado para
+  `cenario_tem_simulacao` (serve às abas Resultados e Estoque).
 
 ## Environment
 
@@ -228,8 +257,8 @@ This codebase follows strict TDD (red → green) for all behavior changes: write
 
 ## Roadmap Status
 
-Fases 1–13 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.2.0` no encerramento da Fase 13
-(tag `v1.2.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
+Fases 1–14 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.3.0` no encerramento da Fase 14
+(tag `v1.3.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
 segue em produção à parte, congelado (ADR 0011). Próximas evoluções são do Transbordo (estruturas
 organizacionais; novos parâmetros do motor; predição de recebimento/venda) — confirme o escopo com o
 dono do projeto antes de começar trabalho novo.

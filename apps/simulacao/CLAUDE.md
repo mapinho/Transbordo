@@ -27,8 +27,35 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
   Usa `Model.objects` escopado, **não** `all_cooperativas`; **duplica de propósito** parte de
   `services.py::get_monthly_summary` / `get_daily_movements` — `services.py` é porte 1:1 congelado que
   alimenta MCP/API. Ver ADR 0013 e `docs/superpowers/specs/2026-09-01-fase13-painel-resultados-design.md`.
+- `apps/simulacao/estoque.py` — **Fase 14**: motor de agregação por ORM da aba "Estoque", funções
+  puras sobre `ResumoMensalArmazem` / `ResumoMensalFabrica` (balanço mensal). API:
+  - `agregar(cenario_id, visao, filtros, pagina=1, limite=None)` — núcleo; devolve
+    `{colunas, linhas, totais, paginacao}`. Três visões: `sistema` (merge das duas tabelas por mês,
+    só ela tem `<tfoot>`), `armazem`, `fabrica`. `limite` não-nulo e recorte maior → levanta
+    `RecorteGrandeDemais` **antes** de materializar as linhas (guard do export). Grava `_alerta` por
+    linha ∈ `{None, "excedente", "ruptura"}`.
+  - `card_de_pico(cenario_id, filtros)` — card "pior momento do sistema" (pico de excedente + saldo
+    mínimo mensal + `mes_ruptura` quando negativo); `card_com_delta(cenario_id, cenario_comparado_id,
+    filtros)` — idem + `delta` por métrica.
+  - `aplicar_comparacao(dados, cenario_comparado_id, visao, filtros)` — anota `dados` com `*_delta` por
+    linha + colunas Δ% + `totais_delta`, nas 3 visões.
+  - `dados_grafico(cenario_id, filtros, cenario_comparado_id)` — payload Chart.js (linha Saldo total /
+    Excedente total por mês, série do comparado opcional) ou `None`.
+  - `cenarios_comparaveis(cenario_id, cooperativa_id)` — cenários da coop com balanço mensal.
+  - `normalizar_visao(visao)` — entrada única validada contra `VISOES`.
+    `_traduzir_filtros(filtros, cenario_id)` (privada) re-resolve `armazem_ids`/`fabrica_ids` por nome
+    para o cenário comparado.
+  - Constantes: `VISOES`, `ROTULOS_VISAO` (pares `(valor, rótulo pt-BR)` p/ o `<select>`),
+    `PAGE_SIZE=100`, `EXPORT_MAX=50_000`, `RecorteGrandeDemais`.
+
+  Usa `Model.objects` escopado pelo contextvar, **não** `all_cooperativas`; **duplica de propósito**
+  parte de `services.py::get_factories_summary` / `get_warehouses_summary` / `compare_*` — `services.py`
+  é porte 1:1 congelado que alimenta MCP/Face JSON/Assistente. Sem migrations. Ver
+  `docs/superpowers/specs/2026-09-02-fase14-painel-estoque-design.md`.
 - `apps/simulacao/forms.py` — **Fase 13**: `ResultadosForm` (`forms.Form` puro; datas +
-  `armazem_ids` / `fabrica_ids` do cenário; `filtros_limpos()` devolve o dict de filtros).
+  `armazem_ids` / `fabrica_ids` do cenário; `filtros_limpos()` devolve o dict de filtros). **Fase 14**:
+  `EstoqueForm` (`forms.Form` puro; mês `type=month` — `CharField` + regex `YYYY-MM` — + multi de
+  armazém / fábrica; `filtros_limpos()` devolve `{mes_de, mes_ate, armazem_ids, fabrica_ids}`).
 - `apps/simulacao/views.py` — as views HTMX do domínio. Desde a **Fase 12** (ADR 0012) são gated por
   `@requer_membro_organizacao` (membro **ou** Admin Vector com organização selecionada) em vez de
   `@papel_required(*MEMBROS_COOPERATIVA)`, e os pontos que liam `request.user.cooperativa_id` cru usam
@@ -42,8 +69,14 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
   compartilhado: `form`, `filtros`, `periodo`, `agrupar`, `comparar_id: int | None`) e
   `_resultados_template(request, tem_dados)` (dispatch da parcial pelo header `HX-Target` via
   `request.htmx.target`: `resultados.html` / `_resultados_content` / `_resultados_area` /
-  `_resultados_tabela`). templatetags `variacao` / `item` / `cenario_tem_resultado` em
-  `templatetags/simulacao_filters.py`.
+  `_resultados_tabela`). **Fase 14** acrescentou a aba "Resultados"-irmã "Estoque": views
+  `estoque_tab` / `estoque_export` sobre `estoque.py` + `EstoqueForm`, com os mesmos dois helpers de
+  módulo — `_estoque_params(request, cenario)` (parse: `form`, `filtros`, `visao`,
+  `comparar_id: int | None`) e `_estoque_template(request, tem_dados)` (dispatch 4-vias pelo
+  `HX-Target`: `estoque.html` / `_estoque_content` / `_estoque_area` / `_estoque_tabela`).
+  templatetags `variacao` / `item` / `cenario_tem_simulacao` em `templatetags/simulacao_filters.py`
+  (`cenario_tem_resultado` renomeado na Fase 14 — a checagem "a simulação rodou" serve às abas
+  Resultados **e** Estoque).
 - `apps/simulacao/tasks.py` — task assíncrona Procrastinate `executar_simulacao`, disparada pela aba
   "Simulação" (views `simulacao_tab`/`simulacao_executar`/`simulacao_status` em
   `apps/simulacao/views.py`); envolve `engine.simular_periodo` sem alterar sua lógica. `LogExecucao` é a

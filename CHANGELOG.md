@@ -3,6 +3,18 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga o stack Streamlit legado (ADR 0011).
 
+## [1.3.0] - 2026-09-02
+
+Fase 14 — Painel de Movimentação de Estoque: aba "Estoque" por cenário sobre as tabelas de balanço mensal (`ResumoMensal*`), com a visão agregada do sistema que faltava. Nenhuma mudança de regra de negócio ou de model, sem migrations. Ver a spec 2026-09-02.
+
+### Added
+- Aba "Estoque" por cenário (habilitada após a 1ª simulação): três visões via combo — Sistema (totais mensais + rodapé), Por armazém, Por fábrica; card de pico do cenário ("pior momento do sistema"); comparação com um 2º cenário (colunas Δ% nas 3 visões, card com Δ); filtros de mês (`type=month`) / armazém / fábrica; exportação Excel e CSV; gráfico de linha Saldo total / Excedente total por mês; sinalização visual de excedente (`> 0`) e ruptura (`saldo < 0`).
+- `apps/simulacao/estoque.py` (motor de agregação ORM sobre `ResumoMensal*`), `apps/simulacao/forms.py::EstoqueForm`.
+
+### Changed
+- `templates/simulacao/_subnav.html` ganha a 9ª aba "Estoque".
+- Templatetag `cenario_tem_resultado` renomeado para `cenario_tem_simulacao` (a checagem serve às abas Resultados e Estoque).
+
 ## [1.2.0] - 2026-09-01
 
 Fase 13 — Painel de Resultados: nova aba "Resultados" por cenário (movimentações e sumarizações, comparação entre cenários, exportação e gráfico). Nenhuma mudança de regra de negócio ou de model — a fase não cria migrations. Ver ADR 0013.
