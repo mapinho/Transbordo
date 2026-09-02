@@ -35,8 +35,10 @@ def item(dicionario, chave):
 
 
 @register.simple_tag
-def cenario_tem_resultado(cenario):
-    """True se o cenário tem ao menos uma `MovimentacaoDiaria` (escopo do tenant)."""
+def cenario_tem_simulacao(cenario):
+    """True se o cenário tem ao menos uma `MovimentacaoDiaria` — i.e. rodou uma
+    simulação com sucesso (o engine grava `MovimentacaoDiaria` e `ResumoMensal*`
+    na mesma transação). Gate das abas Resultados e Estoque."""
     from apps.simulacao.models import MovimentacaoDiaria
     return MovimentacaoDiaria.objects.filter(cenario_id=cenario.id).exists()
 
