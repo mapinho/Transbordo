@@ -17,6 +17,7 @@ ROTAS_MEMBRO = [
 ABAS_CENARIO_MEMBRO = [
     "simulacao:rotas_grid", "simulacao:previsoes_grid", "simulacao:safras_grid",
     "simulacao:simulacao_tab", "simulacao:assistente_tab", "simulacao:resultados_tab",
+    "simulacao:estoque_tab",
 ]
 
 

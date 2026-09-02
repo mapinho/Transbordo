@@ -23,8 +23,8 @@ from apps.core.permissions import (
     requer_membro_organizacao,
 )
 from apps.core.tenancy import cooperativa_id_do_request
-from apps.simulacao import assistente, engine, resultados, services, tasks
-from apps.simulacao.forms import ResultadosForm
+from apps.simulacao import assistente, engine, estoque, resultados, services, tasks
+from apps.simulacao.forms import EstoqueForm, ResultadosForm
 from apps.simulacao.columns import (
     ARMAZEM_COLUMNS,
     FABRICA_COLUMNS,
@@ -42,6 +42,8 @@ from apps.simulacao.models import (
     MovimentacaoDiaria,
     PrevisaoArmazem,
     PrevisaoFabrica,
+    ResumoMensalArmazem,
+    ResumoMensalFabrica,
     Rota,
     SafraUnidade,
 )
@@ -675,3 +677,73 @@ def resultados_export(request, cenario_id):
     return FileResponse(
         io.BytesIO(buf.getvalue().encode("utf-8")),
         as_attachment=True, filename=f'{nome}.csv', content_type="text/csv")
+
+
+def _estoque_params(request, cenario):
+    """Parseia os parâmetros compartilhados por estoque_tab e estoque_export.
+    `comparar_id` é int | None (parâmetro não-numérico é descartado)."""
+    form = EstoqueForm(request.GET or None, cenario=cenario)
+    form.is_valid()
+    filtros = form.filtros_limpos() if form.is_bound else {
+        "mes_de": "", "mes_ate": "", "armazem_ids": [], "fabrica_ids": []}
+    visao = estoque.normalizar_visao(request.GET.get("visao"))
+    comparar_raw = request.GET.get("comparar") or ""
+    try:
+        comparar_id = int(comparar_raw) if comparar_raw else None
+    except (TypeError, ValueError):
+        comparar_id = None
+    return form, filtros, visao, comparar_id
+
+
+def _estoque_template(request, tem_dados):
+    """Escolhe a parcial a renderizar pelo header HX-Target (django-htmx)."""
+    if not request.htmx:
+        return 'simulacao/estoque.html'
+    alvo = request.htmx.target
+    if not tem_dados:
+        return 'simulacao/_estoque_content.html'
+    if alvo == 'estoque-tabela' or request.GET.get('parcial') == 'tabela':
+        return 'simulacao/_estoque_tabela.html'
+    if alvo == 'estoque-area':
+        return 'simulacao/_estoque_area.html'
+    return 'simulacao/_estoque_content.html'
+
+
+@login_required
+@requer_membro_organizacao
+def estoque_tab(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    tem_estoque = (
+        ResumoMensalArmazem.objects.filter(cenario_id=cenario.id).exists()
+        or ResumoMensalFabrica.objects.filter(cenario_id=cenario.id).exists())
+
+    if not tem_estoque:
+        ctx = {"cenario": cenario, "active": "estoque", "tem_estoque": False}
+        return render(request, _estoque_template(request, tem_dados=False), ctx)
+
+    coop_id = cooperativa_id_do_request(request)
+    form, filtros, visao, comparar_id = _estoque_params(request, cenario)
+    comparar = str(comparar_id) if comparar_id else ""
+    try:
+        pagina = max(1, int(request.GET.get("page", 1)))
+    except (TypeError, ValueError):
+        pagina = 1
+
+    dados = estoque.agregar(cenario.id, visao, filtros, pagina=pagina)
+    card = estoque.card_com_delta(cenario.id, comparar_id, filtros)
+    grafico = estoque.dados_grafico(cenario.id, filtros, comparar_id)
+    if comparar_id:
+        dados = estoque.aplicar_comparacao(dados, comparar_id, visao, filtros)
+
+    qs = request.GET.copy()
+    qs.pop("page", None)
+    qs.pop("parcial", None)
+    ctx = {
+        "cenario": cenario, "active": "estoque", "tem_estoque": True,
+        "form": form, "visao": visao, "comparar": comparar,
+        "dados": dados, "card": card, "grafico": grafico,
+        "comparaveis": estoque.cenarios_comparaveis(cenario.id, coop_id),
+        "visoes": estoque.ROTULOS_VISAO,
+        "querystring": qs.urlencode(),
+    }
+    return render(request, _estoque_template(request, tem_dados=True), ctx)

@@ -31,6 +31,7 @@ urlpatterns = [
     ),
     path('cenarios/<int:cenario_id>/resultados/', views.resultados_tab, name='resultados_tab'),
     path('cenarios/<int:cenario_id>/resultados/export/', views.resultados_export, name='resultados_export'),
+    path('cenarios/<int:cenario_id>/estoque/', views.estoque_tab, name='estoque_tab'),
     path('carga/', views.carga_upload, name='carga'),
     path('carga/template/', views.carga_template, name='carga_template'),
     path('carga/<str:token>/', views.carga_preview, name='carga_preview'),

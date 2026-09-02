@@ -39,6 +39,13 @@
        hx-target="#cenario-content" hx-push-url="true"
        {% else %}aria-disabled="true" title="Rode uma simulação"{% endif %}
        class="tab {% if active == 'resultados' %}tab-active{% endif %}{% if not tem_simulacao %} tab-disabled opacity-50 pointer-events-none{% endif %}">Resultados</a>
+    <a href="{% url 'simulacao:estoque_tab' cenario_id=cenario.id %}"
+       role="tab"
+       {% if tem_simulacao %}
+       hx-get="{% url 'simulacao:estoque_tab' cenario_id=cenario.id %}"
+       hx-target="#cenario-content" hx-push-url="true"
+       {% else %}aria-disabled="true" title="Rode uma simulação"{% endif %}
+       class="tab {% if active == 'estoque' %}tab-active{% endif %}{% if not tem_simulacao %} tab-disabled opacity-50 pointer-events-none{% endif %}">Estoque</a>
     <a href="{% url 'simulacao:assistente_tab' cenario_id=cenario.id %}"
        role="tab"
        hx-get="{% url 'simulacao:assistente_tab' cenario_id=cenario.id %}"

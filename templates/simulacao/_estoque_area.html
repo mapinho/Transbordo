@@ -1,0 +1,27 @@
+{% load simulacao_filters %}
+<c-resumo-numerico class="mb-4">
+  <div class="stat"><div class="stat-title">Recebimento</div>
+    <div class="stat-value text-base-content">{{ card.recebimento|volume }}</div>
+    {% if card.delta %}<div class="stat-desc">{{ card.delta.recebimento|variacao }}</div>{% endif %}</div>
+  <div class="stat"><div class="stat-title">Transbordo</div>
+    <div class="stat-value text-base-content">{{ card.transbordo|volume }}</div>
+    {% if card.delta %}<div class="stat-desc">{{ card.delta.transbordo|variacao }}</div>{% endif %}</div>
+  <div class="stat"><div class="stat-title">Saldo (pico)</div>
+    <div class="stat-value {% if card.mes_ruptura %}text-error{% else %}text-base-content{% endif %}">
+      {% if card.mes_ruptura %}{{ card.saldo_min|volume }}{% else %}{{ card.saldo|volume }}{% endif %}</div>
+    {% if card.mes_ruptura %}<div class="stat-desc text-error">ruptura em {{ card.mes_ruptura }}</div>
+    {% elif card.delta %}<div class="stat-desc">{{ card.delta.saldo|variacao }}</div>{% endif %}</div>
+  <div class="stat"><div class="stat-title">Cap. Estática</div>
+    <div class="stat-value text-base-content">{{ card.capacidade|volume }}</div></div>
+  <div class="stat"><div class="stat-title">Excedente (pico)</div>
+    <div class="stat-value {% if card.excedente %}text-error{% else %}text-base-content{% endif %}">{{ card.excedente|volume }}</div>
+    {% if card.delta %}<div class="stat-desc">{{ card.delta.excedente|variacao }}</div>{% endif %}</div>
+</c-resumo-numerico>
+
+<div class="mb-3 flex gap-2">
+  {# botões de exportação: Task 7 #}
+</div>
+
+{% if grafico %}<div id="estoque-grafico" class="mb-4">{% include "simulacao/_estoque_grafico.html" %}</div>{% endif %}
+
+<div id="estoque-tabela">{% include "simulacao/_estoque_tabela.html" %}</div>

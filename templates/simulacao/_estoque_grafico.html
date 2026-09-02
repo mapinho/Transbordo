@@ -1,0 +1,31 @@
+{{ grafico|json_script:"grafico-estoque-dados" }}
+<canvas id="grafico-estoque" height="90"></canvas>
+<script>
+(function () {
+  var VER = "4.4.7";
+  function render() {
+    var el = document.getElementById("grafico-estoque");
+    var raw = document.getElementById("grafico-estoque-dados");
+    if (!el || !raw || !window.Chart) return;
+    var g = JSON.parse(raw.textContent);
+    if (window._estoqueChart) window._estoqueChart.destroy();
+    window._estoqueChart = new Chart(el, {
+      type: g.tipo,
+      data: {
+        labels: g.labels,
+        datasets: g.datasets.map(function (d) {
+          return {label: d.label, data: d.dados, yAxisID: d.eixo};
+        }),
+      },
+      options: {responsive: true, scales: {
+        y: {position: "left", title: {display: true, text: "Toneladas"}},
+      }},
+    });
+  }
+  if (window.Chart) { render(); return; }
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/chart.js@" + VER + "/dist/chart.umd.min.js";
+  s.onload = render;
+  document.head.appendChild(s);
+})();
+</script>

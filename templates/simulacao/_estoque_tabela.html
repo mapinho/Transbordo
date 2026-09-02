@@ -1,0 +1,45 @@
+{% load simulacao_filters %}
+<div class="overflow-x-auto">
+  <table class="table table-sm">
+    <thead><tr>{% for col in dados.colunas %}<th>{{ col.label }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for linha in dados.linhas %}
+        {% with alerta=linha|item:'_alerta' %}
+        <tr class="hover:bg-base-200{% if alerta %} bg-error/5{% endif %}">
+          {% for col in dados.colunas %}
+            <td>
+              {% if col.tipo == 'mes' %}{% if alerta == 'ruptura' and forloop.first %}⚠ {% endif %}{{ linha.mes|slice:'5:7' }}/{{ linha.mes|slice:':4' }}
+              {% elif col.tipo == 'texto' %}{{ linha|item:col.key }}
+              {% elif col.tipo == 'delta' %}{{ linha|item:col.key|variacao }}
+              {% elif col.tipo == 'num' %}<span class="{% if col.key == 'excedente' and linha.excedente > 0 %}text-error font-semibold{% elif col.key == 'saldo' and linha.saldo < 0 %}text-error font-semibold{% endif %}">{{ linha|item:col.key|volume }}</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="{{ dados.colunas|length }}" class="py-3 text-sm text-base-content/50">Nenhuma movimentação de estoque no recorte.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if visao == 'sistema' and dados.linhas %}
+      <tfoot><tr class="font-semibold">
+        {% for col in dados.colunas %}
+          <td>{% if col.tipo == 'num' %}{{ dados.totais|item:col.key|volume }}{% elif forloop.first %}Total{% endif %}</td>
+        {% endfor %}
+      </tr></tfoot>
+    {% endif %}
+  </table>
+</div>
+{% if dados.paginacao %}
+  <nav class="mt-3 flex items-center justify-between text-sm text-base-content/70">
+    <span>Página {{ dados.paginacao.pagina }} de {{ dados.paginacao.num_paginas }} · {{ dados.paginacao.total }} linhas</span>
+    <span class="join">
+      {% if dados.paginacao.pagina > 1 %}<a class="join-item btn btn-sm btn-outline"
+        hx-get="{% url 'simulacao:estoque_tab' cenario.id %}?{{ querystring }}&parcial=tabela&page={{ dados.paginacao.pagina|add:'-1' }}"
+        hx-target="#estoque-tabela">←</a>{% endif %}
+      {% if dados.paginacao.pagina < dados.paginacao.num_paginas %}<a class="join-item btn btn-sm btn-outline"
+        hx-get="{% url 'simulacao:estoque_tab' cenario.id %}?{{ querystring }}&parcial=tabela&page={{ dados.paginacao.pagina|add:'1' }}"
+        hx-target="#estoque-tabela">→</a>{% endif %}
+    </span>
+  </nav>
+{% endif %}
