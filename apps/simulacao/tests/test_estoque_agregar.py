@@ -80,6 +80,26 @@ class AgregarTests(TestCase):
         self.assertEqual(d["totais"]["excedente"], 50.0)      # pico = fev
         self.assertEqual(d["totais"]["capacidade"], 600.0)
 
+    def test_totais_saldo_pico_recorte_todo_negativo(self):
+        # recorte onde toda Σ mensal de saldo é negativa: o `<tfoot>` deve mostrar
+        # o mês menos negativo (o max), igual ao que `card_de_pico` reporta —
+        # nunca 0.0 (que era o seed antigo do pico).
+        cen = Cenario.objects.create(cooperativa=self.coop, nome="Neg")
+        arm = Armazem.objects.create(
+            cooperativa=self.coop, cenario=cen, nome="AN",
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0)
+        for mes, saldo in (("2026-01", -50), ("2026-02", -30)):
+            ResumoMensalArmazem.objects.create(
+                cooperativa=self.coop, cenario=cen, armazem=arm, mes=mes,
+                rec_produtor=0, envio_transbordo=0, vendas=0, saldo_estoque=saldo,
+                capacidade_estatica=100, excedente=0)
+        d = estoque.agregar(cen.id, "sistema", VAZIO)
+        self.assertEqual(d["totais"]["saldo"], -30.0)
+        self.assertEqual(d["totais"]["saldo"], estoque.card_de_pico(cen.id, VAZIO)["saldo"])
+        # mesma regra na visão por unidade (`_totais_unidade`)
+        da = estoque.agregar(cen.id, "armazem", VAZIO)
+        self.assertEqual(da["totais"]["saldo"], -30.0)
+
     def test_sistema_alerta_ruptura_tem_prioridade(self):
         d = estoque.agregar(self.cen.id, "sistema", VAZIO)
         fev = d["linhas"][1]

@@ -4,7 +4,7 @@ não `all_cooperativas` (diferente de `services.py` — ver ADR 0006 e a spec
 2026-09-02)."""
 from django.db.models import Sum
 
-from apps.simulacao.models import (  # noqa: F401  (Armazem/Cenario/Fabrica usados nas tasks seguintes)
+from apps.simulacao.models import (
     Armazem,
     Cenario,
     Fabrica,
@@ -177,28 +177,27 @@ def _totais_unidade(cenario_id, fonte, filtros, extras):
         base.values("mes").annotate(
             sl=Sum("saldo_estoque"), ex=Sum("excedente"), cp=Sum("capacidade_estatica")),
         key=lambda r: r["mes"])
-    saldo_pico = excedente_pico = 0.0
-    for r in por_mes:
-        saldo_pico = max(saldo_pico, r["sl"] or 0.0)
-        excedente_pico = max(excedente_pico, r["ex"] or 0.0)
-    tot["saldo"] = saldo_pico
-    tot["excedente"] = excedente_pico
+    # pico = max da Σ mensal, semeado pelas próprias linhas (0.0 só quando não há
+    # nenhuma) — um recorte todo-negativo devolve o mês menos negativo, não 0.0.
+    tot["saldo"] = max((r["sl"] or 0.0 for r in por_mes), default=0.0)
+    tot["excedente"] = max((r["ex"] or 0.0 for r in por_mes), default=0.0)
     tot["capacidade"] = (por_mes[0]["cp"] or 0.0) if por_mes else 0.0
     return tot
 
 
 def _totais(linhas, metricas):
-    """Fluxos = Σ; `saldo`/`excedente` = pico (max); `capacidade` = valor do
-    1º mês (constante no sistema — ver Ruling T2-a)."""
+    """Fluxos = Σ; `saldo`/`excedente` = pico (max das linhas, `0.0` só quando
+    não há linhas — um recorte todo-negativo devolve o mês menos negativo, igual
+    ao `card_de_pico`); `capacidade` = valor do 1º mês (constante no sistema —
+    ver Ruling T2-a)."""
     tot = {m: 0.0 for m in metricas}
-    for linha in linhas:
-        for m in metricas:
-            if m in ("saldo", "excedente"):
-                tot[m] = max(tot[m], linha.get(m, 0.0))
-            elif m == "capacidade":
-                continue
-            else:
-                tot[m] += linha.get(m, 0.0)
+    for m in metricas:
+        if m in ("saldo", "excedente"):
+            tot[m] = max((linha.get(m, 0.0) for linha in linhas), default=0.0)
+        elif m == "capacidade":
+            continue
+        else:
+            tot[m] = sum(linha.get(m, 0.0) for linha in linhas)
     if linhas and "capacidade" in tot:
         tot["capacidade"] = linhas[0].get("capacidade", 0.0)
     return tot

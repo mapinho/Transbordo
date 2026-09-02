@@ -68,6 +68,30 @@ class EstoqueViewTests(TestCase):
         r = self.client.get(self.url, HTTP_HX_REQUEST="true")
         self.assertNotContains(r, "<html")
 
+    def test_hx_target_tabela_renderiza_so_a_tabela(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="estoque-tabela")
+        self.assertContains(r, "<table")
+        self.assertNotContains(r, "form-estoque")
+        self.assertNotContains(r, "stat-title")
+
+    def test_hx_target_area_renderiza_so_a_area(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="estoque-area")
+        self.assertContains(r, "stat-title")
+        self.assertContains(r, "Recebimento")
+        self.assertNotContains(r, "form-estoque")
+
+    def test_parcial_tabela_por_querystring(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"parcial": "tabela", "page": 2},
+                            HTTP_HX_REQUEST="true")
+        self.assertContains(r, "<table")
+        self.assertNotContains(r, "form-estoque")
+
     def test_troca_para_armazem_muda_colunas(self):
         self._povoar()
         self.client.force_login(self.user)

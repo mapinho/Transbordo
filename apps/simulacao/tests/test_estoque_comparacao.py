@@ -3,7 +3,7 @@ from django.test import TestCase
 from apps.core.models import Cooperativa
 from apps.core.tenancy import definir_cooperativa_atual, resetar_cooperativa_atual
 from apps.simulacao import estoque
-from apps.simulacao.models import Armazem, Cenario, Fabrica, ResumoMensalArmazem
+from apps.simulacao.models import Armazem, Cenario, ResumoMensalArmazem
 
 VAZIO = {"mes_de": "", "mes_ate": "", "armazem_ids": [], "fabrica_ids": []}
 
@@ -57,3 +57,16 @@ class ComparacaoTests(TestCase):
         d = estoque.agregar(self.atual.id, "sistema", VAZIO)
         d = estoque.aplicar_comparacao(d, self.comp.id, "sistema", VAZIO)
         self.assertIn("saldo", d["totais_delta"])
+
+    def test_traduzir_filtros_entre_clones(self):
+        # filtro de unidade pelo id do ARM do cenário atual; o comparado tem um
+        # ARM de mesmo nome com id novo. `_traduzir_filtros` re-resolve por nome,
+        # então a linha casa e o Δ sai numérico (não "novo", não None).
+        arm_atual = Armazem.objects.get(cenario=self.atual, nome="ARM")
+        filtros = {**VAZIO, "armazem_ids": [arm_atual.id]}
+        d = estoque.agregar(self.atual.id, "armazem", filtros)
+        d = estoque.aplicar_comparacao(d, self.comp.id, "armazem", filtros)
+        delta = d["linhas"][0]["saldo_delta"]
+        self.assertIsInstance(delta, float)
+        self.assertNotEqual(delta, "novo")
+        self.assertAlmostEqual(delta, (200 - 160) / 160 * 100, places=6)
