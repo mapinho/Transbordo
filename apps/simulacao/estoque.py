@@ -333,3 +333,59 @@ def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
     totais = _totais_unidade(cenario_id, cfg["fonte"], filtros, extras)
     return {"colunas": cfg["colunas"], "linhas": linhas,
             "totais": totais, "paginacao": paginacao}
+
+
+def aplicar_comparacao(dados, cenario_comparado_id, visao, filtros):
+    """Anota `dados` (retorno de `agregar` do cenário atual) com Δ% contra
+    `cenario_comparado_id`: `*_delta` por linha, colunas Δ%, `totais_delta`.
+    Vale para as 3 visões (sem exclusão de "linha crua" — diferente da Fase 13).
+    NÃO muta `VISOES[visao]["colunas"]`: monta uma lista nova e reatribui
+    `dados["colunas"]`."""
+    visao = normalizar_visao(visao)
+    comparaveis = [c["key"] for c in dados["colunas"] if c.get("comparavel")]
+
+    comp = agregar(cenario_comparado_id, visao,
+                   _traduzir_filtros(filtros, cenario_comparado_id), pagina=None)
+    por_chave = {linha_c["_chave"]: linha_c for linha_c in comp["linhas"]}
+
+    for linha in dados["linhas"]:
+        alvo = por_chave.get(linha["_chave"])
+        for m in comparaveis:
+            linha[f"{m}_delta"] = _delta(linha[m], alvo[m] if alvo else None)
+
+    novas_colunas = []
+    for col in dados["colunas"]:
+        novas_colunas.append(col)
+        if col.get("comparavel"):
+            novas_colunas.append(
+                {"key": f'{col["key"]}_delta', "label": "Δ%", "tipo": "delta"})
+    dados["colunas"] = novas_colunas
+
+    dados["totais_delta"] = {
+        m: _delta(dados["totais"][m], comp["totais"][m]) for m in comparaveis}
+    return dados
+
+
+def dados_grafico(cenario_id, filtros, cenario_comparado_id):
+    """SEMPRE um gráfico de linha dos totais da visão "Sistema" ("Saldo total"
+    + "Excedente total" por mês), independente da visão corrente. Com
+    `cenario_comparado_id`, acrescenta os dois datasets "(comparado)" alinhados
+    pelos meses do cenário atual (mês ausente no comparado -> 0.0)."""
+    linhas = _agregar_sistema(cenario_id, filtros)
+    labels = [_mes_ptbr(linha["mes"]) for linha in linhas]
+    datasets = [
+        {"label": "Saldo total", "dados": [linha["saldo"] for linha in linhas], "eixo": "y"},
+        {"label": "Excedente total", "dados": [linha["excedente"] for linha in linhas], "eixo": "y"},
+    ]
+    if cenario_comparado_id:
+        comp = _agregar_sistema(
+            cenario_comparado_id, _traduzir_filtros(filtros, cenario_comparado_id))
+        m_saldo = {_mes_ptbr(linha["mes"]): linha["saldo"] for linha in comp}
+        m_exc = {_mes_ptbr(linha["mes"]): linha["excedente"] for linha in comp}
+        datasets += [
+            {"label": "Saldo total (comparado)",
+             "dados": [m_saldo.get(x, 0.0) for x in labels], "eixo": "y"},
+            {"label": "Excedente total (comparado)",
+             "dados": [m_exc.get(x, 0.0) for x in labels], "eixo": "y"},
+        ]
+    return {"tipo": "line", "labels": labels, "datasets": datasets}
