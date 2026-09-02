@@ -19,7 +19,8 @@
 </c-resumo-numerico>
 
 <div class="mb-3 flex gap-2">
-  {# botões de exportação: Task 7 #}
+  <a href="{% url 'simulacao:estoque_export' cenario.id %}?{{ querystring }}&formato=xlsx" class="btn btn-outline btn-sm">Exportar (Excel)</a>
+  <a href="{% url 'simulacao:estoque_export' cenario.id %}?{{ querystring }}&formato=csv" class="btn btn-outline btn-sm">CSV</a>
 </div>
 
 {% if grafico %}<div id="estoque-grafico" class="mb-4">{% include "simulacao/_estoque_grafico.html" %}</div>{% endif %}

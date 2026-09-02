@@ -747,3 +747,56 @@ def estoque_tab(request, cenario_id):
         "querystring": qs.urlencode(),
     }
     return render(request, _estoque_template(request, tem_dados=True), ctx)
+
+
+@login_required
+@requer_membro_organizacao
+def estoque_export(request, cenario_id):
+    cenario = get_object_or_404(Cenario, id=cenario_id)
+    formato = request.GET.get("formato", "xlsx")
+    if formato not in ("xlsx", "csv"):
+        return HttpResponseBadRequest("Formato inválido.")
+
+    _form, filtros, visao, comparar_id = _estoque_params(request, cenario)
+
+    try:
+        dados = estoque.agregar(cenario.id, visao, filtros,
+                                pagina=None, limite=estoque.EXPORT_MAX)
+    except estoque.RecorteGrandeDemais:
+        return HttpResponseBadRequest("Refine os filtros para exportar.")
+    if comparar_id:
+        dados = estoque.aplicar_comparacao(dados, comparar_id, visao, filtros)
+
+    colunas = dados["colunas"]
+
+    def valor(linha, col):
+        return linha.get(col["key"])
+
+    nome = f'estoque-{cenario.id}-{visao}-{timezone.now():%Y%m%d}'
+    if formato == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.append([c["label"] for c in colunas])
+        for linha in dados["linhas"]:
+            ws.append([valor(linha, c) for c in colunas])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return FileResponse(
+            buf, as_attachment=True, filename=f'{nome}.xlsx', content_type=XLSX)
+
+    buf = io.StringIO()
+    buf.write("\ufeff")  # BOM UTF-8 (U+FEFF) para o Excel pt-BR abrir o CSV sem corromper acentos
+    w = csv.writer(buf, delimiter=";")
+    w.writerow([c["label"] for c in colunas])
+    for linha in dados["linhas"]:
+        row = []
+        for c in colunas:
+            v = valor(linha, c)
+            if isinstance(v, float):
+                v = f"{v:.2f}".replace(".", ",")
+            row.append(v)
+        w.writerow(row)
+    return FileResponse(
+        io.BytesIO(buf.getvalue().encode("utf-8")),
+        as_attachment=True, filename=f'{nome}.csv', content_type="text/csv")
