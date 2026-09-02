@@ -149,14 +149,42 @@ def _agregar_sistema(cenario_id, filtros):
     return linhas
 
 
+_FONTE_UNIDADE = {
+    "armazem": (ResumoMensalArmazem, "armazem__nome", ("envio_transbordo", "vendas")),
+    "fabrica": (ResumoMensalFabrica, "fabrica__nome", ("rec_transbordo", "esmagado")),
+}
+
+
 def _linhas_por_unidade(cenario_id, fonte, filtros):
-    if fonte == "armazem":
-        modelo, campo, extras = ResumoMensalArmazem, "armazem__nome", ("envio_transbordo", "vendas")
-    else:
-        modelo, campo, extras = ResumoMensalFabrica, "fabrica__nome", ("rec_transbordo", "esmagado")
+    modelo, campo, extras = _FONTE_UNIDADE[fonte]
     campos = ["mes", campo, "rec_produtor", *extras, "saldo_estoque", "capacidade_estatica", "excedente"]
     qs = _queryset_unidade(modelo, cenario_id, fonte, filtros).values(*campos).order_by("mes", campo)
     return qs, campo, extras
+
+
+def _totais_unidade(cenario_id, fonte, filtros, extras):
+    """Totais do recorte INTEIRO (independem de paginação — ver `resultados.py`,
+    que também agrega antes de fatiar): fluxos (`rec_produtor` + `extras`) = Σ;
+    `saldo`/`excedente` = pico (max da Σ mensal); `capacidade` = Σ do 1º mês
+    (Ruling T2-a)."""
+    base = _queryset_unidade(_FONTE_UNIDADE[fonte][0], cenario_id, fonte, filtros)
+    somas = {"rec_produtor": Sum("rec_produtor")}
+    for e in extras:
+        somas[e] = Sum(e)
+    agg = base.aggregate(**somas)
+    tot = {k: (agg[k] or 0.0) for k in somas}
+    por_mes = sorted(
+        base.values("mes").annotate(
+            sl=Sum("saldo_estoque"), ex=Sum("excedente"), cp=Sum("capacidade_estatica")),
+        key=lambda r: r["mes"])
+    saldo_pico = excedente_pico = 0.0
+    for r in por_mes:
+        saldo_pico = max(saldo_pico, r["sl"] or 0.0)
+        excedente_pico = max(excedente_pico, r["ex"] or 0.0)
+    tot["saldo"] = saldo_pico
+    tot["excedente"] = excedente_pico
+    tot["capacidade"] = (por_mes[0]["cp"] or 0.0) if por_mes else 0.0
+    return tot
 
 
 def _totais(linhas, metricas):
@@ -204,7 +232,6 @@ def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
         qs = qs[ini:ini + PAGE_SIZE]
         paginacao = {"pagina": pagina, "num_paginas": num_paginas, "total": total}
 
-    metricas = ("rec_produtor", *extras, "saldo", "capacidade", "excedente")
     linhas = []
     for row in qs:
         linha = {"mes": row["mes"], "unidade": row[campo],
@@ -217,5 +244,6 @@ def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
         linha["_chave"] = (row["mes"], row[campo])
         linha["_alerta"] = _alerta_da_linha(linha)
         linhas.append(linha)
+    totais = _totais_unidade(cenario_id, cfg["fonte"], filtros, extras)
     return {"colunas": cfg["colunas"], "linhas": linhas,
-            "totais": _totais(linhas, metricas), "paginacao": paginacao}
+            "totais": totais, "paginacao": paginacao}

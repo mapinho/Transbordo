@@ -131,6 +131,29 @@ class AgregarTests(TestCase):
         d2 = estoque.agregar(self.cen.id, "armazem", VAZIO, pagina=2)
         self.assertEqual(len(d2["linhas"]), d1["paginacao"]["total"] - 100)
 
+    def test_totais_do_recorte_inteiro_nao_da_pagina(self):
+        # 110 meses extras p/ ARM1 -> 2 páginas. O último mês (ordena por último,
+        # fora da página 1) carrega o pico de saldo/excedente e um fluxo grande.
+        meses = [f"20{40 + i // 12:02d}-{i % 12 + 1:02d}" for i in range(110)]
+        for m in meses[:-1]:
+            self._ra(self.a1, m, rec_produtor=1, envio_transbordo=0, vendas=0,
+                     saldo=1, cap=1, excedente=0)
+        self._ra(self.a1, meses[-1], rec_produtor=1000, envio_transbordo=0, vendas=0,
+                 saldo=9999, cap=1, excedente=8888)
+        d1 = estoque.agregar(self.cen.id, "armazem", VAZIO, pagina=1)
+        self.assertEqual(len(d1["linhas"]), 100)
+        self.assertEqual(d1["paginacao"]["num_paginas"], 2)
+        # fluxo = Σ do recorte INTEIRO: setUp (100 + 60 + 300) + 109*1 + 1000
+        self.assertEqual(d1["totais"]["rec_produtor"], 460.0 + 109.0 + 1000.0)
+        # pico de saldo/excedente num mês fora da página 1
+        self.assertEqual(d1["totais"]["saldo"], 9999.0)
+        self.assertEqual(d1["totais"]["excedente"], 8888.0)
+        # capacidade = Σ do 1º mês do recorte (2026-01: 200 + 100)
+        self.assertEqual(d1["totais"]["capacidade"], 300.0)
+        # página 2 devolve os mesmos totais (independem da paginação)
+        d2 = estoque.agregar(self.cen.id, "armazem", VAZIO, pagina=2)
+        self.assertEqual(d2["totais"], d1["totais"])
+
     def test_limite_excedido_levanta(self):
         with self.assertRaises(estoque.RecorteGrandeDemais):
             estoque.agregar(self.cen.id, "armazem", VAZIO, pagina=None, limite=2)
