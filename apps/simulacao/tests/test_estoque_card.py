@@ -56,6 +56,13 @@ class CardTests(TestCase):
         self.assertEqual(c["capacidade"], 500.0)
         self.assertIsNone(c["mes_ruptura"])
 
+    def test_card_saldo_min_recorte_saudavel(self):
+        # Ruling T3-b: saldo_min é o mín mensal INCONDICIONAL; o clause `< 0`
+        # governa só mes_ruptura. Jan saldo 60, fev 250 -> mín = 60.
+        c = estoque.card_de_pico(self.cen.id, VAZIO)
+        self.assertEqual(c["saldo_min"], 60.0)
+        self.assertIsNone(c["mes_ruptura"])
+
     def test_card_ruptura(self):
         ResumoMensalFabrica.objects.create(
             cooperativa=self.coop, cenario=self.cen,

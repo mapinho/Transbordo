@@ -257,8 +257,8 @@ def card_de_pico(cenario_id, filtros):
     card["excedente"] = max(linha["excedente"] for linha in linhas)
     card["capacidade"] = linhas[0]["capacidade"]
     pior = min(linhas, key=lambda linha: linha["saldo"])
+    card["saldo_min"] = pior["saldo"]
     if pior["saldo"] < 0:
-        card["saldo_min"] = pior["saldo"]
         card["mes_ruptura"] = _mes_ptbr(pior["mes"])
     return card
 
