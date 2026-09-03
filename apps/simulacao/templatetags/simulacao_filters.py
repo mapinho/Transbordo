@@ -45,16 +45,17 @@ def cenario_tem_simulacao(cenario):
 
 @register.filter
 def variacao(valor):
-    """Renderiza um delta (`float | None | "novo"`) como span colorido."""
+    """Renderiza um delta (`float | None | "novo"`) como span colorido. Um Δ que
+    arredonda para `0,0%` (`abs(valor) < 0.05`) é neutro — sem seta e sem cor."""
     if valor == "novo":
         return mark_safe('<span class="badge badge-ghost badge-sm">novo</span>')
     if valor is None:
         return mark_safe('<span class="text-base-content/50">—</span>')
     if valor == "" or not isinstance(valor, (int, float)):
         return ""
+    if abs(valor) < 0.05:
+        return mark_safe('<span class="text-base-content/50">0,0%</span>')
     pct = _formatar_pt_br(abs(valor), 1)
     if valor > 0:
         return mark_safe(f'<span class="text-error">↑&nbsp;+{pct}%</span>')
-    if valor < 0:
-        return mark_safe(f'<span class="text-success">↓&nbsp;−{pct}%</span>')
-    return mark_safe('<span class="text-base-content/50">0,0%</span>')
+    return mark_safe(f'<span class="text-success">↓&nbsp;−{pct}%</span>')
