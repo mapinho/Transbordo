@@ -116,6 +116,14 @@ class EstoqueViewTests(TestCase):
         self.assertContains(r, "sistema — saldo")
         self.assertNotContains(r, ">Mês<")   # coluna Mês saiu
 
+    def test_ruptura_mostra_simbolo_na_1a_coluna_visao_sistema(self):
+        # SPEC §5: `⚠` no início da 1ª coluna em QUALQUER visão quando ruptura.
+        # A visão Sistema tem `mes` como 1ª coluna (sem coluna de texto).
+        self._povoar(saldo=-100)   # armazém -100 + fábrica 10 = sistema -90 < 0
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"visao": "sistema"}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "⚠")
+
     def test_sinalizacao_excedente(self):
         self._povoar(excedente=40)
         self.client.force_login(self.user)

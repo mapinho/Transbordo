@@ -17,7 +17,7 @@
         <tr class="hover:bg-base-200{% if alerta == 'ruptura' %} bg-error/20 border-l-4 border-error{% elif alerta %} bg-error/10 border-l-4 border-error{% endif %}">
           {% for col in dados.colunas %}
             <td class="{% if visao != 'sistema' and forloop.first %}sticky left-0 z-10 {% if alerta == 'ruptura' %}bg-error/20{% elif alerta %}bg-error/10{% else %}bg-base-100{% endif %}{% endif %}">
-              {% if col.tipo == 'mes' %}{{ linha.mes|slice:'5:7' }}/{{ linha.mes|slice:':4' }}
+              {% if col.tipo == 'mes' %}{% if alerta == 'ruptura' and forloop.first %}⚠ {% endif %}{{ linha.mes|slice:'5:7' }}/{{ linha.mes|slice:':4' }}
               {% elif col.tipo == 'texto' %}{% if alerta == 'ruptura' and forloop.first %}⚠ {% endif %}{{ linha|item:col.key }}
               {% elif col.tipo == 'num' %}<span class="{% if col.key == 'excedente' and linha.excedente > 0 %}text-error font-semibold{% elif col.key == 'saldo' and linha.saldo < 0 %}text-error font-semibold{% endif %}">{{ linha|item:col.key|volume }}</span>{% if dados.totais_delta %}{% with dk=col.key|add:'_delta' %}<span class="block text-xs leading-tight">{{ linha|item:dk|variacao }}</span>{% endwith %}{% endif %}
               {% endif %}

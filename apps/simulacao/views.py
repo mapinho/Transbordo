@@ -805,10 +805,11 @@ def estoque_export(request, cenario_id):
         dados = estoque.aplicar_comparacao(dados, comparar_id, visao, filtros)
 
     # A visão por unidade não tem mais a coluna "Mês" na tela (é faixa/banda);
-    # no arquivo plano ela volta como 1ª coluna para desambiguar as linhas.
+    # no arquivo plano ela volta como 1ª coluna para desambiguar as linhas
+    # (mesma def. de `estoque._COL_MES`, só de leitura aqui).
     colunas = dados["colunas"]
     if visao != "sistema":
-        colunas = [{"key": "mes", "label": "Mês", "tipo": "mes"}, *colunas]
+        colunas = [estoque._COL_MES, *colunas]
     com_delta = bool(dados.get("totais_delta"))
 
     def cabecalho():
