@@ -138,12 +138,36 @@ class EstoqueViewTests(TestCase):
         self.assertContains(r, "Pico do sistema")
         self.assertContains(r, "Esmagamento")   # agora no card
         self.assertContains(r, "bg-accent")     # a barra de ocupação
+        # A largura da barra vai no atributo `style` — precisa sair NÃO-localizada
+        # (ponto decimal), senão o pt-BR gera `width: 12,0%` (CSS inválido, some).
+        self.assertContains(r, "width: 12.0%")
+        self.assertNotContains(r, "width: 12,0%")
+
+    def test_badge_de_filtros_oob_no_swap_da_area(self):
+        # SPEC §4 / achado: o <summary> não é re-renderizado no swap da área;
+        # a área emite um fragmento OOB que atualiza o contador.
+        arm, _ = self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"armazem_ids": [arm.id]},
+                            HTTP_HX_REQUEST="true", HTTP_HX_TARGET="estoque-area")
+        self.assertContains(r, 'id="estoque-filtros-badge"')
+        self.assertContains(r, 'hx-swap-oob="true"')
+        self.assertContains(r, '<span class="badge badge-sm badge-neutral">1</span>')
+
+    def test_badge_conta_filtros_avancados_ativos(self):
+        arm, _ = self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"mes_de": "2026-01", "armazem_ids": [arm.id]},
+                            HTTP_HX_REQUEST="true")
+        self.assertContains(r, '<span class="badge badge-sm badge-neutral">2</span>')
 
     def test_grafico_escondido_no_mobile(self):
         self._povoar()
         self.client.force_login(self.user)
         r = self.client.get(self.url, HTTP_HX_REQUEST="true")
         self.assertContains(r, "hidden sm:block")
+        # defaults do Chart.js tematizados (cobre o eixo x / gridlines verticais)
+        self.assertContains(r, "Chart.defaults.color")
 
     def test_legenda_de_unidade(self):
         self._povoar()

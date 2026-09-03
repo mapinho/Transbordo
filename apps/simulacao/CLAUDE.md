@@ -30,7 +30,7 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
 - `apps/simulacao/estoque.py` — **Fase 14**: motor de agregação por ORM da aba "Estoque", funções
   puras sobre `ResumoMensalArmazem` / `ResumoMensalFabrica` (balanço mensal). API:
   - `agregar(cenario_id, visao, filtros, pagina=1, limite=None)` — núcleo; devolve
-    `{colunas, linhas, totais, paginacao}`. Três visões: `sistema` (merge das duas tabelas por mês,
+    `{colunas, linhas, totais, paginacao, faixas}`. Três visões: `sistema` (merge das duas tabelas por mês,
     só ela tem `<tfoot>`), `armazem`, `fabrica`. `limite` não-nulo e recorte maior → levanta
     `RecorteGrandeDemais` **antes** de materializar as linhas (guard do export). Grava `_alerta` por
     linha ∈ `{None, "excedente", "ruptura"}`. **Fase 15**: nas visões `armazem`/`fabrica` grava

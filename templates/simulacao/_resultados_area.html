@@ -1,4 +1,5 @@
 {% load simulacao_filters %}
+{% if request.htmx.target == 'resultados-area' %}<span id="resultados-filtros-badge" hx-swap-oob="true">{% if filtros_avancados_count %}<span class="badge badge-sm badge-neutral">{{ filtros_avancados_count }}</span>{% endif %}</span>{% endif %}
 <c-resumo-numerico class="mb-4">
   <div class="stat"><div class="stat-title">Toneladas</div>
     <div class="stat-value text-base-content">{{ card.ton|volume }}</div>

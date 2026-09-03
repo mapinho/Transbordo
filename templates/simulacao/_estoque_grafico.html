@@ -10,6 +10,7 @@
     if (!el || !raw || !window.Chart) return;
     var g = JSON.parse(raw.textContent);
     var tk = window.vectorChartTokens();
+    Chart.defaults.color = tk.text; Chart.defaults.borderColor = tk.grid;
     if (window._estoqueChart) window._estoqueChart.destroy();
     window._estoqueChart = new Chart(el, {
       type: g.tipo,

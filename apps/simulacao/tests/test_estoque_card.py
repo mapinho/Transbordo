@@ -89,6 +89,30 @@ class CardTests(TestCase):
         self.assertEqual(c["ocupacao_pct"], 50.0)    # min(250, 500) / 500 * 100
         self.assertEqual(c["excedente_pct"], 10.0)   # 50 / 500 * 100
 
+    def test_card_ocupacao_pct_nunca_negativa(self):
+        # Recorte todo negativo: o pico mensal de saldo é < 0; a barra de
+        # ocupação não pode receber `width` negativa.
+        cen = Cenario.objects.create(cooperativa=self.coop, nome="TodoNegativo")
+        fab = Fabrica.objects.create(
+            cooperativa=self.coop, cenario=cen, nome="F",
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0)
+        ResumoMensalFabrica.objects.create(
+            cooperativa=self.coop, cenario=cen, fabrica=fab, mes="2026-01",
+            rec_produtor=0, rec_transbordo=0, esmagado=100, saldo_estoque=-50,
+            capacidade_estatica=300, excedente=0)
+        c = estoque.card_de_pico(cen.id, VAZIO)
+        self.assertEqual(c["ocupacao_pct"], 0.0)
+
+    def test_card_com_delta_repassa_barra_de_ocupacao(self):
+        # SPEC §6: card_com_delta só repassa mes_pico / ocupacao_pct / excedente_pct.
+        base = estoque.card_de_pico(self.cen.id, VAZIO)
+        c = estoque.card_com_delta(self.cen.id, self.comp.id, VAZIO)
+        self.assertEqual(c["mes_pico"], base["mes_pico"])
+        self.assertEqual(c["ocupacao_pct"], base["ocupacao_pct"])
+        self.assertEqual(c["excedente_pct"], base["excedente_pct"])
+
     def test_card_percentuais_sem_capacidade(self):
         cen = Cenario.objects.create(cooperativa=self.coop, nome="SemCap")
         arm = Armazem.objects.create(

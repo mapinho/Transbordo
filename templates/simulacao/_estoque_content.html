@@ -29,7 +29,7 @@
       <a href="{% url 'simulacao:estoque_tab' cenario.id %}" class="btn btn-ghost btn-sm">Limpar</a>
     </div>
     <details {% if filtros_avancados_ativos %}open {% endif %}class="mt-3">
-      <summary class="cursor-pointer text-sm text-base-content/70">Filtros{% if filtros_avancados_count %} <span class="badge badge-sm badge-neutral">{{ filtros_avancados_count }}</span>{% endif %}</summary>
+      <summary class="cursor-pointer text-sm text-base-content/70">Filtros <span id="estoque-filtros-badge">{% if filtros_avancados_count %}<span class="badge badge-sm badge-neutral">{{ filtros_avancados_count }}</span>{% endif %}</span></summary>
       <div class="mt-2 flex flex-wrap items-end gap-3">
         <label class="flex flex-col text-sm">Mês de {{ form.mes_de }}</label>
         <label class="flex flex-col text-sm">Mês até {{ form.mes_ate }}</label>

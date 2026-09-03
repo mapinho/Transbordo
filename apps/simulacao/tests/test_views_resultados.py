@@ -125,6 +125,15 @@ class ResultadosViewTests(TestCase):
         self.assertContains(r, "↑")              # Δ renderizado inline (ton 10 vs 8 → +25,0%)
         self.assertContains(r, "leading-tight")  # o span do Δ embutido
 
+    def test_badge_de_filtros_oob_no_swap_da_area(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"data_de": "2026-01-01"},
+                            HTTP_HX_REQUEST="true", HTTP_HX_TARGET="resultados-area")
+        self.assertContains(r, 'id="resultados-filtros-badge"')
+        self.assertContains(r, 'hx-swap-oob="true"')
+        self.assertContains(r, '<span class="badge badge-sm badge-neutral">1</span>')
+
     def test_cenario_de_outra_coop_404(self):
         outra = Cooperativa.objects.create(nome="D", slug="d")
         cen_b = Cenario.all_cooperativas.create(cooperativa=outra, nome="B")
@@ -165,6 +174,7 @@ class ResultadosViewTests(TestCase):
         self.assertContains(r, 'id="grafico-resultados"')
         self.assertContains(r, 'id="grafico-dados"')
         self.assertContains(r, "chart.umd.min.js")
+        self.assertContains(r, "Chart.defaults.color")   # defaults tematizados (eixo x)
 
     def test_visao_crua_sem_grafico(self):
         self._povoar()

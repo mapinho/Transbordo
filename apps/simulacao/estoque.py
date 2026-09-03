@@ -243,8 +243,9 @@ def card_de_pico(cenario_id, filtros):
     `excedente` = pico (máx mensal); `capacidade` = valor do 1º mês; `saldo_min`
     = mín mensal; `mes_ruptura` = `_mes_ptbr` do mês do mín se `< 0`, senão
     `None`. `mes_pico` = `_mes_ptbr` do mês de maior saldo (`""` se vazio);
-    `ocupacao_pct` = `min(saldo, cap)/cap*100` e `excedente_pct` =
-    `excedente/cap*100` (ambos `0.0` se `cap <= 0`). Recorte vazio -> tudo zero,
+    `ocupacao_pct` = `max(0, min(saldo, cap))/cap*100` (piso em 0 quando o pico
+    mensal é negativo) e `excedente_pct` = `excedente/cap*100` (ambos `0.0` se
+    `cap <= 0`). Recorte vazio -> tudo zero,
     `mes_ruptura` None."""
     linhas = _agregar_sistema(cenario_id, filtros)
     card = {m: 0.0 for m in _METRICAS_CARD}
@@ -269,7 +270,7 @@ def card_de_pico(cenario_id, filtros):
     card["mes_pico"] = _mes_ptbr(pico["mes"])
     cap = card["capacidade"]
     if cap > 0:
-        card["ocupacao_pct"] = round(min(card["saldo"], cap) / cap * 100, 1)
+        card["ocupacao_pct"] = round(max(0.0, min(card["saldo"], cap)) / cap * 100, 1)
         card["excedente_pct"] = round(card["excedente"] / cap * 100, 1)
     return card
 
