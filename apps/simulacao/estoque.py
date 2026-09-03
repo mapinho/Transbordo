@@ -336,10 +336,9 @@ def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
 
 def aplicar_comparacao(dados, cenario_comparado_id, visao, filtros):
     """Anota `dados` (retorno de `agregar` do cenário atual) com Δ% contra
-    `cenario_comparado_id`: `*_delta` por linha, colunas Δ%, `totais_delta`.
-    Vale para as 3 visões (sem exclusão de "linha crua" — diferente da Fase 13).
-    NÃO muta `VISOES[visao]["colunas"]`: monta uma lista nova e reatribui
-    `dados["colunas"]`."""
+    `cenario_comparado_id`: grava `linha["<m>_delta"]` para cada métrica
+    `comparavel` e `dados["totais_delta"]`. **NÃO altera `dados["colunas"]`** — o
+    template renderiza o Δ embutido na célula da métrica. Vale para as 3 visões."""
     visao = normalizar_visao(visao)
     comparaveis = [c["key"] for c in dados["colunas"] if c.get("comparavel")]
 
@@ -351,14 +350,6 @@ def aplicar_comparacao(dados, cenario_comparado_id, visao, filtros):
         alvo = por_chave.get(linha["_chave"])
         for m in comparaveis:
             linha[f"{m}_delta"] = _delta(linha[m], alvo[m] if alvo else None)
-
-    novas_colunas = []
-    for col in dados["colunas"]:
-        novas_colunas.append(col)
-        if col.get("comparavel"):
-            novas_colunas.append(
-                {"key": f'{col["key"]}_delta', "label": "Δ%", "tipo": "delta"})
-    dados["colunas"] = novas_colunas
 
     dados["totais_delta"] = {
         m: _delta(dados["totais"][m], comp["totais"][m]) for m in comparaveis}

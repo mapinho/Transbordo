@@ -172,9 +172,10 @@ def _delta(atual, comparado):
 
 
 def aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros):
-    """Anota `dados` (retorno de `agregar` do cenário atual) com Δ% contra
-    `cenario_comparado_id`: `*_delta` por linha, colunas Δ%, e `totais_delta`.
-    Linha crua (diario×fabrica_armazem) não recebe Δ."""
+    """Anota `dados` com Δ% contra `cenario_comparado_id`: `linha["<m>_delta"]`
+    por métrica e `dados["totais_delta"]`. **NÃO altera `dados["colunas"]`** — o Δ
+    é renderizado embutido na célula. Linha crua (diario×fabrica_armazem) não
+    recebe Δ."""
     periodo, agrupar = normalizar_visao(periodo, agrupar)
     if (periodo, agrupar) == ("diario", "fabrica_armazem"):
         dados["comparacao_ignorada"] = True
@@ -189,14 +190,6 @@ def aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros):
         alvo = por_chave.get(linha["_chave"])
         for m in _METRICAS:
             linha[f"{m}_delta"] = _delta(linha[m], alvo[m] if alvo else None)
-
-    novas_colunas = []
-    for col in dados["colunas"]:
-        novas_colunas.append(col)
-        if col["key"] in _METRICAS:
-            novas_colunas.append(
-                {"key": f'{col["key"]}_delta', "label": "Δ%", "tipo": "delta"})
-    dados["colunas"] = novas_colunas
 
     dados["totais_delta"] = {
         m: _delta(dados["totais"][m], comp["totais"][m]) for m in _METRICAS}

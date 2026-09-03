@@ -29,13 +29,14 @@ class ComparacaoTests(TestCase):
             capacidade_estatica=300, excedente=0)
         return cen
 
-    def test_sistema_recebe_delta_e_colunas(self):
+    def test_sistema_recebe_delta(self):
         d = estoque.agregar(self.atual.id, "sistema", VAZIO)
         d = estoque.aplicar_comparacao(d, self.comp.id, "sistema", VAZIO)
         self.assertAlmostEqual(d["linhas"][0]["saldo_delta"], (200 - 160) / 160 * 100, places=6)
         keys = [c["key"] for c in d["colunas"]]
-        self.assertIn("saldo_delta", keys)
-        self.assertEqual(keys.index("saldo_delta"), keys.index("saldo") + 1)
+        self.assertNotIn("saldo_delta", keys)          # Δ não é mais coluna
+        self.assertFalse(any(c.get("tipo") == "delta" for c in d["colunas"]))
+        self.assertIn("saldo_delta", d["linhas"][0])    # é chave na linha
 
     def test_armazem_recebe_delta(self):
         d = estoque.agregar(self.atual.id, "armazem", VAZIO)

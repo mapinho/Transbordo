@@ -42,7 +42,7 @@ class ComparacaoTests(TestCase):
         self.assertTrue(d["comparacao_ignorada"])
         self.assertNotIn("ton_delta", d["linhas"][0])
 
-    def test_mensal_recebe_delta_e_colunas(self):
+    def test_mensal_recebe_delta(self):
         d = resultados.agregar(self.atual.id, "mensal", "nada", VAZIO)
         d = resultados.aplicar_comparacao(d, self.comp.id, "mensal", "nada", VAZIO)
         # assertAlmostEqual: sacas = ton*1000/60, so Δ%(sacas) differs from Δ%(ton)
@@ -52,8 +52,8 @@ class ComparacaoTests(TestCase):
         self.assertEqual(d["linhas"][0]["custo_delta"], (100 - 125) / 125 * 100)  # -20%
         self.assertAlmostEqual(d["linhas"][0]["sacas_delta"], d["linhas"][0]["ton_delta"], places=9)
         keys = [c["key"] for c in d["colunas"]]
-        self.assertEqual(keys, ["dia", "ton", "ton_delta", "sacas", "sacas_delta",
-                                "custo", "custo_delta"])
+        self.assertEqual(keys, ["dia", "ton", "sacas", "custo"])   # sem colunas *_delta
+        self.assertFalse(any(c.get("tipo") == "delta" for c in d["colunas"]))
 
     def test_chave_sem_par_e_novo(self):
         # comparado não tem fevereiro
