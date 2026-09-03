@@ -98,14 +98,16 @@ class EstoqueViewTests(TestCase):
         r = self.client.get(self.url, {"visao": "armazem"}, HTTP_HX_REQUEST="true")
         self.assertContains(r, "Envio Transbordo")
 
-    def test_comparacao_gera_colunas_delta(self):
+    def test_comparacao_gera_delta_embutido(self):
         self._povoar()
         comp = Cenario.all_cooperativas.create(cooperativa=self.coop, nome="Comp")
         self._povoar(cenario=comp, saldo=30)
         self.client.force_login(self.user)
         r = self.client.get(self.url, {"visao": "sistema", "comparar": comp.id},
                             HTTP_HX_REQUEST="true")
-        self.assertContains(r, "Δ%")
+        self.assertNotContains(r, "Δ%")          # não é mais cabeçalho de coluna
+        self.assertContains(r, "↑")              # Δ renderizado inline (saldo 50 vs 30 → +66,7%)
+        self.assertContains(r, "leading-tight")  # o span do Δ embutido
 
     def test_sinalizacao_excedente(self):
         self._povoar(excedente=40)

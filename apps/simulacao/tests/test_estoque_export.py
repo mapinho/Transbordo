@@ -61,6 +61,46 @@ class ExportTests(TestCase):
         finally:
             estoque.EXPORT_MAX = orig
 
+    def _cenario_comparado(self):
+        comp = Cenario.all_cooperativas.create(cooperativa=self.coop, nome="Comp")
+        a = Armazem.all_cooperativas.create(
+            cooperativa=self.coop, cenario=comp, nome="A",
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0)
+        for mes in ("2026-01", "2026-02", "2026-03"):
+            ResumoMensalArmazem.all_cooperativas.create(
+                cooperativa=self.coop, cenario=comp, armazem=a, mes=mes,
+                rec_produtor=8, envio_transbordo=2, vendas=1, saldo_estoque=5,
+                capacidade_estatica=200, excedente=0)
+        return comp
+
+    def test_export_excel_inclui_delta_na_comparacao(self):
+        comp = self._cenario_comparado()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"visao": "sistema", "formato": "xlsx",
+                                       "comparar": comp.id})
+        conteudo = b"".join(r.streaming_content) if hasattr(r, "streaming_content") else r.content
+        ws = load_workbook(io.BytesIO(conteudo)).active
+        header = [c.value for c in ws[1]]
+        self.assertIn("Recebimento Δ%", header)
+        valores = [c.value for row in ws.iter_rows(min_row=2) for c in row]
+        self.assertIn("+25,0%", valores)
+
+    def test_export_csv_inclui_delta_na_comparacao(self):
+        comp = self._cenario_comparado()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"visao": "sistema", "formato": "csv",
+                                       "comparar": comp.id})
+        conteudo = b"".join(r.streaming_content) if hasattr(r, "streaming_content") else r.content
+        texto = conteudo.decode("utf-8-sig")
+        self.assertIn("Recebimento Δ%", texto.splitlines()[0])
+        self.assertIn("+25,0%", texto)
+
+    def test_export_sem_comparacao_nao_tem_coluna_delta(self):
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"visao": "sistema", "formato": "csv"})
+        conteudo = b"".join(r.streaming_content) if hasattr(r, "streaming_content") else r.content
+        self.assertNotIn("Δ%", conteudo.decode("utf-8-sig"))
+
     def test_gate_admin_vector_sem_org(self):
         v = User.objects.create_user(username="v", email="v@t.test", password="x",
                                      papel=User.PAPEL_ADMIN_VECTOR)

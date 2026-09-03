@@ -570,6 +570,16 @@ def _resultados_params(request, cenario):
     return form, filtros, periodo, agrupar, comparar_id
 
 
+def _fmt_delta_export(v):
+    """Δ% (`float | "novo" | None`) formatado em pt-BR para célula de export:
+    `+3,4%` / `-1,2%` / `novo` / `""`."""
+    if v == "novo":
+        return "novo"
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return f"{v:+.1f}%".replace(".", ",")
+    return ""
+
+
 def _resultados_template(request, tem_dados):
     """Escolhe a parcial a renderizar pelo header HX-Target (django-htmx)."""
     if not request.htmx:
@@ -642,6 +652,7 @@ def resultados_export(request, cenario_id):
         dados = resultados.aplicar_comparacao(dados, comparar_id, periodo, agrupar, filtros)
 
     colunas = dados["colunas"]
+    com_delta = bool(dados.get("totais_delta"))
 
     def valor(linha, col):
         v = linha.get(col["key"])
@@ -649,13 +660,29 @@ def resultados_export(request, cenario_id):
             return linha.get("dia")
         return v
 
+    def cabecalho():
+        out = []
+        for c in colunas:
+            out.append(c["label"])
+            if com_delta and c.get("comparavel"):
+                out.append(f'{c["label"]} \u0394%')
+        return out
+
+    def celulas(linha):
+        out = []
+        for c in colunas:
+            out.append(valor(linha, c))
+            if com_delta and c.get("comparavel"):
+                out.append(_fmt_delta_export(linha.get(f'{c["key"]}_delta')))
+        return out
+
     nome = f'resultados-{cenario.id}-{periodo}-{agrupar}-{timezone.now():%Y%m%d}'
     if formato == "xlsx":
         wb = Workbook()
         ws = wb.active
-        ws.append([c["label"] for c in colunas])
+        ws.append(cabecalho())
         for linha in dados["linhas"]:
-            ws.append([valor(linha, c) for c in colunas])
+            ws.append(celulas(linha))
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
@@ -665,11 +692,10 @@ def resultados_export(request, cenario_id):
     buf = io.StringIO()
     buf.write("\ufeff")  # BOM UTF-8 (U+FEFF) para o Excel pt-BR abrir o CSV sem corromper acentos
     w = csv.writer(buf, delimiter=";")
-    w.writerow([c["label"] for c in colunas])
+    w.writerow(cabecalho())
     for linha in dados["linhas"]:
         row = []
-        for c in colunas:
-            v = valor(linha, c)
+        for v in celulas(linha):
             if isinstance(v, float):
                 v = f"{v:.2f}".replace(".", ",")
             row.append(v)
@@ -768,17 +794,31 @@ def estoque_export(request, cenario_id):
         dados = estoque.aplicar_comparacao(dados, comparar_id, visao, filtros)
 
     colunas = dados["colunas"]
+    com_delta = bool(dados.get("totais_delta"))
 
-    def valor(linha, col):
-        return linha.get(col["key"])
+    def cabecalho():
+        out = []
+        for c in colunas:
+            out.append(c["label"])
+            if com_delta and c.get("comparavel"):
+                out.append(f'{c["label"]} \u0394%')
+        return out
+
+    def celulas(linha):
+        out = []
+        for c in colunas:
+            out.append(linha.get(c["key"]))
+            if com_delta and c.get("comparavel"):
+                out.append(_fmt_delta_export(linha.get(f'{c["key"]}_delta')))
+        return out
 
     nome = f'estoque-{cenario.id}-{visao}-{timezone.now():%Y%m%d}'
     if formato == "xlsx":
         wb = Workbook()
         ws = wb.active
-        ws.append([c["label"] for c in colunas])
+        ws.append(cabecalho())
         for linha in dados["linhas"]:
-            ws.append([valor(linha, c) for c in colunas])
+            ws.append(celulas(linha))
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
@@ -788,11 +828,10 @@ def estoque_export(request, cenario_id):
     buf = io.StringIO()
     buf.write("\ufeff")  # BOM UTF-8 (U+FEFF) para o Excel pt-BR abrir o CSV sem corromper acentos
     w = csv.writer(buf, delimiter=";")
-    w.writerow([c["label"] for c in colunas])
+    w.writerow(cabecalho())
     for linha in dados["linhas"]:
         row = []
-        for c in colunas:
-            v = valor(linha, c)
+        for v in celulas(linha):
             if isinstance(v, float):
                 v = f"{v:.2f}".replace(".", ",")
             row.append(v)

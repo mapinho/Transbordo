@@ -89,7 +89,7 @@ class ResultadosViewTests(TestCase):
                             HTTP_HX_REQUEST="true")
         self.assertContains(r, "Mês")
 
-    def test_comparacao_gera_colunas_delta(self):
+    def test_comparacao_gera_delta_embutido(self):
         self._povoar()
         comp = Cenario.all_cooperativas.create(cooperativa=self.coop, nome="Comp")
         a = Armazem.all_cooperativas.create(
@@ -106,7 +106,9 @@ class ResultadosViewTests(TestCase):
         self.client.force_login(self.user)
         r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada",
                                        "comparar": comp.id}, HTTP_HX_REQUEST="true")
-        self.assertContains(r, "Δ%")
+        self.assertNotContains(r, "Δ%")          # não é mais cabeçalho de coluna
+        self.assertContains(r, "↑")              # Δ renderizado inline (ton 10 vs 8 → +25,0%)
+        self.assertContains(r, "leading-tight")  # o span do Δ embutido
 
     def test_cenario_de_outra_coop_404(self):
         outra = Cooperativa.objects.create(nome="D", slug="d")

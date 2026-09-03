@@ -10,8 +10,7 @@
             <td>
               {% if col.tipo == 'mes' %}{% if alerta == 'ruptura' and forloop.first %}⚠ {% endif %}{{ linha.mes|slice:'5:7' }}/{{ linha.mes|slice:':4' }}
               {% elif col.tipo == 'texto' %}{{ linha|item:col.key }}
-              {% elif col.tipo == 'delta' %}{{ linha|item:col.key|variacao }}
-              {% elif col.tipo == 'num' %}<span class="{% if col.key == 'excedente' and linha.excedente > 0 %}text-error font-semibold{% elif col.key == 'saldo' and linha.saldo < 0 %}text-error font-semibold{% endif %}">{{ linha|item:col.key|volume }}</span>
+              {% elif col.tipo == 'num' %}<span class="{% if col.key == 'excedente' and linha.excedente > 0 %}text-error font-semibold{% elif col.key == 'saldo' and linha.saldo < 0 %}text-error font-semibold{% endif %}">{{ linha|item:col.key|volume }}</span>{% if dados.totais_delta %}{% with dk=col.key|add:'_delta' %}<span class="block text-xs leading-tight">{{ linha|item:dk|variacao }}</span>{% endwith %}{% endif %}
               {% endif %}
             </td>
           {% endfor %}
@@ -24,7 +23,7 @@
     {% if visao == 'sistema' and dados.linhas %}
       <tfoot><tr class="font-semibold">
         {% for col in dados.colunas %}
-          <td>{% if col.tipo == 'num' %}{{ dados.totais|item:col.key|volume }}{% elif forloop.first %}Total{% endif %}</td>
+          <td>{% if col.tipo == 'num' %}{{ dados.totais|item:col.key|volume }}{% if dados.totais_delta %}<span class="block text-xs leading-tight">{{ dados.totais_delta|item:col.key|variacao }}</span>{% endif %}{% elif forloop.first %}Total{% endif %}</td>
         {% endfor %}
       </tr></tfoot>
     {% endif %}

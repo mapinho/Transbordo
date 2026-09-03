@@ -75,6 +75,50 @@ class ExportTests(TestCase):
                                            "agrupar": "fabrica_armazem"})
         self.assertEqual(r.status_code, 400)
 
+    def _cenario_comparado(self):
+        comp = Cenario.all_cooperativas.create(cooperativa=self.coop, nome="Comp")
+        a = Armazem.all_cooperativas.create(
+            cooperativa=self.coop, cenario=comp, nome="A",
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0)
+        f = Fabrica.all_cooperativas.create(
+            cooperativa=self.coop, cenario=comp, nome="F",
+            capacidade_estatica=1, capacidade_esmagamento_diaria=1,
+            capacidade_recebimento_diaria=1, limite_caminhoes=1,
+            carga_media_caminhao=1, estoque_inicial=0)
+        for i in range(3):
+            MovimentacaoDiaria.all_cooperativas.create(
+                cooperativa=self.coop, cenario=comp,
+                data=datetime.date(2026, 1, 5 + i), armazem=a, fabrica=f,
+                quantidade_ton=8, custo_total=125)
+        return comp  # mensal: ton 30 vs 24 -> +25,0%
+
+    def test_export_excel_inclui_delta_na_comparacao(self):
+        comp = self._cenario_comparado()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada",
+                                       "formato": "xlsx", "comparar": comp.id})
+        wb = load_workbook(io.BytesIO(b"".join(r.streaming_content)))
+        ws = wb.active
+        header = [c.value for c in ws[1]]
+        self.assertIn("Toneladas Δ%", header)
+        valores = [c.value for row in ws.iter_rows(min_row=2) for c in row]
+        self.assertIn("+25,0%", valores)
+
+    def test_export_csv_inclui_delta_na_comparacao(self):
+        comp = self._cenario_comparado()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada",
+                                       "formato": "csv", "comparar": comp.id})
+        texto = b"".join(r.streaming_content).decode("utf-8-sig")
+        self.assertIn("Toneladas Δ%", texto.splitlines()[0])
+        self.assertIn("+25,0%", texto)
+
+    def test_export_sem_comparacao_nao_tem_coluna_delta(self):
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada",
+                                       "formato": "csv"})
+        self.assertNotIn("Δ%", b"".join(r.streaming_content).decode("utf-8-sig"))
+
     def test_export_comparar_nao_numerico_nao_quebra(self):
         self.client.force_login(self.user)
         r = self.client.get(self.url, {"formato": "csv", "comparar": "abc"})

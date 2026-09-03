@@ -13,9 +13,8 @@
               {% if col.tipo == 'data_dia' %}{{ linha.dia|date:'d/m/Y' }}
               {% elif col.tipo == 'data_mes' %}{{ linha.dia|date:'m/Y' }}
               {% elif col.tipo == 'texto' %}{{ linha|item:col.key }}
-              {% elif col.tipo == 'num' %}{{ linha|item:col.key|volume }}
-              {% elif col.tipo == 'moeda' %}{{ linha|item:col.key|moeda }}
-              {% elif col.tipo == 'delta' %}{{ linha|item:col.key|variacao }}
+              {% elif col.tipo == 'num' %}{{ linha|item:col.key|volume }}{% if dados.totais_delta %}{% with dk=col.key|add:'_delta' %}<span class="block text-xs leading-tight">{{ linha|item:dk|variacao }}</span>{% endwith %}{% endif %}
+              {% elif col.tipo == 'moeda' %}{{ linha|item:col.key|moeda }}{% if dados.totais_delta %}{% with dk=col.key|add:'_delta' %}<span class="block text-xs leading-tight">{{ linha|item:dk|variacao }}</span>{% endwith %}{% endif %}
               {% endif %}
             </td>
           {% endfor %}
@@ -27,7 +26,7 @@
     {% if dados.paginacao is None and dados.linhas %}
       <tfoot><tr class="font-semibold">
         {% for col in dados.colunas %}
-          <td>{% if col.key == 'ton' %}{{ dados.totais.ton|volume }}{% elif col.key == 'sacas' %}{{ dados.totais.sacas|volume }}{% elif col.key == 'custo' %}{{ dados.totais.custo|moeda }}{% elif forloop.first %}Total{% endif %}</td>
+          <td>{% if col.tipo == 'num' %}{{ dados.totais|item:col.key|volume }}{% if dados.totais_delta %}<span class="block text-xs leading-tight">{{ dados.totais_delta|item:col.key|variacao }}</span>{% endif %}{% elif col.tipo == 'moeda' %}{{ dados.totais|item:col.key|moeda }}{% if dados.totais_delta %}<span class="block text-xs leading-tight">{{ dados.totais_delta|item:col.key|variacao }}</span>{% endif %}{% elif forloop.first %}Total{% endif %}</td>
         {% endfor %}
       </tr></tfoot>
     {% endif %}
