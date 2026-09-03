@@ -83,6 +83,32 @@ class CardTests(TestCase):
         c = estoque.card_com_delta(self.cen.id, None, VAZIO)
         self.assertIsNone(c["delta"])
 
+    def test_card_mes_pico_e_percentuais(self):
+        c = estoque.card_de_pico(self.cen.id, VAZIO)
+        self.assertEqual(c["mes_pico"], "02/2026")   # fev tem o maior saldo (250)
+        self.assertEqual(c["ocupacao_pct"], 50.0)    # min(250, 500) / 500 * 100
+        self.assertEqual(c["excedente_pct"], 10.0)   # 50 / 500 * 100
+
+    def test_card_percentuais_sem_capacidade(self):
+        cen = Cenario.objects.create(cooperativa=self.coop, nome="SemCap")
+        arm = Armazem.objects.create(
+            cooperativa=self.coop, cenario=cen, nome="A",
+            capacidade_estatica=1, capacidade_expedicao_diaria=1, estoque_inicial=0)
+        ResumoMensalArmazem.objects.create(
+            cooperativa=self.coop, cenario=cen, armazem=arm, mes="2026-01",
+            rec_produtor=10, envio_transbordo=0, vendas=0, saldo_estoque=5,
+            capacidade_estatica=0, excedente=0)
+        c = estoque.card_de_pico(cen.id, VAZIO)
+        self.assertEqual(c["ocupacao_pct"], 0.0)
+        self.assertEqual(c["excedente_pct"], 0.0)
+
+    def test_card_vazio_tem_as_chaves_novas(self):
+        cen = Cenario.objects.create(cooperativa=self.coop, nome="Vazio")
+        c = estoque.card_de_pico(cen.id, VAZIO)
+        self.assertEqual(c["mes_pico"], "")
+        self.assertEqual(c["ocupacao_pct"], 0.0)
+        self.assertEqual(c["excedente_pct"], 0.0)
+
     def test_cenarios_comparaveis(self):
         Cenario.objects.create(cooperativa=self.coop, nome="Sem Estoque")
         lista = estoque.cenarios_comparaveis(self.cen.id, self.coop.id)

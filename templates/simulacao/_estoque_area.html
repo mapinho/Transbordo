@@ -1,4 +1,18 @@
 {% load simulacao_filters %}
+<div class="mb-4 rounded-lg border border-base-300 bg-base-100 p-4">
+  <p class="mb-2 text-xs uppercase tracking-wide text-base-content/60">Pico do sistema{% if card.mes_pico %} · {{ card.mes_pico }}{% endif %}</p>
+  <div class="relative h-6 overflow-hidden rounded border border-base-300 bg-base-200">
+    <div class="absolute inset-y-0 left-0 bg-accent" style="width: {{ card.ocupacao_pct }}%"></div>
+    {% if card.excedente_pct > 0 %}<div class="absolute inset-y-0 right-0 bg-error" style="width: {{ card.excedente_pct }}%; max-width: 100%; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.4) 0 3px, transparent 3px 7px)"></div>{% endif %}
+    {% if card.mes_ruptura %}<div class="absolute inset-y-0 left-0 w-2 bg-error"></div>{% endif %}
+  </div>
+  <p class="mt-1.5 text-xs text-base-content/70">
+    Saldo <b>{{ card.saldo|volume }} t</b> · Capacidade <b>{{ card.capacidade|volume }} t</b>
+    {% if card.mes_ruptura %}· <span class="text-error">Ruptura em {{ card.mes_ruptura }} ({{ card.saldo_min|volume }} t)</span>
+    {% elif card.excedente > 0 %}· <span class="text-error">Excedente +{{ card.excedente|volume }} t ({{ card.excedente_pct }}%)</span>{% endif %}
+  </p>
+</div>
+
 <c-resumo-numerico class="mb-4">
   <div class="stat"><div class="stat-title">Recebimento</div>
     <div class="stat-value text-base-content">{{ card.recebimento|volume }}</div>
@@ -6,15 +20,20 @@
   <div class="stat"><div class="stat-title">Transbordo</div>
     <div class="stat-value text-base-content">{{ card.transbordo|volume }}</div>
     {% if card.delta %}<div class="stat-desc">{{ card.delta.transbordo|variacao }}</div>{% endif %}</div>
+  <div class="stat"><div class="stat-title">Esmagamento</div>
+    <div class="stat-value text-base-content">{{ card.esmagamento|volume }}</div>
+    {% if card.delta %}<div class="stat-desc">{{ card.delta.esmagamento|variacao }}</div>{% endif %}</div>
+  <div class="stat"><div class="stat-title">Vendas</div>
+    <div class="stat-value text-base-content">{{ card.vendas|volume }}</div>
+    {% if card.delta %}<div class="stat-desc">{{ card.delta.vendas|variacao }}</div>{% endif %}</div>
   <div class="stat"><div class="stat-title">Saldo (pico)</div>
-    <div class="stat-value {% if card.mes_ruptura %}text-error{% else %}text-base-content{% endif %}">
-      {% if card.mes_ruptura %}{{ card.saldo_min|volume }}{% else %}{{ card.saldo|volume }}{% endif %}</div>
-    {% if card.mes_ruptura %}<div class="stat-desc text-error">ruptura em {{ card.mes_ruptura }}</div>
-    {% elif card.delta %}<div class="stat-desc">{{ card.delta.saldo|variacao }}</div>{% endif %}</div>
+    <div class="stat-value {% if card.mes_ruptura or card.saldo > card.capacidade %}text-error{% else %}text-base-content{% endif %}">{% if card.mes_ruptura %}{{ card.saldo_min|volume }}{% else %}{{ card.saldo|volume }}{% endif %}</div>
+    {% if card.mes_ruptura %}<div class="stat-desc text-error">ruptura em {{ card.mes_ruptura }}</div>{% elif card.delta %}<div class="stat-desc">{{ card.delta.saldo|variacao }}</div>{% endif %}</div>
   <div class="stat"><div class="stat-title">Cap. Estática</div>
-    <div class="stat-value text-base-content">{{ card.capacidade|volume }}</div></div>
+    <div class="stat-value text-base-content">{{ card.capacidade|volume }}</div>
+    {% if card.delta %}<div class="stat-desc">{{ card.delta.capacidade|variacao }}</div>{% endif %}</div>
   <div class="stat"><div class="stat-title">Excedente (pico)</div>
-    <div class="stat-value {% if card.excedente %}text-error{% else %}text-base-content{% endif %}">{{ card.excedente|volume }}</div>
+    <div class="stat-value {% if card.excedente > 0 %}text-error{% else %}text-base-content{% endif %}">{{ card.excedente|volume }}</div>
     {% if card.delta %}<div class="stat-desc">{{ card.delta.excedente|variacao }}</div>{% endif %}</div>
 </c-resumo-numerico>
 

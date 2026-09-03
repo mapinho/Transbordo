@@ -116,6 +116,14 @@ class EstoqueViewTests(TestCase):
         self.assertContains(r, "bg-error/10")
         self.assertContains(r, "border-l-4 border-error")
 
+    def test_card_de_pico_no_html(self):
+        self._povoar(excedente=40)
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "Pico do sistema")
+        self.assertContains(r, "Esmagamento")   # agora no card
+        self.assertContains(r, "bg-accent")     # a barra de ocupação
+
     def test_grafico_escondido_no_mobile(self):
         self._povoar()
         self.client.force_login(self.user)

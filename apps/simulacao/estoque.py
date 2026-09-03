@@ -242,11 +242,17 @@ def card_de_pico(cenario_id, filtros):
     `transbordo`, `esmagamento`, `vendas`) = Σ de todos os meses; `saldo` e
     `excedente` = pico (máx mensal); `capacidade` = valor do 1º mês; `saldo_min`
     = mín mensal; `mes_ruptura` = `_mes_ptbr` do mês do mín se `< 0`, senão
-    `None`. Recorte vazio -> tudo zero, `mes_ruptura` None."""
+    `None`. `mes_pico` = `_mes_ptbr` do mês de maior saldo (`""` se vazio);
+    `ocupacao_pct` = `min(saldo, cap)/cap*100` e `excedente_pct` =
+    `excedente/cap*100` (ambos `0.0` se `cap <= 0`). Recorte vazio -> tudo zero,
+    `mes_ruptura` None."""
     linhas = _agregar_sistema(cenario_id, filtros)
     card = {m: 0.0 for m in _METRICAS_CARD}
     card["saldo_min"] = 0.0
     card["mes_ruptura"] = None
+    card["mes_pico"] = ""
+    card["ocupacao_pct"] = 0.0
+    card["excedente_pct"] = 0.0
     if not linhas:
         return card
     for linha in linhas:
@@ -259,6 +265,12 @@ def card_de_pico(cenario_id, filtros):
     card["saldo_min"] = pior["saldo"]
     if pior["saldo"] < 0:
         card["mes_ruptura"] = _mes_ptbr(pior["mes"])
+    pico = max(linhas, key=lambda linha: linha["saldo"])
+    card["mes_pico"] = _mes_ptbr(pico["mes"])
+    cap = card["capacidade"]
+    if cap > 0:
+        card["ocupacao_pct"] = round(min(card["saldo"], cap) / cap * 100, 1)
+        card["excedente_pct"] = round(card["excedente"] / cap * 100, 1)
     return card
 
 
