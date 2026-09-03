@@ -109,6 +109,13 @@ class EstoqueViewTests(TestCase):
         self.assertContains(r, "↑")              # Δ renderizado inline (saldo 50 vs 30 → +66,7%)
         self.assertContains(r, "leading-tight")  # o span do Δ embutido
 
+    def test_faixa_de_mes_na_visao_por_unidade(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"visao": "armazem"}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "sistema — saldo")
+        self.assertNotContains(r, ">Mês<")   # coluna Mês saiu
+
     def test_sinalizacao_excedente(self):
         self._povoar(excedente=40)
         self.client.force_login(self.user)

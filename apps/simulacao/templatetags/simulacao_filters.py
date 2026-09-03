@@ -26,6 +26,23 @@ def volume(valor):
     return _formatar_pt_br(valor, 1)
 
 
+_MESES_PT = ("", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
+
+
+@register.filter
+def mes_extenso(mes):
+    """`"2026-02"` -> `"Fevereiro 2026"`. Entrada sem `-` passa reto."""
+    s = str(mes)
+    if "-" not in s:
+        return mes
+    ano, m = s.split("-")[:2]
+    try:
+        return f"{_MESES_PT[int(m)]} {ano}"
+    except (ValueError, IndexError):
+        return mes
+
+
 @register.filter
 def item(dicionario, chave):
     """Lookup de dict com chave variável no template."""

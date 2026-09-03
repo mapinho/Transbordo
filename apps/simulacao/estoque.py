@@ -44,7 +44,7 @@ VISOES = {
     "armazem": {
         "fonte": "armazem",
         "colunas": [
-            _COL_MES, {"key": "unidade", "label": "Armazém", "tipo": "texto"},
+            {"key": "unidade", "label": "Armazém", "tipo": "texto"},
             _m("rec_produtor", "Rec. Produtor"), _m("envio_transbordo", "Envio Transbordo"),
             _m("vendas", "Vendas"), _m("saldo", "Saldo"),
             _m("capacidade", "Cap. Estática"), _m("excedente", "Excedente"),
@@ -54,7 +54,7 @@ VISOES = {
     "fabrica": {
         "fonte": "fabrica",
         "colunas": [
-            _COL_MES, {"key": "unidade", "label": "Fábrica", "tipo": "texto"},
+            {"key": "unidade", "label": "Fábrica", "tipo": "texto"},
             _m("rec_produtor", "Rec. Produtor"), _m("rec_transbordo", "Rec. Transbordo"),
             _m("esmagado", "Esmagado"), _m("saldo", "Saldo"),
             _m("capacidade", "Cap. Estática"), _m("excedente", "Excedente"),
@@ -302,11 +302,16 @@ def cenarios_comparaveis(cenario_id, cooperativa_id):
 
 
 def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
-    """`{"colunas", "linhas", "totais", "paginacao"}` para uma das três visões.
+    """`{"colunas", "linhas", "totais", "paginacao", "faixas"}` para uma das três
+    visões.
 
     `pagina=None` -> sem paginação. `limite` não-nulo e nº de linhas do recorte
     > `limite` -> `raise RecorteGrandeDemais(total)` ANTES de materializar as
-    linhas por unidade (na "sistema" o check é depois — são ≤12 linhas)."""
+    linhas por unidade (na "sistema" o check é depois — são ≤12 linhas).
+
+    `faixas`: `None` na visão "sistema"; nas visões por unidade, `dict`
+    `{mes: <linha do sistema desse mês>}` só para os meses presentes em `linhas`
+    (a UI mostra os totais do sistema numa faixa por mês; a coluna "Mês" some)."""
     visao = normalizar_visao(visao)
     cfg = VISOES[visao]
 
@@ -315,7 +320,8 @@ def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
         if limite is not None and len(linhas) > limite:
             raise RecorteGrandeDemais(len(linhas))
         totais = _totais(linhas, _METRICAS_SISTEMA)
-        return {"colunas": cfg["colunas"], "linhas": linhas, "totais": totais, "paginacao": None}
+        return {"colunas": cfg["colunas"], "linhas": linhas, "totais": totais,
+                "paginacao": None, "faixas": None}
 
     qs, campo, extras = _linhas_por_unidade(cenario_id, cfg["fonte"], filtros)
     total = qs.count()
@@ -342,8 +348,14 @@ def agregar(cenario_id, visao, filtros, pagina=1, limite=None):
         linha["_alerta"] = _alerta_da_linha(linha)
         linhas.append(linha)
     totais = _totais_unidade(cenario_id, cfg["fonte"], filtros, extras)
+    faixas = {}
+    if linhas:
+        meses = {linha["mes"] for linha in linhas}
+        for sis in _agregar_sistema(cenario_id, filtros):
+            if sis["mes"] in meses:
+                faixas[sis["mes"]] = sis
     return {"colunas": cfg["colunas"], "linhas": linhas,
-            "totais": totais, "paginacao": paginacao}
+            "totais": totais, "paginacao": paginacao, "faixas": faixas}
 
 
 def aplicar_comparacao(dados, cenario_comparado_id, visao, filtros):

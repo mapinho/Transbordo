@@ -119,6 +119,18 @@ class AgregarTests(TestCase):
         fev_a1 = [l for l in d["linhas"] if l["mes"] == "2026-02"][0]
         self.assertEqual(fev_a1["_alerta"], "excedente")
 
+    def test_visao_por_unidade_tem_faixas_do_sistema(self):
+        d = estoque.agregar(self.cen.id, "armazem", VAZIO)
+        self.assertEqual(set(d["faixas"]), {"2026-01", "2026-02"})
+        self.assertEqual(d["faixas"]["2026-01"]["saldo"], 95.0)      # 50 + 35 + 10
+        self.assertEqual(d["faixas"]["2026-01"]["capacidade"], 600.0)
+        self.assertEqual(d["faixas"]["2026-02"]["excedente"], 50.0)
+        self.assertNotIn("mes", [c["key"] for c in d["colunas"]])
+
+    def test_visao_sistema_sem_faixas(self):
+        d = estoque.agregar(self.cen.id, "sistema", VAZIO)
+        self.assertIsNone(d["faixas"])
+
     def test_fabrica_colunas_proprias(self):
         d = estoque.agregar(self.cen.id, "fabrica", VAZIO)
         self.assertIn("rec_transbordo", d["linhas"][0])

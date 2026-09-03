@@ -24,7 +24,9 @@ class VisoesConfigTests(TestCase):
         chaves_sistema = [c["key"] for c in estoque.VISOES["sistema"]["colunas"]]
         self.assertEqual(chaves_sistema[0], "mes")
         self.assertNotIn("unidade", chaves_sistema)
-        self.assertEqual([c["key"] for c in estoque.VISOES["armazem"]["colunas"]][:2], ["mes", "unidade"])
+        chaves_arm = [c["key"] for c in estoque.VISOES["armazem"]["colunas"]]
+        self.assertEqual(chaves_arm[0], "unidade")
+        self.assertNotIn("mes", chaves_arm)
 
     def test_normalizar_visao(self):
         self.assertEqual(estoque.normalizar_visao("armazem"), "armazem")
