@@ -203,6 +203,24 @@ cria migrations** e **não tem ADR novo** (Chart.js já é ADR 0013). `VERSION` 
   "Estoque" em `templates/simulacao/_subnav.html`. Templatetag `cenario_tem_resultado` renomeado para
   `cenario_tem_simulacao` (serve às abas Resultados e Estoque).
 
+## Fase 15 — Polimento UX Resultados + Estoque (concluída)
+
+Polimento das abas "Resultados" e "Estoque" juntas (achados da revisão de design de 2026-09-02). Ver
+`docs/superpowers/specs/2026-09-03-fase15-polimento-ux-design.md`. Nenhum model muda — **sem
+migrations**, **sem ADR novo** (a mudança do gráfico entra no §7 do `docs/design-system/README.md`).
+`VERSION` → `1.4.0`.
+
+- **Gráfico tematizado** — `render()` relê `--color-*` e re-renderiza no evento `vector:themechange`
+  (disparado por `vectorApplyTheme` na `base.html`); paleta AgroVector via `templates/simulacao/_grafico_tokens.html`;
+  série comparada tracejada. §7 do design system emendado.
+- **Δ da comparação embutido na célula** — `aplicar_comparacao` (os dois módulos) não insere mais
+  colunas Δ; a tabela renderiza `métrica` + `variacao` na mesma `<td>`. `variacao` trata Δ que
+  arredonda para `0,0%` como neutro.
+- **Barra de filtros** — avançados (mês/data + multi-selects) num `<details>` recolhível com contador.
+- **Estoque** — card de pico com barra de ocupação + 7 tiles; faixas de mês (totais do sistema) nas
+  visões por unidade, sem a coluna "Mês"; `<thead>`/1ª coluna fixos; realce de alerta visível nos dois
+  temas; gráfico escondido no mobile.
+
 ## Environment
 
 A `.env` file at the project root is **required** (ver `.env.example`):
@@ -257,8 +275,8 @@ This codebase follows strict TDD (red → green) for all behavior changes: write
 
 ## Roadmap Status
 
-Fases 1–14 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.3.0` no encerramento da Fase 14
-(tag `v1.3.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
+Fases 1–15 concluídas. `VERSION` / `CHANGELOG.md` sobem para `1.4.0` no encerramento da Fase 15
+(tag `v1.4.0`, anotada, local — não pushed automaticamente). O produto Streamlit original (Comigo)
 segue em produção à parte, congelado (ADR 0011). Próximas evoluções são do Transbordo (estruturas
 organizacionais; novos parâmetros do motor; predição de recebimento/venda) — confirme o escopo com o
 dono do projeto antes de começar trabalho novo.

@@ -11,8 +11,8 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
     `{colunas, linhas, totais, paginacao}`. `limite` não-nulo e recorte maior → levanta
     `RecorteGrandeDemais` **antes** de materializar as linhas (guard do export).
   - `aplicar_comparacao(dados, cenario_comparado_id, periodo, agrupar, filtros)` — anota `dados` com
-    `*_delta` por linha + colunas Δ% + `totais_delta`; linha crua (`diario×fabrica_armazem`) não
-    recebe Δ.
+    `*_delta` por linha + `totais_delta`; linha crua (`diario×fabrica_armazem`) não recebe Δ.
+    **Fase 15**: **não altera** `dados["colunas"]` (Δ embutido na célula da métrica).
   - `totais_do_recorte(cenario_id, filtros)` — 3 números do card (barato, sem montar linhas);
     `totais_com_delta(cenario_id, cenario_comparado_id, filtros)` — idem + `delta` por métrica.
   - `dados_grafico(cenario_id, periodo, agrupar, filtros, cenario_comparado_id)` — payload Chart.js
@@ -33,12 +33,15 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
     `{colunas, linhas, totais, paginacao}`. Três visões: `sistema` (merge das duas tabelas por mês,
     só ela tem `<tfoot>`), `armazem`, `fabrica`. `limite` não-nulo e recorte maior → levanta
     `RecorteGrandeDemais` **antes** de materializar as linhas (guard do export). Grava `_alerta` por
-    linha ∈ `{None, "excedente", "ruptura"}`.
+    linha ∈ `{None, "excedente", "ruptura"}`. **Fase 15**: nas visões `armazem`/`fabrica` grava
+    `faixas` (`{mes: linha do sistema}`) e **remove** a coluna "Mês" (`VISOES["armazem"]`/`["fabrica"]`).
   - `card_de_pico(cenario_id, filtros)` — card "pior momento do sistema" (pico de excedente + saldo
     mínimo mensal + `mes_ruptura` quando negativo); `card_com_delta(cenario_id, cenario_comparado_id,
-    filtros)` — idem + `delta` por métrica.
+    filtros)` — idem + `delta` por métrica. **Fase 15**: `card_de_pico` + `mes_pico` /
+    `ocupacao_pct` / `excedente_pct` (barra de ocupação do card); `card_com_delta` só repassa.
   - `aplicar_comparacao(dados, cenario_comparado_id, visao, filtros)` — anota `dados` com `*_delta` por
-    linha + colunas Δ% + `totais_delta`, nas 3 visões.
+    linha + `totais_delta`, nas 3 visões. **Fase 15**: **não altera** `dados["colunas"]` (Δ embutido
+    na célula da métrica).
   - `dados_grafico(cenario_id, filtros, cenario_comparado_id)` — payload Chart.js (linha Saldo total /
     Excedente total por mês, série do comparado opcional) ou `None`.
   - `cenarios_comparaveis(cenario_id, cooperativa_id)` — cenários da coop com balanço mensal.
@@ -76,7 +79,13 @@ Detail for the files in this directory. See the root `CLAUDE.md` for the project
   `HX-Target`: `estoque.html` / `_estoque_content` / `_estoque_area` / `_estoque_tabela`).
   templatetags `variacao` / `item` / `cenario_tem_simulacao` em `templatetags/simulacao_filters.py`
   (`cenario_tem_resultado` renomeado na Fase 14 — a checagem "a simulação rodou" serve às abas
-  Resultados **e** Estoque).
+  Resultados **e** Estoque). **Fase 15**: `simulacao_filters.py` — `variacao` trata Δ que arredonda
+  para `0,0%` como neutro (sem seta/cor); novo filtro `mes_extenso` (`"2026-02" → "Fevereiro 2026"`).
+  `views.py` — helper `_filtros_avancados(filtros) -> (ativos, count)`; `_estoque_content` /
+  `_resultados_content` põem os filtros avançados (mês/data + multi-selects) num `<details>` recolhível
+  com contador e prefixam os ids dos `<select>` (`estoque-*` / `resultados-*`); `resultados_export` /
+  `estoque_export` emitem coluna `Δ%` na comparação e `estoque_export` re-prefixa a coluna "Mês" nas
+  visões por unidade.
 - `apps/simulacao/tasks.py` — task assíncrona Procrastinate `executar_simulacao`, disparada pela aba
   "Simulação" (views `simulacao_tab`/`simulacao_executar`/`simulacao_status` em
   `apps/simulacao/views.py`); envolve `engine.simular_periodo` sem alterar sua lógica. `LogExecucao` é a

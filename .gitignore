@@ -9,6 +9,7 @@ exportacao/
 .remember/
 .worktrees/
 .superpowers/
+.playwright-mcp/
 .claude/
 staticfiles/
 media/

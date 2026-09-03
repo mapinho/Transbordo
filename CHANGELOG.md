@@ -3,6 +3,24 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga o stack Streamlit legado (ADR 0011).
 
+## [1.4.0] - 2026-09-03
+
+Fase 15 — Polimento UX Resultados + Estoque: as duas abas polidas juntas. Nenhuma mudança de regra de negócio, model ou engine — sem migrations, sem ADR novo. Ver a spec 2026-09-03.
+
+### Added
+- Estoque: card de pico com **barra de ocupação** (saldo × capacidade estática × excedente), rótulo "Pico do sistema · mês", e as 7 métricas (Esmagamento e Vendas incluídas).
+- Estoque: **faixas de mês** nas visões por armazém / por fábrica, cada uma carregando os totais do sistema daquele mês; a coluna "Mês" saiu dessas visões.
+- Gráfico (as duas abas): **tema** — relê os tokens `--color-*` e re-renderiza no evento `vector:themechange`; paleta AgroVector (`accent` / `error` / `primary`), série comparada tracejada. §7 do design system atualizado.
+- Filtro de template `mes_extenso` (`"2026-02" → "Fevereiro 2026"`).
+
+### Changed
+- Comparação (as duas abas): o Δ% deixa de ser coluna e passa a ser **embutido na célula** da métrica (`aplicar_comparacao` não altera mais `dados["colunas"]`).
+- `variacao`: um Δ que arredonda para `0,0%` (`abs < 0,05`) é neutro — sem seta e sem cor.
+- Barra de filtros (as duas abas): mês/data + multi-selects num `<details>` recolhível, com contador; abre sozinho quando há filtro ativo. IDs dos `<select>` prefixados (`estoque-*` / `resultados-*`).
+- Tabelas por unidade (Estoque): `<thead>` e 1ª coluna fixos ao rolar; realce de linha de alerta `bg-error/10` + borda (visível nos dois temas).
+- Gráfico escondido abaixo de `sm` (mobile) — a tabela é a via ao dado. Botão de export "Excel" (era "Exportar (Excel)").
+- Exportação (Excel/CSV): na comparação, o Δ% volta a sair no arquivo como coluna própria "<Métrica> Δ%" (a tabela mostra embutido, o arquivo plano precisa de coluna); a coluna "Mês" continua no arquivo das visões por armazém/fábrica (as faixas de mês da tela não existem num arquivo plano).
+
 ## [1.3.0] - 2026-09-02
 
 Fase 14 — Painel de Movimentação de Estoque: aba "Estoque" por cenário sobre as tabelas de balanço mensal (`ResumoMensal*`), com a visão agregada do sistema que faltava. Nenhuma mudança de regra de negócio ou de model, sem migrations. Ver a spec 2026-09-02.
