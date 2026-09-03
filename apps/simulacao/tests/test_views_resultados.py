@@ -176,6 +176,15 @@ class ResultadosViewTests(TestCase):
         self.assertContains(r, "chart.umd.min.js")
         self.assertContains(r, "Chart.defaults.color")   # defaults tematizados (eixo x)
 
+    def test_grafico_frete_usa_token_ambar_dedicado(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada"},
+                            HTTP_HX_REQUEST="true", HTTP_HX_TARGET="resultados-area")
+        self.assertContains(r, "tk.frete")               # série Frete vem do token dedicado
+        self.assertContains(r, "--color-chart-frete")    # exposto por _grafico_tokens.html
+        self.assertNotContains(r, "tk.primary")          # navy não é mais usado no gráfico
+
     def test_visao_crua_sem_grafico(self):
         self._povoar()
         self.client.force_login(self.user)

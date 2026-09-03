@@ -33,6 +33,14 @@ class BaseTemplateTests(TestCase):
         self.assertIn("vector:themechange", html)
         self.assertIn("function vectorApplyTheme", html)
 
+    def test_token_chart_frete_tem_par_claro_escuro(self):
+        self.client.force_login(self.membro)
+        html = self.client.get("/").content.decode()
+        # série "Frete" do gráfico: âmbar-700 no claro, âmbar-400 no escuro
+        # (navy `primary` fica ilegível sobre o base-100 escuro)
+        self.assertIn("--color-chart-frete: #b45309", html)
+        self.assertIn("--color-chart-frete: #fbbf24", html)
+
     def test_admin_vector_sem_org_ve_seletor_e_so_o_modulo_inicio(self):
         self.client.force_login(self.vector)
         html = self.client.get("/").content.decode()

@@ -3,6 +3,14 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento: [SemVer](https://semver.org/lang/pt-BR/). `v1.0.0` = o repo larga o stack Streamlit legado (ADR 0011).
 
+## [1.4.1] - 2026-09-03
+
+### Changed
+- Gráfico: a série "Frete" (aba Resultados) deixa de usar o token navy `primary` — que fica ilegível
+  sobre o `base-100` do tema escuro (~1,4:1) e se confunde com o azul-céu de "Toneladas" — e passa a
+  usar um token dedicado `--color-chart-frete`, âmbar, com par próprio claro (`#b45309`) / escuro
+  (`#fbbf24`). §7 do design system e as tabelas de tokens atualizadas.
+
 ## [1.4.0] - 2026-09-03
 
 Fase 15 — Polimento UX Resultados + Estoque: as duas abas polidas juntas. Nenhuma mudança de regra de negócio, model ou engine — sem migrations, sem ADR novo. Ver a spec 2026-09-03.

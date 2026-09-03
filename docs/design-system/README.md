@@ -45,6 +45,7 @@ existirem como utilities do Tailwind). Os **valores** vêm do bloco `:root` / `[
 | `--color-warning-content` | `#1a1206` | Texto sobre `warning` |
 | `--color-error` | `#ef4444` | Vermelho |
 | `--color-error-content` | `#ffffff` | Texto sobre `error` |
+| `--color-chart-frete` | `#b45309` | Âmbar-700. Série "Frete" do gráfico (§7). Só Chart.js (lido via `getComputedStyle`) — **não** é utility Tailwind. Par próprio no escuro. |
 
 ### Tema escuro (`[data-theme="vector-dark"]` — só os tokens que mudam)
 
@@ -60,6 +61,7 @@ existirem como utilities do Tailwind). Os **valores** vêm do bloco `:root` / `[
 | `--color-neutral-content` | `#d4dff0` |
 | `--color-success-content` | `#06140d` |
 | `--color-error-content` | `#2a0a0a` |
+| `--color-chart-frete` | `#fbbf24` (âmbar-400 — navy `primary` some sobre o base-100 escuro) |
 
 Todo o resto (navy `primary`, `accent`, `success`/`warning`/`error` de fundo) é **herdado do `:root`** —
 não redefinir no bloco escuro.
@@ -324,10 +326,13 @@ Padrão da suíte para qualquer gráfico (ADR 0013). Biblioteca: **Chart.js 4.x*
 - **Tema**: `render()` relê os tokens `--color-*` (via `getComputedStyle` — o snippet
   `templates/simulacao/_grafico_tokens.html` expõe `window.vectorChartTokens()`) e re-renderiza no
   evento `vector:themechange`, disparado por `vectorApplyTheme` na `base.html`. Cores de série vêm dos
-  tokens (`accent` para a série principal, `error` / `primary` para a segunda), **nunca** das cores
-  default do Chart.js. Série do cenário comparado = mesma cor, `borderDash: [5, 4]`, opacidade ~0.55
-  (`tokens.dashed(cor)`). Eixos, legenda e título dos eixos em `--color-base-content`; grade em
-  `--color-base-300`.
+  tokens, **nunca** das cores default do Chart.js: `accent` (azul-céu) para a série principal; a
+  segunda série é `error` (Excedente, aba Estoque) ou `--color-chart-frete` (Frete, aba Resultados —
+  âmbar, com par claro/escuro próprio porque o navy `primary` fica ilegível no tema escuro). Série do
+  cenário comparado = mesma cor, `borderDash: [5, 4]`, opacidade ~0.55 (`tokens.dashed(cor)`). Eixos,
+  legenda e título dos eixos em `--color-base-content`; grade em `--color-base-300`. O snippet
+  `_grafico_tokens.html` também expõe `Chart.defaults.color` / `.borderColor` (eixo x e o que o
+  Chart.js desenha por default).
 - Implementação de referência: `templates/simulacao/_resultados_grafico.html`.
 
 ---

@@ -72,6 +72,9 @@
       --color-success: #27c27a; --color-success-content: #ffffff;
       --color-warning: #f59e0b; --color-warning-content: #1a1206;
       --color-error: #ef4444; --color-error-content: #ffffff;
+      /* série "Frete" do gráfico (Chart.js) — lido via getComputedStyle, não é utility Tailwind.
+         Precisa de par próprio: o navy `primary` fica ilegível sobre o base-100 escuro. */
+      --color-chart-frete: #b45309;
     }
     [data-theme="vector-dark"] {
       color-scheme: dark;
@@ -79,6 +82,7 @@
       --color-base-content: #d4dff0; --color-secondary-content: #08111f;
       --color-neutral: #08111f; --color-neutral-content: #d4dff0;
       --color-success-content: #06140d; --color-error-content: #2a0a0a;
+      --color-chart-frete: #fbbf24;
     }
   </style>
   <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@6/dist/css/tabulator.min.css" rel="stylesheet">

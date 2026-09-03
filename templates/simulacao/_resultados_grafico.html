@@ -18,7 +18,7 @@
         labels: g.labels,
         datasets: g.datasets.map(function (d) {
           var comp = d.label.indexOf("comparado") !== -1;
-          var cor = d.label.indexOf("Frete") !== -1 ? tk.primary : tk.accent;
+          var cor = d.label.indexOf("Frete") !== -1 ? tk.frete : tk.accent;
           return {
             label: d.label, data: d.dados, yAxisID: d.eixo,
             type: d.eixo === "y2" ? "line" : g.tipo,
