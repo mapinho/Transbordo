@@ -11,30 +11,37 @@
   <form id="form-resultados"
         hx-get="{% url 'simulacao:resultados_tab' cenario.id %}"
         hx-target="#resultados-area" hx-swap="innerHTML" hx-push-url="true"
-        hx-trigger="change from:#id_periodo, change from:#id_agrupar, change from:#id_comparar, submit"
-        class="mb-4 flex flex-wrap items-end gap-3">
-    <label class="flex flex-col text-sm">Período
-      <select id="id_periodo" name="periodo" class="select select-bordered select-sm">
-        {% for valor, rotulo in periodos %}<option value="{{ valor }}" {% if valor == periodo %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col text-sm">Agrupar por
-      <select id="id_agrupar" name="agrupar" class="select select-bordered select-sm" {% if periodo == 'total' %}disabled{% endif %}>
-        {% for valor, rotulo in agrupamentos %}<option value="{{ valor }}" {% if valor == agrupar %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col text-sm">Comparar com
-      <select id="id_comparar" name="comparar" class="select select-bordered select-sm">
-        <option value="">— sem comparação —</option>
-        {% for c in comparaveis %}<option value="{{ c.id }}" {% if comparar == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nome }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col text-sm">Data de {{ form.data_de }}</label>
-    <label class="flex flex-col text-sm">Data até {{ form.data_ate }}</label>
-    <label class="flex flex-col text-sm">Armazéns {{ form.armazem_ids }}</label>
-    <label class="flex flex-col text-sm">Fábricas {{ form.fabrica_ids }}</label>
-    <button type="submit" class="btn btn-outline btn-sm">Aplicar</button>
-    <a href="{% url 'simulacao:resultados_tab' cenario.id %}" class="btn btn-ghost btn-sm">Limpar</a>
+        hx-trigger="change from:#resultados-periodo, change from:#resultados-agrupar, change from:#resultados-comparar, submit"
+        class="mb-4">
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="flex flex-col text-sm">Período
+        <select id="resultados-periodo" name="periodo" class="select select-bordered select-sm">
+          {% for valor, rotulo in periodos %}<option value="{{ valor }}" {% if valor == periodo %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col text-sm">Agrupar por
+        <select id="resultados-agrupar" name="agrupar" class="select select-bordered select-sm" {% if periodo == 'total' %}disabled{% endif %}>
+          {% for valor, rotulo in agrupamentos %}<option value="{{ valor }}" {% if valor == agrupar %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col text-sm">Comparar com
+        <select id="resultados-comparar" name="comparar" class="select select-bordered select-sm">
+          <option value="">— sem comparação —</option>
+          {% for c in comparaveis %}<option value="{{ c.id }}" {% if comparar == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nome }}</option>{% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn btn-outline btn-sm">Aplicar</button>
+      <a href="{% url 'simulacao:resultados_tab' cenario.id %}" class="btn btn-ghost btn-sm">Limpar</a>
+    </div>
+    <details {% if filtros_avancados_ativos %}open {% endif %}class="mt-3">
+      <summary class="cursor-pointer text-sm text-base-content/70">Filtros{% if filtros_avancados_count %} <span class="badge badge-sm badge-neutral">{{ filtros_avancados_count }}</span>{% endif %}</summary>
+      <div class="mt-2 flex flex-wrap items-end gap-3">
+        <label class="flex flex-col text-sm">Data de {{ form.data_de }}</label>
+        <label class="flex flex-col text-sm">Data até {{ form.data_ate }}</label>
+        <label class="flex flex-col text-sm">Armazéns {{ form.armazem_ids }}</label>
+        <label class="flex flex-col text-sm">Fábricas {{ form.fabrica_ids }}</label>
+      </div>
+    </details>
   </form>
 
   {% if form.is_bound and form.errors %}

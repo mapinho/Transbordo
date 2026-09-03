@@ -128,6 +128,21 @@ class EstoqueViewTests(TestCase):
         r = self.client.get(self.url, {"comparar": "xyz"}, HTTP_HX_REQUEST="true")
         self.assertEqual(r.status_code, 200)
 
+    def test_barra_de_filtros_recolhida_por_default(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "<details")
+        self.assertContains(r, 'id="estoque-visao"')
+        self.assertNotContains(r, "<details open")
+
+    def test_barra_de_filtros_abre_com_filtro_ativo(self):
+        arm, _ = self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"armazem_ids": [arm.id]}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "<details open")
+        self.assertContains(r, "badge badge-sm")   # contador
+
     def test_aba_desabilitada_sem_simulacao(self):
         self.client.force_login(self.user)
         r = self.client.get(reverse("simulacao:simulacao_tab", kwargs={"cenario_id": self.cen.id}))

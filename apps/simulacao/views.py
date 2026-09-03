@@ -553,6 +553,13 @@ def assistente_nova(request, cenario_id):
                   _assistente_context(request, cenario))
 
 
+def _filtros_avancados(filtros):
+    """`(ativos, count)` — quantos dos filtros de mês/data/unidade estão preenchidos."""
+    campos = ("mes_de", "mes_ate", "data_de", "data_ate", "armazem_ids", "fabrica_ids")
+    n = sum(1 for c in campos if filtros.get(c))
+    return n > 0, n
+
+
 def _resultados_params(request, cenario):
     """Parseia os parâmetros compartilhados por resultados_tab e resultados_export.
     `comparar_id` é int | None (parâmetro não-numérico é descartado)."""
@@ -607,6 +614,7 @@ def resultados_tab(request, cenario_id):
     coop_id = cooperativa_id_do_request(request)
     form, filtros, periodo, agrupar, comparar_id = _resultados_params(request, cenario)
     comparar = str(comparar_id) if comparar_id else ""
+    fa_ativos, fa_count = _filtros_avancados(filtros)
     try:
         pagina = max(1, int(request.GET.get("page", 1)))
     except (TypeError, ValueError):
@@ -629,6 +637,7 @@ def resultados_tab(request, cenario_id):
         "comparaveis": resultados.cenarios_comparaveis(cenario.id, coop_id),
         "periodos": resultados.ROTULOS_PERIODO, "agrupamentos": resultados.ROTULOS_AGRUPAR,
         "querystring": qs.urlencode(),
+        "filtros_avancados_ativos": fa_ativos, "filtros_avancados_count": fa_count,
     }
     return render(request, _resultados_template(request, tem_dados=True), ctx)
 
@@ -750,6 +759,7 @@ def estoque_tab(request, cenario_id):
     coop_id = cooperativa_id_do_request(request)
     form, filtros, visao, comparar_id = _estoque_params(request, cenario)
     comparar = str(comparar_id) if comparar_id else ""
+    fa_ativos, fa_count = _filtros_avancados(filtros)
     try:
         pagina = max(1, int(request.GET.get("page", 1)))
     except (TypeError, ValueError):
@@ -771,6 +781,7 @@ def estoque_tab(request, cenario_id):
         "comparaveis": estoque.cenarios_comparaveis(cenario.id, coop_id),
         "visoes": estoque.ROTULOS_VISAO,
         "querystring": qs.urlencode(),
+        "filtros_avancados_ativos": fa_ativos, "filtros_avancados_count": fa_count,
     }
     return render(request, _estoque_template(request, tem_dados=True), ctx)
 

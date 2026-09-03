@@ -68,6 +68,21 @@ class ResultadosViewTests(TestCase):
         r = self.client.get(self.url, {"comparar": "xyz"})
         self.assertEqual(r.status_code, 200)
 
+    def test_barra_de_filtros_recolhida_por_default(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "<details")
+        self.assertContains(r, 'id="resultados-periodo"')
+        self.assertNotContains(r, "<details open")
+
+    def test_barra_de_filtros_abre_com_filtro_ativo(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"data_de": "2026-01-01"}, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "<details open")
+        self.assertContains(r, "badge badge-sm")   # contador
+
     def test_filtro_data_invalida_nao_quebra(self):
         self._povoar()
         self.client.force_login(self.user)
