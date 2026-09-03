@@ -12,10 +12,10 @@
 </c-resumo-numerico>
 
 <div class="mb-3 flex gap-2">
-  <a href="{% url 'simulacao:resultados_export' cenario.id %}?{{ querystring }}&formato=xlsx" class="btn btn-outline btn-sm">Exportar (Excel)</a>
+  <a href="{% url 'simulacao:resultados_export' cenario.id %}?{{ querystring }}&formato=xlsx" class="btn btn-outline btn-sm">Excel</a>
   <a href="{% url 'simulacao:resultados_export' cenario.id %}?{{ querystring }}&formato=csv" class="btn btn-outline btn-sm">CSV</a>
 </div>
 
-{% if grafico %}<div id="resultados-grafico" class="mb-4">{% include "simulacao/_resultados_grafico.html" %}</div>{% endif %}
+{% if grafico %}<div id="resultados-grafico" class="mb-4 hidden sm:block">{% include "simulacao/_resultados_grafico.html" %}</div>{% endif %}
 
 <div id="resultados-tabela">{% include "simulacao/_resultados_tabela.html" %}</div>

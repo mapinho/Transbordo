@@ -2,6 +2,7 @@
 {% if dados.comparacao_ignorada %}
   <p class="mb-2 text-xs text-base-content/60">A comparação não se aplica à listagem de movimentações — troque o agrupamento ou o período.</p>
 {% endif %}
+<p class="mb-2 text-xs text-base-content/60">Valores em toneladas</p>
 <div class="overflow-x-auto">
   <table class="table table-sm">
     <thead><tr>{% for col in dados.colunas %}<th>{{ col.label }}</th>{% endfor %}</tr></thead>

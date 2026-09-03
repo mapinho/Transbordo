@@ -171,3 +171,16 @@ class ResultadosViewTests(TestCase):
         self.client.force_login(self.user)
         r = self.client.get(self.url, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="resultados-area")
         self.assertNotContains(r, 'id="grafico-resultados"')
+
+    def test_grafico_escondido_no_mobile(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, {"periodo": "mensal", "agrupar": "nada"},
+                            HTTP_HX_REQUEST="true")
+        self.assertContains(r, "hidden sm:block")
+
+    def test_legenda_de_unidade(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "Valores em toneladas")

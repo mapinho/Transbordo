@@ -113,7 +113,29 @@ class EstoqueViewTests(TestCase):
         self._povoar(excedente=40)
         self.client.force_login(self.user)
         r = self.client.get(self.url, {"visao": "armazem"}, HTTP_HX_REQUEST="true")
-        self.assertContains(r, "bg-error/5")
+        self.assertContains(r, "bg-error/10")
+        self.assertContains(r, "border-l-4 border-error")
+
+    def test_grafico_escondido_no_mobile(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "hidden sm:block")
+
+    def test_legenda_de_unidade(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        r = self.client.get(self.url, HTTP_HX_REQUEST="true")
+        self.assertContains(r, "Valores em toneladas")
+
+    def test_thead_fixo_so_na_visao_por_unidade(self):
+        self._povoar()
+        self.client.force_login(self.user)
+        sis = self.client.get(self.url, {"visao": "sistema"}, HTTP_HX_REQUEST="true")
+        arm = self.client.get(self.url, {"visao": "armazem"}, HTTP_HX_REQUEST="true")
+        self.assertNotContains(sis, "sticky top-0")
+        self.assertContains(arm, "sticky top-0")
+        self.assertContains(arm, "sticky left-0")
 
     def test_cenario_de_outra_coop_404(self):
         outra = Cooperativa.objects.create(nome="D", slug="d")
