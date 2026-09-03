@@ -1,4 +1,5 @@
 {{ grafico|json_script:"grafico-dados" }}
+{% include "simulacao/_grafico_tokens.html" %}
 <canvas id="grafico-resultados" height="90"></canvas>
 <script>
 (function () {
@@ -8,22 +9,41 @@
     var raw = document.getElementById("grafico-dados");
     if (!el || !raw || !window.Chart) return;
     var g = JSON.parse(raw.textContent);
+    var tk = window.vectorChartTokens();
     if (window._resultadosChart) window._resultadosChart.destroy();
     window._resultadosChart = new Chart(el, {
       type: g.tipo,
       data: {
         labels: g.labels,
         datasets: g.datasets.map(function (d) {
-          return {label: d.label, data: d.dados, yAxisID: d.eixo,
-                  type: d.eixo === "y2" ? "line" : g.tipo};
+          var comp = d.label.indexOf("comparado") !== -1;
+          var cor = d.label.indexOf("Frete") !== -1 ? tk.primary : tk.accent;
+          return {
+            label: d.label, data: d.dados, yAxisID: d.eixo,
+            type: d.eixo === "y2" ? "line" : g.tipo,
+            borderColor: comp ? tk.dashed(cor) : cor,
+            backgroundColor: comp ? tk.dashed(cor) : cor,
+            borderDash: comp ? [5, 4] : [],
+            pointRadius: 2,
+          };
         }),
       },
-      options: {responsive: true, scales: {
-        y: {position: "left", title: {display: true, text: "Toneladas"}},
-        y2: {position: "right", grid: {drawOnChartArea: false},
-             title: {display: true, text: "Frete (R$)"}},
-      }},
+      options: {
+        responsive: true,
+        scales: {
+          y: {position: "left", ticks: {color: tk.text}, grid: {color: tk.grid},
+              title: {display: true, text: "Toneladas", color: tk.text}},
+          y2: {position: "right", grid: {drawOnChartArea: false},
+               ticks: {color: tk.text},
+               title: {display: true, text: "Frete (R$)", color: tk.text}},
+        },
+        plugins: {legend: {labels: {color: tk.text}}},
+      },
     });
+  }
+  if (!window.__resultadosThemeBound) {
+    window.__resultadosThemeBound = true;
+    window.addEventListener("vector:themechange", render);
   }
   if (window.Chart) { render(); return; }
   var s = document.createElement("script");

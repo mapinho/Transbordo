@@ -1,0 +1,20 @@
+<script>
+  window.vectorChartTokens = window.vectorChartTokens || function () {
+    var cs = getComputedStyle(document.documentElement);
+    function t(name) { return cs.getPropertyValue(name).trim(); }
+    function rgba(hex, a) {
+      var h = String(hex).replace('#', '');
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      var n = parseInt(h, 16) || 0;
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    return {
+      text: t('--color-base-content'),
+      grid: t('--color-base-300'),
+      accent: t('--color-accent'),
+      error: t('--color-error'),
+      primary: t('--color-primary'),
+      dashed: function (hex) { return rgba(hex, 0.55); },
+    };
+  };
+</script>

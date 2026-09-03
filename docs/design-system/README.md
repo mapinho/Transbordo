@@ -315,11 +315,19 @@ Padrão da suíte para qualquer gráfico (ADR 0013). Biblioteca: **Chart.js 4.x*
   `.textContent` do `<script type="application/json">`, faz `JSON.parse` e monta a config.
 - **Sobreviver aos swaps HTMX**: o `render()` roda a cada swap (o script inline da parcial reexecuta);
   antes de recriar faz `window._resultadosChart?.destroy()` e reatribui a instância nova.
-- **Duas formas padronizadas**: (1) **barras mensais de dois eixos** — `y` à esquerda (Toneladas), `y2`
+- **Três formas padronizadas**: (1) **barras mensais de dois eixos** — `y` à esquerda (Toneladas), `y2`
   à direita (Frete R$), a série de `y2` desenhada como linha sobre as barras; (2) **linha diária** —
-  série única em `y`.
+  série única em `y`; (3) **linha mensal de série dupla num eixo só** — duas séries em `y` (ex. Saldo
+  total / Excedente total da aba Estoque), mesma escala de toneladas.
 - **Degradação graciosa**: offline ou CSP restritivo → o CDN não carrega e o gráfico não aparece; a
   tabela e o resto da página continuam. O gráfico é complemento, nunca a única via ao dado.
+- **Tema**: `render()` relê os tokens `--color-*` (via `getComputedStyle` — o snippet
+  `templates/simulacao/_grafico_tokens.html` expõe `window.vectorChartTokens()`) e re-renderiza no
+  evento `vector:themechange`, disparado por `vectorApplyTheme` na `base.html`. Cores de série vêm dos
+  tokens (`accent` para a série principal, `error` / `primary` para a segunda), **nunca** das cores
+  default do Chart.js. Série do cenário comparado = mesma cor, `borderDash: [5, 4]`, opacidade ~0.55
+  (`tokens.dashed(cor)`). Eixos, legenda e título dos eixos em `--color-base-content`; grade em
+  `--color-base-300`.
 - Implementação de referência: `templates/simulacao/_resultados_grafico.html`.
 
 ---

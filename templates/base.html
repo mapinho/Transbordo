@@ -259,6 +259,7 @@
         : (pref === 'dark' ? 'vector-dark' : 'vector');
       document.documentElement.setAttribute('data-theme', resolved);
       vectorSyncThemeIcon();
+      window.dispatchEvent(new CustomEvent('vector:themechange'));
     }
     function vectorSyncThemeIcon() {
       var pref = document.documentElement.dataset.themePref || 'system';

@@ -26,6 +26,13 @@ class BaseTemplateTests(TestCase):
         self.assertNotIn("grao-e-aco", html)
         self.assertIn('data-theme="vector"', html)
 
+    def test_toggle_de_tema_dispara_evento(self):
+        self.client.force_login(self.membro)
+        html = self.client.get("/").content.decode()
+        # a função de tema notifica quem desenha gráfico
+        self.assertIn("vector:themechange", html)
+        self.assertIn("function vectorApplyTheme", html)
+
     def test_admin_vector_sem_org_ve_seletor_e_so_o_modulo_inicio(self):
         self.client.force_login(self.vector)
         html = self.client.get("/").content.decode()
